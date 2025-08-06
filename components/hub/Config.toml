@@ -1,4 +1,3 @@
-
 [websubhub.config]
 # Flag to check whether to enable/disable security
 securityOn = true
