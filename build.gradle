@@ -1,0 +1,90 @@
+/*
+* Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com)
+*
+* WSO2 LLC. licenses this file to you under the Apache License,
+* Version 2.0 (the "License"); you may not use this file except
+* in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied. See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
+
+plugins {
+    id "net.researchgate.release"
+}
+
+description = 'WSO2 Integrator: WebSubHub'
+
+allprojects {
+    group = project.group
+    version = project.version
+
+    ext {
+        snapshotVersion = '-SNAPSHOT'
+    }
+}
+
+def moduleVersion = project.version.replace("-SNAPSHOT", "")
+
+task verifyLocalBalVersion(type: Exec) {
+    description = "Verify the local Ballerina distribution version."
+    group = "Ballerina"
+
+    if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
+        commandLine 'cmd', '/c', "bal.bat version"
+    } else {
+        commandLine 'sh', '-c', "bal version"
+    }
+    doLast {
+        def output = new ByteArrayOutputStream()
+        // The commandLine for the exec closure
+        if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
+            exec {
+                commandLine 'cmd', '/c', "bal.bat version"
+                standardOutput = output
+            }
+        } else {
+            exec {
+                commandLine 'sh', '-c', "bal version"
+                standardOutput = output
+            }
+        }
+        def versionOutput = output.toString().trim()
+        def firstLine = versionOutput.split('\n')[0]
+        def matcher = (firstLine =~ /(\d+\.\d+\.\d+)/)
+        def installedVersion = ""
+        if (matcher.find()) {
+            installedVersion = matcher.group(1)
+        }
+        if (!installedVersion.equals(project.ballerinaDistributionVersion)) {
+            throw new GradleException("Local Ballerina distribution version does not match project Ballerina language version. " +
+                    "Expected: ${project.ballerinaDistributionVersion}, Found: ${installedVersion}")
+        }
+    }
+}
+
+build {
+    dependsOn 'verifyLocalBalVersion'
+}
+
+release {
+    buildTasks = ['build']
+    failOnSnapshotDependencies = true
+    versionPropertyFile = 'gradle.properties'
+    tagTemplate = 'v${version}'
+    git {
+        requireBranch.set("release-${moduleVersion}")
+        pushToRemote.set('origin')
+    }
+}
+
+subprojects {
+    apply plugin: 'websubhub.ballerina-component'
+}
