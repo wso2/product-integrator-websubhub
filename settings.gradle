@@ -19,8 +19,8 @@
 pluginManagement {
     plugins {
         id 'base'
-        id "com.gradle.enterprise" version "3.13.2"
-        id "net.researchgate.release" version "3.0.2"
+        id "com.gradle.enterprise" version "${gradleEnterprisePluginVersion}"
+        id "net.researchgate.release" version "${releasePluginVersion}"
     }
 }
 
