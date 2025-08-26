@@ -36,25 +36,12 @@ def moduleVersion = project.version.replace("-SNAPSHOT", "")
 task verifyLocalBalVersion(type: Exec) {
     description = "Verify the local Ballerina distribution version."
     group = "Ballerina"
-
-    if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
-        commandLine 'cmd', '/c', "bal.bat version"
-    } else {
-        commandLine 'sh', '-c', "bal version"
-    }
+    commandLine BalUtils.getBalCommand('version')
     doLast {
         def output = new ByteArrayOutputStream()
-        // The commandLine for the exec closure
-        if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
-            exec {
-                commandLine 'cmd', '/c', "bal.bat version"
-                standardOutput = output
-            }
-        } else {
-            exec {
-                commandLine 'sh', '-c', "bal version"
-                standardOutput = output
-            }
+        exec {
+            commandLine BalUtils.getBalCommand('version')
+            standardOutput = output
         }
         def versionOutput = output.toString().trim()
         def firstLine = versionOutput.split('\n')[0]

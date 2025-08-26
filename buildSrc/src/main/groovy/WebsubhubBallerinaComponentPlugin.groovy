@@ -21,25 +21,18 @@ import org.gradle.api.Project
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.Copy
 import org.gradle.internal.os.OperatingSystem
+import BalUtils
 
 class WebsubhubBallerinaComponentPlugin implements Plugin<Project> {
     void apply(Project project) {
         project.apply plugin: 'base'
 
-        def getBalCommand = { String command ->
-            if (OperatingSystem.current().isWindows()) {
-                return ['cmd', '/c', "bal.bat ${command}"]
-            } else {
-                return ['sh', '-c', "bal ${command}"]
-            }
-        }
-
         project.tasks.register('balBuild', Exec) {
-            commandLine getBalCommand.call('build')
+            commandLine BalUtils.getBalCommand('build')
         }
 
         project.tasks.register('balClean', Exec) {
-            commandLine getBalCommand.call('clean')
+            commandLine BalUtils.getBalCommand('clean')
         }
 
         project.tasks.register('updateTomlFiles', Copy) {
