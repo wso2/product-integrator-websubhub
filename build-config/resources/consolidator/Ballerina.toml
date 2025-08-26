@@ -1,0 +1,8 @@
+[package]
+org = "wso2"
+name = "consolidator"
+version = "@toml.version@"
+distribution = "2201.10.5"
+
+[build-options]
+observabilityIncluded = true

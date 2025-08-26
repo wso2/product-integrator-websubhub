@@ -1,0 +1,15 @@
+[container.image]
+repository = "wso2"
+name = "consolidator"
+tag = "0.1.0-SNAPSHOT"
+
+[[container.copy.files]]
+sourceFile = "./resources"
+target = "/home/ballerina/resources"
+
+[[container.copy.files]]
+sourceFile = "./Config.toml"
+target = "/home/ballerina/Config.toml"
+
+[[cloud.config.files]]
+file = "./Config.toml"
