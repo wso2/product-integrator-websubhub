@@ -58,7 +58,7 @@ websubhub:Service hubService = service object {
             }
             error? persistingResult = persist:addRegsiteredTopic(message.cloneReadOnly());
             if persistingResult is error {
-                log:printError("Error occurred while persisting the topic-registration ", err = persistingResult.message());
+                log:printError("Error occurred while persisting the topic-registration ", persistingResult);
             }
         }
     }
@@ -86,7 +86,7 @@ websubhub:Service hubService = service object {
             }
             error? persistingResult = persist:removeRegsiteredTopic(message.cloneReadOnly());
             if persistingResult is error {
-                log:printError("Error occurred while persisting the topic-deregistration ", err = persistingResult.message());
+                log:printError("Error occurred while persisting the topic-deregistration ", persistingResult);
             }
         }
     }
@@ -132,16 +132,14 @@ websubhub:Service hubService = service object {
     # + message - Details of the subscription
     # + return - `error` if there is any unexpected error or else `()`
     isolated remote function onSubscriptionIntentVerified(websubhub:VerifiedSubscription message) returns error? {
-        lock {
-            if !message.hasKey(CONSUMER_GROUP) {
-                string consumerGroup = common:generateGroupName(message.hubTopic, message.hubCallback);
-                message[CONSUMER_GROUP] = consumerGroup;
-            }
-            message[SERVER_ID] = config:serverIdentifier;
-            error? persistingResult = persist:addSubscription(message.cloneReadOnly());
-            if persistingResult is error {
-                log:printError("Error occurred while persisting the subscription ", err = persistingResult.message());
-            }
+        if !message.hasKey(CONSUMER_GROUP) {
+            string consumerGroup = common:generateGroupName(message.hubTopic, message.hubCallback);
+            message[CONSUMER_GROUP] = consumerGroup;
+        }
+        message[SERVER_ID] = config:serverIdentifier;
+        error? persistingResult = persist:addSubscription(message.cloneReadOnly());
+        if persistingResult is error {
+            log:printError("Error occurred while persisting the subscription ", persistingResult);
         }
     }
 
@@ -187,8 +185,8 @@ websubhub:Service hubService = service object {
     isolated remote function onUnsubscriptionIntentVerified(websubhub:VerifiedUnsubscription message) {
         lock {
             var persistingResult = persist:removeSubscription(message.cloneReadOnly());
-            if (persistingResult is error) {
-                log:printError("Error occurred while persisting the unsubscription ", err = persistingResult.message());
+            if persistingResult is error {
+                log:printError("Error occurred while persisting the unsubscription ", persistingResult);
             }
         }
     }
@@ -219,7 +217,7 @@ websubhub:Service hubService = service object {
             if errorResponse is websubhub:UpdateMessageError {
                 return errorResponse;
             } else if errorResponse is error {
-                log:printError("Error occurred while publishing the content ", errorMessage = errorResponse.message());
+                log:printError("Error occurred while publishing the content ", errorResponse);
                 return error websubhub:UpdateMessageError(
                     errorResponse.message(), statusCode = http:STATUS_INTERNAL_SERVER_ERROR);
             }
