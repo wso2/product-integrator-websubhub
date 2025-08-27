@@ -73,5 +73,7 @@ release {
 }
 
 subprojects {
-    apply plugin: 'websubhub.ballerina-component'
+    if (project.name != 'distribution') {
+        apply plugin: 'websubhub.ballerina-component'
+    }
 }

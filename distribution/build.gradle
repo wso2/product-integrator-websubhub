@@ -1,0 +1,108 @@
+/*
+* Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com)
+*
+* WSO2 LLC. licenses this file to you under the Apache License,
+* Version 2.0 (the "License"); you may not use this file except
+* in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied. See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
+
+plugins {
+    id 'distribution'
+}
+
+def scriptsDir = file('scripts')
+
+distributions {
+    hub {
+        distributionBaseName = 'websubhub'
+        def hubDir = project(':websubhub').projectDir
+        def confDir = file('conf/hub')
+        contents {
+            // Include the fat JAR from hub module
+            from("${hubDir}/target/bin") {
+                include "*.jar"
+                into "lib"
+            }
+            
+            // Include only Config.toml in conf directory
+            from(confDir) {
+                include "Config.toml"
+                into "conf"
+            }
+
+            // Include resources in conf directory
+            from("${hubDir}/resources") {
+                into "conf/resources"
+            }
+            
+            // Include startup scripts
+            from(scriptsDir) {
+                include "*.sh"
+                into "bin"
+                fileMode = 0755
+            }
+            
+            // Include any documentation
+            from(rootProject.projectDir) {
+                include "README.md"
+                include "LICENSE*"
+                into ""
+            }
+        }
+    }
+    consolidator {
+        distributionBaseName = 'websubhub-consolidator'
+        def consolidatorDir = project(':websubhub-consolidator').projectDir
+        def confDir = file('conf/consolidator')
+        contents {
+            // Include the fat JAR from consolidator module
+            from("${consolidatorDir}/target/bin") {
+                include "*.jar"
+                into "lib"
+            }
+            
+            // Include only Config.toml in conf directory
+            from(confDir) {
+                include "Config.toml"
+                into "conf"
+            }
+
+            // Include resources in conf directory
+            from("${consolidatorDir}/resources") {
+                into "conf/resources"
+            }
+
+            // Include startup scripts
+            from(scriptsDir) {
+                include "*.sh"
+                into "bin"
+                fileMode = 0755
+            }
+            
+            // Include any documentation
+            from(rootProject.projectDir) {
+                include "README.md"
+                include "LICENSE*"
+                into ""
+            }
+        }
+    }
+}
+
+hubDistZip.dependsOn(':websubhub:build')
+hubDistTar.enabled = false
+
+consolidatorDistZip.dependsOn(':websubhub-consolidator:build')
+consolidatorDistTar.enabled = false
+
+build.dependsOn(hubDistZip, consolidatorDistZip)
