@@ -21,7 +21,7 @@ import ballerina/os;
 # Flag to check whether to enable/disable security
 public configurable boolean securityOn = true;
 
-# Server ID is is used to uniquely identify each server 
+# Server ID is used to uniquely identify each server 
 # Each server must have a unique ID
 public configurable string serverId = "server-1";
 
