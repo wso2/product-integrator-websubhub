@@ -36,11 +36,11 @@ def moduleVersion = project.version.replace("-SNAPSHOT", "")
 task verifyLocalBalVersion(type: Exec) {
     description = "Verify the local Ballerina distribution version."
     group = "Ballerina"
-    commandLine BalUtils.getBalCommand('version')
+    commandLine BalUtils.executeBalCommand('version')
     doLast {
         def output = new ByteArrayOutputStream()
         exec {
-            commandLine BalUtils.getBalCommand('version')
+            commandLine BalUtils.executeBalCommand('version')
             standardOutput = output
         }
         def versionOutput = output.toString().trim()

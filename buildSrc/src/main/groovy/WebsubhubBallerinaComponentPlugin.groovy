@@ -28,11 +28,11 @@ class WebsubhubBallerinaComponentPlugin implements Plugin<Project> {
         project.apply plugin: 'base'
 
         project.tasks.register('balBuild', Exec) {
-            commandLine BalUtils.getBalCommand('build')
+            commandLine BalUtils.executeBalCommand('build')
         }
 
         project.tasks.register('balClean', Exec) {
-            commandLine BalUtils.getBalCommand('clean')
+            commandLine BalUtils.executeBalCommand('clean')
         }
 
         project.tasks.register('updateTomlFiles', Copy) {
