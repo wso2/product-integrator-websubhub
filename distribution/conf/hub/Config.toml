@@ -50,14 +50,14 @@ messageDeliveryRetryableStatusCodes = [500, 502, 503]
 issuer = "https://localhost:9443/oauth2/token"
 audience = "ballerina"
 jwksUrl = "https://localhost:9443/oauth2/jwks"
-trustStore = "./resources/client-truststore.jks"
+trustStore = "conf/resources/client-truststore.jks"
 trustStorePassword = "wso2carbon"
 
 # The MTLS configurations related to Kafka connection
 [websubhub.config.kafkaMtlsConfig]
-cert.path = "./resources/brokercerts/client-truststore.jks"
+cert.path = "conf/resources/brokercerts/client-truststore.jks"
 cert.password = "password"
-key.keyStore.path = "./resources/brokercerts/client-keystore.jks"
+key.keyStore.path = "conf/resources/brokercerts/client-keystore.jks"
 key.keyStore.password = "password"
 
 [ballerina.log]
