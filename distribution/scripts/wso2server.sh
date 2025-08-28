@@ -41,11 +41,11 @@ CONF_DIR="$BASE_DIR/conf"
 
 # Validate Ballerina installation
 BAL_CMD="bal"
-which $BAL_CMD >/dev/null 2>&1 || {
-    echo "Error: 'bal' command could not be found in your PATH."
+if ! command -v "$BAL_CMD" >/dev/null 2>&1; then
+    echo "Error: '$BAL_CMD' command could not be found in your PATH."
     echo "Please install Ballerina and ensure it is in your PATH."
     exit 1
-}
+fi
 
 # Find the JAR file
 JAR_FILE=$(find "$LIB_DIR" -name "*.jar" | head -n 1)
