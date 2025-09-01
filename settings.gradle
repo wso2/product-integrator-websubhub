@@ -20,6 +20,7 @@ pluginManagement {
     plugins {
         id 'base'
         id 'distribution'
+        id 'maven-publish'
         id "com.gradle.enterprise" version "${gradleEnterprisePluginVersion}"
         id "net.researchgate.release" version "${releasePluginVersion}"
     }
