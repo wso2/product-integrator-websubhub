@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: v${{ github.event.inputs.release_version }}
 
@@ -35,7 +35,7 @@ jobs:
           version: ${{ env.BAL_VERSION }}
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: 21.0.3
