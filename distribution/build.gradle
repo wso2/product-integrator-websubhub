@@ -18,6 +18,7 @@
 
 plugins {
     id 'distribution'
+    id 'maven-publish'
 }
 
 def scriptsDir = file('scripts')
@@ -112,8 +113,8 @@ distributions {
 publishing {
     publications {
         maven(MavenPublication) {
-            groupId = 'org.wso2'
-            artifactId = 'websubhub-distribution'
+            groupId = project.property('group')
+            artifactId = project.property('name')
             artifact(tasks.getByName("websubhubDistributionDistZip"))
         }
     }
