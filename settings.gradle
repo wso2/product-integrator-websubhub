@@ -36,8 +36,8 @@ include ':websubhub'
 include ':websubhub-consolidator'
 include ':distribution'
 
-project(':websubhub').projectDir = file("components${File.separator}hub")
-project(':websubhub-consolidator').projectDir = file("components${File.separator}consolidator")
+project(':websubhub').projectDir = file("components${File.separator}websubhub")
+project(':websubhub-consolidator').projectDir = file("components${File.separator}websubhub-consolidator")
 project(':distribution').projectDir = file("distribution")
 
 gradleEnterprise {
