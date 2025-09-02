@@ -109,6 +109,27 @@ distributions {
     }
 }
 
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = 'org.wso2'
+            artifactId = 'websubhub-distribution'
+            artifact(tasks.getByName("websubhubDistributionDistZip"))
+        }
+    }
+
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/wso2/product-integrator-websubhub")
+            credentials {
+                username = System.getenv("publishUser")
+                password = System.getenv("publishPAT")
+            }
+        }
+    }
+}
+
 hubDistZip.dependsOn(':websubhub:build')
 hubDistTar.enabled = false
 
