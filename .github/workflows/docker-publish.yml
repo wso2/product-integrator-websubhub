@@ -9,6 +9,9 @@ on:
       component_name:
         description: 'The component name to build Docker image for'
         required: true
+        options:
+          - websubhub
+          - websubhub-consolidator
 
 jobs:
   build-and-push:
