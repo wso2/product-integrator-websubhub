@@ -54,11 +54,11 @@ jobs:
           echo "version=${BAL_VERSION}" >> $GITHUB_OUTPUT
           echo "Ballerina version: ${BAL_VERSION}"
 
-  build-and-release:
-    name: Build and Release
+  build:
+    name: Build
     runs-on: ubuntu-latest
     needs: prepare
-      
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
@@ -93,6 +93,46 @@ jobs:
           else
             ./gradlew build
           fi
+
+  trivy-scan:
+    name: Trivy Vulnerability Scan
+    needs: build
+    runs-on: ubuntu-22.04
+    
+    strategy:
+      matrix:
+        scan-path:
+          - "components/websubhub/target/bin"
+          - "components/websubhub-consolidator/target/bin"
+    steps:
+      - name: Download build output
+        uses: actions/download-artifact@v5
+        with:
+          name: build-output
+          path: components
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        env:
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db,public.ecr.aws/aquasecurity/trivy-java-db
+        with:
+          scan-type: "rootfs"
+          scan-ref: ${{ matrix.scan-path }}
+          format: "table"
+          timeout: "10m0s"
+          exit-code: "1"
+          scanners: "vuln"
+          cache-dir: "/tmp/trivy-cache"
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: prepare
+      
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
 
       - name: Create Release Branch
         run: |
@@ -177,7 +217,7 @@ jobs:
   trigger-docker-build:
     name: Trigger Docker Build
     runs-on: ubuntu-latest
-    needs: [prepare, build-and-release]
+    needs: [prepare, build, release]
     
     steps:
       - name: Checkout Repository
