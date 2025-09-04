@@ -27,7 +27,8 @@ jobs:
   prepare:
     name: Prepare Release
     runs-on: ubuntu-latest
-    if: github.repository_owner == github.actor
+    
+    if: github.repository_owner == 'wso2'
     outputs:
       version: ${{ steps.version.outputs.version }}
       ballerina-version: ${{ steps.ballerina-version.outputs.version }}

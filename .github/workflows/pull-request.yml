@@ -10,6 +10,7 @@ jobs:
       group: ${{ github.head_ref }}-ubuntu-build
       cancel-in-progress: true
     
+    if: github.repository_owner == 'wso2'
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
