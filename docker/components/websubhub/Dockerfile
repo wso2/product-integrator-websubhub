@@ -15,24 +15,15 @@
 # ---------------------------------------------------------------------------
 
 # ---------- Build stage ----------
-ARG BASE_IMAGE_DIGEST=sha256:91302c4b2d5b521f75050e50fc15d1498ee812a5fc15e018334f83ef2e058210
-FROM ballerina/jvm-runtime@${BASE_IMAGE_DIGEST} AS build
+# ARG BASE_IMAGE_DIGEST=sha256:de18608d022b1835259f2c488ac7d936735a6397ab0afdf9a508f620d75bcb3a
+# FROM ballerina/jvm-runtime@${BASE_IMAGE_DIGEST} AS build
+FROM eclipse-temurin:21.0.8_9-jre-noble AS build
 
 # Install required tools for build stage
-RUN apk add --no-cache bash curl gzip unzip
-
-# Set Ballerina version
-ARG BALLERINA_VERSION=2201.10.5
-ENV BALLERINA_HOME=/usr/lib/ballerina
-ENV PATH=$BALLERINA_HOME/bin:$PATH
-
-# Download and install Ballerina (ZIP method for Alpine)
-RUN curl -L https://dist.ballerina.io/downloads/${BALLERINA_VERSION}/ballerina-${BALLERINA_VERSION}-swan-lake.zip -o /tmp/ballerina.zip \
-    && unzip /tmp/ballerina.zip -d /usr/lib \
-    && mv /usr/lib/ballerina-* $BALLERINA_HOME \
-    && rm /tmp/ballerina.zip
-
-RUN bal -v && ls -al $BALLERINA_HOME
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash \
+    unzip \
+ && rm -rf /var/lib/apt/lists/*
 
 # Copy and unpack the server distribution
 ARG SERVER_NAME=websubhub
@@ -47,8 +38,9 @@ RUN unzip ${SERVER}.zip -d ${SERVER} \
     && rm -rf ${SERVER}.zip ${SERVER}/${SERVER}
 
 # ---------- Runtime stage ----------
-ARG BASE_IMAGE_DIGEST=sha256:91302c4b2d5b521f75050e50fc15d1498ee812a5fc15e018334f83ef2e058210
-FROM ballerina/jvm-runtime@${BASE_IMAGE_DIGEST}
+# ARG BASE_IMAGE_DIGEST=sha256:de18608d022b1835259f2c488ac7d936735a6397ab0afdf9a508f620d75bcb3a
+# FROM ballerina/jvm-runtime@${BASE_IMAGE_DIGEST}
+FROM eclipse-temurin:21.0.8_9-jre-noble
 
 LABEL maintainer="WSO2 Docker Maintainers <dev@wso2.org>"
 
@@ -60,17 +52,15 @@ ARG USER_GROUP_ID=10001
 ARG USER_HOME=/home/${USER}
 ARG MOTD='printf "\nWelcome to WSO2 Docker Resources\n---------------------------------\nThis container runs a WSO2 product under Apache License 2.0.\nMore info: http://www.apache.org/licenses/LICENSE-2.0.\n"'
 
-RUN addgroup -g ${USER_GROUP_ID} ${USER_GROUP} \
-    && adduser -u ${USER_ID} -G ${USER_GROUP} -h ${USER_HOME} -D ${USER} \
+RUN groupadd -g ${USER_GROUP_ID} ${USER_GROUP} \
+    && useradd -u ${USER_ID} -g ${USER_GROUP} -d ${USER_HOME} -m ${USER} \
     && echo "${MOTD}" > /etc/profile.d/motd.sh
 
 # Install minimal runtime dependencies
-RUN apk add --no-cache bash gzip
-
-# Copy Ballerina runtime from build stage
-ENV BALLERINA_HOME=/usr/lib/ballerina
-ENV PATH=$BALLERINA_HOME/bin:$PATH
-COPY --from=build $BALLERINA_HOME $BALLERINA_HOME
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash \
+    gzip \
+ && rm -rf /var/lib/apt/lists/*
 
 # Copy server
 ARG SERVER_NAME=websubhub
