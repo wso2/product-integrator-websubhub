@@ -23,7 +23,7 @@ import org.gradle.api.tasks.Copy
 import org.gradle.internal.os.OperatingSystem
 import BalUtils
 
-class WebsubhubBallerinaComponentPlugin implements Plugin<Project> {
+class BallerinaPlugin implements Plugin<Project> {
     void apply(Project project) {
         project.apply plugin: 'base'
 
@@ -60,6 +60,7 @@ class WebsubhubBallerinaComponentPlugin implements Plugin<Project> {
             dependsOn project.rootProject.tasks.named('verifyLocalBalVersion')
             dependsOn project.tasks.named('updateTomlFiles')
             dependsOn project.tasks.named('balBuild')
+            dependsOn project.tasks.named('commitTomlFiles')
 
             it.mustRunAfter project.rootProject.tasks.named('verifyLocalBalVersion').get()
             it.mustRunAfter project.tasks.named('updateTomlFiles').get()
@@ -67,6 +68,21 @@ class WebsubhubBallerinaComponentPlugin implements Plugin<Project> {
 
         project.tasks.named('clean') {
             dependsOn project.tasks.named('balClean')
+        }
+
+        project.tasks.register('commitTomlFiles') {
+            dependsOn project.tasks.named('updateTomlFiles')
+            doLast {
+                project.exec {
+                    workingDir project.projectDir
+                    ignoreExitValue true
+                    if (OperatingSystem.current().isWindows()) {
+                        commandLine 'cmd', '/c', "git add Ballerina.toml Cloud.toml Dependencies.toml && git commit -m \"[Automated] Updating package versions\""
+                    } else {
+                        commandLine 'sh', '-c', "git add Ballerina.toml Cloud.toml Dependencies.toml && git commit -m '[Automated] Updating package versions'"
+                    }
+                }
+            }
         }
     }
 }

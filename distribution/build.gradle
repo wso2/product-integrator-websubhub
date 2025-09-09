@@ -18,6 +18,7 @@
 
 plugins {
     id 'distribution'
+    id 'maven-publish'
 }
 
 def scriptsDir = file('scripts')
@@ -26,33 +27,28 @@ distributions {
     hub {
         distributionBaseName = 'websubhub'
         def hubDir = project(':websubhub').projectDir
-        def confDir = file('conf/hub')
+        def confDir = file('conf/websubhub')
         contents {
-            // Include the fat JAR from hub module
             from("${hubDir}/target/bin") {
                 include "*.jar"
                 into "lib"
             }
             
-            // Include only Config.toml in conf directory
             from(confDir) {
                 include "Config.toml"
                 into "conf"
             }
 
-            // Include resources in conf directory
             from("${hubDir}/resources") {
                 into "conf/resources"
             }
             
-            // Include startup scripts
             from(scriptsDir) {
                 include "*.sh"
                 into "bin"
                 fileMode = 0755
             }
             
-            // Include any documentation
             from(rootProject.projectDir) {
                 include "README.md"
                 include "LICENSE*"
@@ -60,40 +56,76 @@ distributions {
             }
         }
     }
+
     consolidator {
         distributionBaseName = 'websubhub-consolidator'
         def consolidatorDir = project(':websubhub-consolidator').projectDir
-        def confDir = file('conf/consolidator')
+        def confDir = file('conf/websubhub-consolidator')
         contents {
-            // Include the fat JAR from consolidator module
             from("${consolidatorDir}/target/bin") {
                 include "*.jar"
                 into "lib"
             }
             
-            // Include only Config.toml in conf directory
             from(confDir) {
                 include "Config.toml"
                 into "conf"
             }
 
-            // Include resources in conf directory
             from("${consolidatorDir}/resources") {
                 into "conf/resources"
             }
 
-            // Include startup scripts
             from(scriptsDir) {
                 include "*.sh"
                 into "bin"
                 fileMode = 0755
             }
             
-            // Include any documentation
             from(rootProject.projectDir) {
                 include "README.md"
                 include "LICENSE*"
                 into ""
+            }
+        }
+    }
+
+    websubhubDistribution {
+        distributionBaseName = 'websubhub-distribution'
+        contents {
+            from(hubDistZip.outputs.files) {
+                into ""
+            }
+
+            from(consolidatorDistZip.outputs.files) {
+                into ""
+            }
+            
+            from(rootProject.projectDir) {
+                include "README.md"
+                include "LICENSE*"
+                into ""
+            }
+        }
+    }
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = project.property('group')
+            artifactId = project.property('name')
+            artifact(tasks.getByName("websubhubDistributionDistZip"))
+        }
+    }
+
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/wso2/product-integrator-websubhub")
+            credentials {
+                username = System.getenv("publishUser")
+                password = System.getenv("publishPAT")
             }
         }
     }
@@ -105,4 +137,8 @@ hubDistTar.enabled = false
 consolidatorDistZip.dependsOn(':websubhub-consolidator:build')
 consolidatorDistTar.enabled = false
 
-build.dependsOn(hubDistZip, consolidatorDistZip)
+websubhubDistributionDistZip.dependsOn(hubDistZip)
+websubhubDistributionDistZip.dependsOn(consolidatorDistZip)
+websubhubDistributionDistTar.enabled = false
+
+build.dependsOn(hubDistZip, consolidatorDistZip, websubhubDistributionDistZip)

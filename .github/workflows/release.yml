@@ -1,0 +1,270 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip tests during build'
+        required: false
+        default: false
+        type: boolean
+      skip_latest_docker_tag:
+        description: 'Skip Docker build and push for latest tag'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  packages: write
+  actions: write
+  pull-requests: write
+
+env:
+  REGISTRY: docker.io
+
+jobs:
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    
+    if: github.repository_owner == 'wso2'
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      ballerina-version: ${{ steps.ballerina-version.outputs.version }}
+      
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get Release Version
+        id: version
+        run: |
+          VERSION=$(grep -w 'version' gradle.properties | cut -d= -f2 | sed 's/-SNAPSHOT//')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Release version: ${VERSION}"
+
+      - name: Get Ballerina Version
+        id: ballerina-version
+        run: |
+          BAL_VERSION=$(grep -w 'ballerinaDistributionVersion' gradle.properties | cut -d= -f2)
+          echo "version=${BAL_VERSION}" >> $GITHUB_OUTPUT
+          echo "Ballerina version: ${BAL_VERSION}"
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: prepare
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Ballerina
+        uses: ballerina-platform/setup-ballerina@v1.1.3
+        with:
+          version: ${{ needs.prepare.outputs.ballerina-version }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+
+      - name: Build Project
+        env:
+          packageUser: ${{ github.actor }}
+          packagePAT: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event.inputs.skip_tests }}" == "true" ]; then
+            echo "Skipping tests as requested"
+            ./gradlew build -x test
+          else
+            ./gradlew build
+          fi
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: components/**/target/bin
+
+  trivy-scan:
+    name: Trivy Vulnerability Scan
+    needs: build
+    runs-on: ubuntu-22.04
+    
+    strategy:
+      matrix:
+        scan-path:
+          - "components/websubhub/target/bin"
+          - "components/websubhub-consolidator/target/bin"
+    steps:
+      - name: Download build output
+        uses: actions/download-artifact@v5
+        with:
+          name: build-output
+          path: components
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        env:
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db,public.ecr.aws/aquasecurity/trivy-java-db
+        with:
+          scan-type: "rootfs"
+          scan-ref: ${{ matrix.scan-path }}
+          format: "table"
+          timeout: "10m0s"
+          exit-code: "1"
+          scanners: "vuln"
+          cache-dir: "/tmp/trivy-cache"
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: [prepare, build]
+      
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Ballerina
+        uses: ballerina-platform/setup-ballerina@v1.1.3
+        with:
+          version: ${{ needs.prepare.outputs.ballerina-version }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+
+      - name: Create Release Branch
+        run: |
+          echo "Creating release branch: release-${{ needs.prepare.outputs.version }}"
+          git checkout -b release-${{ needs.prepare.outputs.version }}
+
+      - name: Run Gradle Release
+        run: |
+          ./gradlew clean release -Prelease.useAutomaticVersion=true
+          ./gradlew -Pversion=${{ needs.prepare.outputs.version }} publish
+        env:
+          publishUser: ${{ github.actor }}
+          publishPAT: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        if: github.event.inputs.skip_latest_docker_tag == 'false'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Discover Components
+        if: github.event.inputs.skip_latest_docker_tag == 'false'
+        id: components
+        run: |
+          COMPONENTS=$(find components -maxdepth 1 -type d -not -path components | sed 's|components/||' | tr '\n' ' ' | sed 's/ $//')
+          echo "components=${COMPONENTS}" >> $GITHUB_OUTPUT
+          echo "Found components: '${COMPONENTS}'"
+          echo "Component count: $(echo ${COMPONENTS} | wc -w)"
+
+      - name: Build and Push Docker Images
+        if: github.event.inputs.skip_latest_docker_tag == 'false'
+        run: |
+          for component in ${{ steps.components.outputs.components }}; do
+            if [ -f "docker/components/${component}/Dockerfile" ]; then
+              echo "Building Docker image for component: ${component}"
+              docker buildx build \
+                --file docker/components/${component}/Dockerfile \
+                --push \
+                --tag ${{ secrets.DOCKERHUB_USERNAME }}/${component}:latest \
+                --build-arg SERVER_NAME=${component} \
+                --build-arg SERVER_VERSION=${{ needs.prepare.outputs.version }} \
+                --build-arg SERVER_DIST_PATH=distribution/build/distributions \
+                --build-arg BALLERINA_VERSION=${{ needs.prepare.outputs.ballerina-version }} \
+                --cache-from type=gha \
+                --cache-to type=gha,mode=max \
+                .
+            else
+              echo "No Dockerfile found for component: ${component}, skipping..."
+            fi
+          done
+
+      - name: Create GitHub App Token
+        uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ secrets.RELEASE_SYNC_BOT_ID }}
+          private-key: ${{ secrets.RELEASE_SYNC_PRIVATE_KEY }}
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh release create v${{ needs.prepare.outputs.version }} \
+            --title "WSO2 Integrator: WebSubHub v${{ needs.prepare.outputs.version }}" \
+            --generate-notes \
+            --verify-tag
+
+      - name: Create Sync PR
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr create \
+            --base ${{ github.ref_name }} \
+            --title "[Automated] Sync ${{ github.ref_name }} after ${{ needs.prepare.outputs.version }} release" \
+            --body "Automated sync of ${{ github.ref_name }} branch after releasing version ${{ needs.prepare.outputs.version }}"
+
+  trigger-docker-build:
+    name: Trigger Docker Build
+    runs-on: ubuntu-latest
+    needs: [prepare, release]
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Discover Components for Trigger
+        run: |
+          COMPONENTS=$(find components -maxdepth 1 -type d -not -path components | sed 's|components/||' | tr '\n' ' ' | sed 's/ $//')
+          echo "Available components: '${COMPONENTS}'"
+          if [ -z "${COMPONENTS}" ]; then
+            echo "No components found to trigger"
+            exit 0
+          fi
+          echo "COMPONENTS=${COMPONENTS}" >> $GITHUB_ENV
+
+      - name: Trigger Docker Build Workflows
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for component in ${COMPONENTS}; do
+            if [ -f "docker/components/${component}/Dockerfile" ]; then
+              echo "Triggering Docker build for component: ${component}"
+              gh workflow run docker-build.yml \
+                -f release_version="${{ needs.prepare.outputs.version }}" \
+                -f component_name="${component}"
+            else
+              echo "No Dockerfile found for component: ${component}, skipping workflow trigger..."
+            fi
+          done
