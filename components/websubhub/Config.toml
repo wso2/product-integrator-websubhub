@@ -1,14 +1,16 @@
 [websubhub.config.server]
-port = 9190
-serverId = "hub-1"
+port = 9090
+id = "hub-1"
 
 # [websubhub.config.server.auth]
 # scopeKey = "scope"
 # issuer = "https://localhost:9443/oauth2/token"
 # audience = "ballerina"
-# jwksUrl = "https://localhost:9443/oauth2/jwks"
-# trustStore = "./resources/client-truststore.jks"
-# trustStorePassword = "wso2carbon"
+
+# [websubhub.config.server.auth.signature]
+# url = "https://localhost:9443/oauth2/jwks"
+# secureSocket.cert.path = "./resources/client-truststore.jks"
+# secureSocket.cert.password = "wso2carbon"
 
 [websubhub.config.state.snapshot]
 url = "http://localhost:10001"
@@ -18,7 +20,7 @@ topic = "websub-events"
 consumerGroup = "websub-events-consumer"
 
 [websubhub.config.kafka.connection]
-bootstrapServers = "localhost:29092"
+bootstrapServers = "localhost:9092"
 
 [websubhub.config.kafka.consumer]
 maxPollRecords = 50
@@ -31,7 +33,6 @@ timeout = 60.0
 [websubhub.config.delivery.retry]
 count = 3
 interval = 3.0
+backOffFactor = 2.0
+maxWaitInterval = 20.0
 statusCodes = [500, 502, 503]
-
-[ballerina.log]
-level = "DEBUG"

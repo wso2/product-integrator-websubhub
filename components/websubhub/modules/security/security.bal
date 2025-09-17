@@ -20,7 +20,6 @@ import websubhub.config;
 import ballerina/http;
 import ballerina/jwt;
 import ballerina/log;
-import ballerina/os;
 
 final http:ListenerJwtAuthHandler? jwtAuthHandler = getJwtAuthHandler();
 
@@ -30,19 +29,20 @@ isolated function getJwtAuthHandler() returns http:ListenerJwtAuthHandler? {
         return;
     }
     http:JwtValidatorConfig validatorConfig = {
-        issuer: getIdpConfig("IDP_TOKEN_ISSUER", config.issuer),
-        audience: getIdpConfig("IDP_TOKEN_AUDIENCE", config.audience),
-        scopeKey: getIdpConfig("IDP_TOKEN_SCOPE_KEY", config.scopeKey)
+        issuer: config.issuer,
+        audience: config.audience,
+        scopeKey: config.scopeKey
     };
-    jwt:ValidatorSignatureConfig? signature = config.signature;
-    if signature is jwt:ValidatorSignatureConfig {
-        validatorConfig.signatureConfig = signature;
+    common:JwksConfig? signature = config.signature;
+    if signature is common:JwksConfig {
+        validatorConfig.signatureConfig.jwksConfig = {
+            url: signature.url,
+            clientConfig: {
+                secureSocket: signature.secureSocket
+            }
+        };
     }
     return new (validatorConfig);
-}
-
-isolated function getIdpConfig(string envVariableName, string defaultValue) returns string {
-    return os:getEnv(envVariableName) == "" ? defaultValue : os:getEnv(envVariableName);
 }
 
 # Checks for authorization for the current request.

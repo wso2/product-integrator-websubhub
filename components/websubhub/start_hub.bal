@@ -19,35 +19,26 @@ import websubhub.config;
 import ballerina/http;
 import ballerina/lang.runtime;
 import ballerina/log;
-// import ballerina/os;
 import ballerina/websubhub;
 
 public function main() returns error? {
+    log:printInfo("Initializing the hub");
     // Initialize the Hub
     check initializeHubState();
 
-    // int hubPort = check getHubPort();
+    log:printInfo("Starting the heath check service");
     // Start the HealthCheck Service
-    // http:Listener httpListener = check new (config:server.port,
-    //     secureSocket = config:server.secureSocket
-    // );
-
-    http:Listener httpListener = check new(config:server.port);
-    runtime:registerListener(httpListener);
+    http:Listener httpListener = check new (config:server.port,
+        secureSocket = config:server.secureSocket
+    );
+    // runtime:registerListener(httpListener);
     check httpListener.attach(healthCheckService, "/health");
+    log:printInfo("Health check service started");
 
     // Start the Hub
     websubhub:Listener hubListener = check new (httpListener);
-    runtime:registerListener(hubListener);
     check hubListener.attach(hubService, "hub");
     check hubListener.'start();
+    runtime:registerListener(hubListener);
     log:printInfo("Websubhub service started successfully");
 }
-
-// isolated function getHubPort() returns int|error {
-//     string hubPort = os:getEnv("HUB_PORT");
-//     if hubPort == "" {
-//         return config:server.port;
-//     }
-//     return int:fromString(hubPort);
-// }

@@ -26,7 +26,7 @@ public type SystemStateSnapshot record {|
 
 public type ServerConfig record {|
     int port;
-    string serverId;
+    string id;
     JwtValidatorConfig auth?;
     http:ListenerSecureSocket secureSocket?;
 |};
@@ -34,8 +34,13 @@ public type ServerConfig record {|
 public type JwtValidatorConfig record {|
     string scopeKey;
     string issuer;
-    string audience;
-    jwt:ValidatorSignatureConfig signature?;
+    string|string[] audience;
+    JwksConfig signature?;
+|};
+
+public type JwksConfig record {|
+    string url;
+    jwt:SecureSocket secureSocket?;
 |};
 
 public type ServerStateConfig record {|

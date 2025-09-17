@@ -20,9 +20,9 @@ import websubhub.connections as conn;
 
 // import ballerina/http;
 import ballerina/lang.value;
+import ballerina/log;
 import ballerina/websubhub;
 import ballerinax/kafka;
-import ballerina/log;
 
 function initializeHubState() returns error? {
     // http:Client stateSnapshot;
@@ -38,7 +38,6 @@ function initializeHubState() returns error? {
     //     stateSnapshot = check new (config:state.snapshot.url);
     // }
     do {
-        log:printInfo("Initializing hub state");
         // common:SystemStateSnapshot systemStateSnapshot = check stateSnapshot->/consolidator/state\-snapshot;
         common:SystemStateSnapshot systemStateSnapshot = {
             topics: [],
@@ -48,6 +47,7 @@ function initializeHubState() returns error? {
         check processWebsubSubscriptionsSnapshotState(systemStateSnapshot.subscriptions);
         // Start hub-state update worker
         _ = start updateHubState();
+        log:printInfo("Start hub state update");
     } on fail error httpError {
         common:logError("Error occurred while initializing the hub-state using the latest state-snapshot", httpError, severity = "FATAL");
         return httpError;
