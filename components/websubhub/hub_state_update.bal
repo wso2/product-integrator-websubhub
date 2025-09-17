@@ -18,15 +18,32 @@ import websubhub.common;
 import websubhub.config;
 import websubhub.connections as conn;
 
-import ballerina/http;
+// import ballerina/http;
 import ballerina/lang.value;
 import ballerina/websubhub;
 import ballerinax/kafka;
+import ballerina/log;
 
 function initializeHubState() returns error? {
-    http:Client stateSnapshotClient = check new (config:stateSnapshotEndpoint);
+    // http:Client stateSnapshot;
+    // common:HttpClientConfig? config = config:state.snapshot.config;
+    // if config is common:HttpClientConfig {
+    //     http:ClientConfiguration clientConfig = {
+    //         timeout: config.timeout,
+    //         retryConfig: config.'retry,
+    //         secureSocket: config.secureSocket
+    //     };
+    //     stateSnapshot = check new (config:state.snapshot.url, clientConfig);
+    // } else {
+    //     stateSnapshot = check new (config:state.snapshot.url);
+    // }
     do {
-        common:SystemStateSnapshot systemStateSnapshot = check stateSnapshotClient->/consolidator/state\-snapshot;
+        log:printInfo("Initializing hub state");
+        // common:SystemStateSnapshot systemStateSnapshot = check stateSnapshot->/consolidator/state\-snapshot;
+        common:SystemStateSnapshot systemStateSnapshot = {
+            topics: [],
+            subscriptions: []
+        };
         check processWebsubTopicsSnapshotState(systemStateSnapshot.topics);
         check processWebsubSubscriptionsSnapshotState(systemStateSnapshot.subscriptions);
         // Start hub-state update worker
@@ -39,7 +56,7 @@ function initializeHubState() returns error? {
 
 function updateHubState() returns error? {
     while true {
-        kafka:BytesConsumerRecord[] records = check conn:websubEventsConsumer->poll(config:pollingInterval);
+        kafka:BytesConsumerRecord[] records = check conn:websubEventsConsumer->poll(config:kafka.consumer.pollingInterval);
         if records.length() <= 0 {
             continue;
         }

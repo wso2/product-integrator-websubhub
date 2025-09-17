@@ -14,6 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import websubhub.common;
 import websubhub.config;
 
 import ballerina/http;
@@ -21,24 +22,24 @@ import ballerina/jwt;
 import ballerina/log;
 import ballerina/os;
 
-final http:ListenerJwtAuthHandler handler = new ({
-    issuer: getIdpConfig("IDP_TOKEN_ISSUER", config:oauth2Config.issuer),
-    audience: getIdpConfig("IDP_TOKEN_AUDIENCE", config:oauth2Config.audience),
-    signatureConfig: {
-        jwksConfig: {
-            url: getIdpConfig("IDP_JWKS_ENDPOINT", config:oauth2Config.jwksUrl),
-            clientConfig: {
-                secureSocket: {
-                    cert: {
-                        path: getIdpConfig("IDP_CLIENT_TRUSTSTORE_FILEPATH", config:oauth2Config.trustStore),
-                        password: getIdpConfig("IDP_CLIENT_TRUSTSTORE_PASSWORD", config:oauth2Config.trustStorePassword)
-                    }
-                }
-            }
-        }
-    },
-    scopeKey: getIdpConfig("IDP_TOKEN_SCOPE_KEY", "scope")
-});
+final http:ListenerJwtAuthHandler? jwtAuthHandler = getJwtAuthHandler();
+
+isolated function getJwtAuthHandler() returns http:ListenerJwtAuthHandler? {
+    common:JwtValidatorConfig? config = config:server.auth;
+    if config is () {
+        return;
+    }
+    http:JwtValidatorConfig validatorConfig = {
+        issuer: getIdpConfig("IDP_TOKEN_ISSUER", config.issuer),
+        audience: getIdpConfig("IDP_TOKEN_AUDIENCE", config.audience),
+        scopeKey: getIdpConfig("IDP_TOKEN_SCOPE_KEY", config.scopeKey)
+    };
+    jwt:ValidatorSignatureConfig? signature = config.signature;
+    if signature is jwt:ValidatorSignatureConfig {
+        validatorConfig.signatureConfig = signature;
+    }
+    return new (validatorConfig);
+}
 
 isolated function getIdpConfig(string envVariableName, string defaultValue) returns string {
     return os:getEnv(envVariableName) == "" ? defaultValue : os:getEnv(envVariableName);
@@ -50,6 +51,10 @@ isolated function getIdpConfig(string envVariableName, string defaultValue) retu
 # + authScopes - Requested auth-scopes to access the current resource
 # + return - `error` if there is any authorization error or else `()`
 public isolated function authorize(http:Headers headers, string[] authScopes) returns error? {
+    http:ListenerJwtAuthHandler? handler = jwtAuthHandler;
+    if handler is () {
+        return;
+    }
     string|http:HeaderNotFoundError authHeader = headers.getHeader(http:AUTH_HEADER);
     if authHeader is string {
         jwt:Payload|http:Unauthorized auth = handler.authenticate(authHeader);

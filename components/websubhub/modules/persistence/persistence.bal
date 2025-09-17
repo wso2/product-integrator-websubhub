@@ -40,7 +40,7 @@ isolated function updateHubState(websubhub:TopicRegistration|websubhub:TopicDere
                                 websubhub:VerifiedSubscription|websubhub:VerifiedUnsubscription message) returns error? {
     json jsonData = message.toJson();
     do {
-        check produceKafkaMessage(config:websubEventsTopic, jsonData);
+        check produceKafkaMessage(config:state.events.topic, jsonData);
     } on fail error e {
         return error(string `Failed to send updates for hub-state: ${e.message()}`, cause = e);
     }
