@@ -14,7 +14,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import ballerina/crypto;
+import ballerina/http;
+import ballerina/jwt;
 import ballerina/websubhub;
 import ballerinax/kafka;
 
@@ -23,18 +24,51 @@ public type SystemStateSnapshot record {|
     websubhub:VerifiedSubscription[] subscriptions;
 |};
 
-public type OAuth2Config record {|
-    string issuer;
-    string audience;
-    string jwksUrl;
-    string trustStore;
-    string trustStorePassword;
+public type ServerConfig record {|
+    int port;
+    string serverId;
+    JwtValidatorConfig auth?;
+    http:ListenerSecureSocket secureSocket?;
 |};
 
-public type KafkaMtlsConfig record {|
-    crypto:TrustStore|string cert;
+public type JwtValidatorConfig record {|
+    string scopeKey;
+    string issuer;
+    string audience;
+    jwt:ValidatorSignatureConfig signature?;
+|};
+
+public type ServerStateConfig record {|
     record {|
-        crypto:KeyStore keyStore;
-        string keyPassword?;
-    |}|kafka:CertKey key?;
+        string url;
+        HttpClientConfig config?;
+    |} snapshot;
+    record {|
+        string topic;
+        string consumerGroup;
+    |} events;
+|};
+
+public type KafkaConfig record {|
+    KafkaConnectionConfig connection;
+    KafkaConsumerConfig consumer;
+|};
+
+public type KafkaConnectionConfig record {|
+    string|string[] bootstrapServers;
+    kafka:SecureSocket secureSocket?;
+    kafka:AuthenticationConfiguration auth?;
+    kafka:SecurityProtocol securityProtocol = kafka:PROTOCOL_PLAINTEXT;
+|};
+
+public type KafkaConsumerConfig record {|
+    int maxPollRecords;
+    decimal pollingInterval = 10;
+    decimal gracefulClosePeriod = 5;
+|};
+
+public type HttpClientConfig record {|
+    decimal timeout = 60;
+    http:RetryConfig 'retry?;
+    http:ClientSecureSocket secureSocket?;
 |};

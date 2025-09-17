@@ -26,7 +26,7 @@ If you are planning to contribute to the development efforts of `WSO2 Integrator
 * Java SE Development Kit (JDK) version 21.
   * [Oracle](https://www.oracle.com/java/technologies/downloads/)
   * [OpenJDK](https://adoptium.net/)
-* [Ballerina SwanLake 2201.12.8](https://ballerina.io/downloads/)
+* [Ballerina SwanLake 2201.12.9](https://ballerina.io/downloads/)
 
 ### Build from the source
 

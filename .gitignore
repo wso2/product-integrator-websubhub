@@ -30,3 +30,7 @@ target/
 
 # Ignore Gradle build output directory
 build
+
+# IDEA and VS Code related directories
+.idea
+.vscode
