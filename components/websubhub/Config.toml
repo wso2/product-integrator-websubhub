@@ -2,15 +2,9 @@
 port = 9090
 id = "hub-1"
 
-# [websubhub.config.server.auth]
-# scopeKey = "scope"
-# issuer = "https://localhost:9443/oauth2/token"
-# audience = "ballerina"
-
-# [websubhub.config.server.auth.signature]
-# url = "https://localhost:9443/oauth2/jwks"
-# secureSocket.cert.path = "./resources/client-truststore.jks"
-# secureSocket.cert.password = "wso2carbon"
+[websubhub.config.server.secureSocket]
+key.path = "conf/resources/hub.keystore.jks"
+key.password = "password"
 
 [websubhub.config.state.snapshot]
 url = "http://localhost:10001"
