@@ -25,7 +25,7 @@ def scriptsDir = file('scripts')
 
 distributions {
     hub {
-        distributionBaseName = 'websubhub'
+        distributionBaseName = 'wso2websubhub'
         def hubDir = project(':websubhub').projectDir
         def confDir = file('conf/websubhub')
         contents {
@@ -58,7 +58,7 @@ distributions {
     }
 
     consolidator {
-        distributionBaseName = 'websubhub-consolidator'
+        distributionBaseName = 'wso2websubhub-consolidator'
         def consolidatorDir = project(':websubhub-consolidator').projectDir
         def confDir = file('conf/websubhub-consolidator')
         contents {
@@ -91,7 +91,7 @@ distributions {
     }
 
     websubhubDistribution {
-        distributionBaseName = 'websubhub-distribution'
+        distributionBaseName = 'wso2websubhub-distribution'
         contents {
             from(hubDistZip.outputs.files) {
                 into ""
