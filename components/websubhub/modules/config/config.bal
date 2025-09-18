@@ -28,4 +28,6 @@ public configurable common:KafkaConfig kafka = ?;
 # Message delivery related configurations
 public configurable common:HttpClientConfig delivery = ?;
 
+# Flag indicating whether security is enable or not. 
+# This is derived by checking whether server authentication configuration is available or not
 public final boolean securityOn = server.auth is common:JwtValidatorConfig;
