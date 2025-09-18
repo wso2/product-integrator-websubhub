@@ -18,6 +18,7 @@ import websubhub.common;
 import websubhub.config;
 import websubhub.connections as conn;
 
+import ballerina/http;
 import ballerina/lang.value;
 import ballerina/log;
 import ballerina/mime;
@@ -53,7 +54,7 @@ function processSubscription(websubhub:VerifiedSubscription subscription) return
     string serverId = check subscription[SERVER_ID].ensureType();
     // if the subscription already exists in the `hub` instance, or the given subscription
     // does not belong to the `hub` instance do not start the consumer
-    if subscriberAlreadyAvailable || serverId != config:serverIdentifier {
+    if subscriberAlreadyAvailable || serverId != config:server.id {
         log:printDebug(string `Subscriber ${subscriberId} is already available or it does not belong to the current server, hence not starting the consumer`,
                 subscriberAvailable = subscriberAlreadyAvailable, serverId = serverId);
         return;
@@ -74,18 +75,13 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
     int[]? topicPartitions = check getTopicPartitions(subscription);
     kafka:Consumer consumerEp = check conn:createMessageConsumer(subscription.hubTopic, consumerGroup, topicPartitions);
     websubhub:HubClient clientEp = check new (subscription, {
-        retryConfig: {
-            interval: config:messageDeliveryRetryInterval,
-            count: config:messageDeliveryCount,
-            backOffFactor: 2.0,
-            maxWaitInterval: 20,
-            statusCodes: config:retryableStatusCodes
-        },
-        timeout: config:messageDeliveryTimeout
+        httpVersion: http:HTTP_2_0,
+        retryConfig: config:delivery.'retry,
+        timeout: config:delivery.timeout
     });
     do {
         while true {
-            readonly & kafka:BytesConsumerRecord[] records = check consumerEp->poll(config:pollingInterval);
+            kafka:BytesConsumerRecord[] records = check consumerEp->poll(config:kafka.consumer.pollingInterval);
             if !isValidConsumer(subscription.hubTopic, subscriberId) {
                 fail error(string `Subscriber with Id ${subscriberId} or topic ${subscription.hubTopic} is invalid`);
             }
@@ -96,7 +92,7 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
         lock {
             _ = subscribersCache.removeIfHasKey(subscriberId);
         }
-        kafka:Error? result = consumerEp->close(config:gracefulClosePeriod);
+        kafka:Error? result = consumerEp->close(config:kafka.consumer.gracefulClosePeriod);
         if result is kafka:Error {
             log:printError("Error occurred while gracefully closing kafka-consumer", err = result.message());
         }

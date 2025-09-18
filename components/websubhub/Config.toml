@@ -1,64 +1,32 @@
-[websubhub.config]
-# Flag to check whether to enable/disable security
-securityOn = true
+[websubhub.config.server]
+port = 9000
+id = "hub-1"
 
-# Server ID is used to uniquely identify each server 
-# Each server must have a unique ID
-serverId = "hub-1"
+[websubhub.config.server.secureSocket]
+key.path = "resources/hub.keystore.jks"
+key.password = "password"
 
-# IP and Port of the Kafka bootstrap node
-kafkaBootstrapNode = "localhost:9094"
+[websubhub.config.state.snapshot]
+url = "http://localhost:10001"
 
-# Maximum number of records returned in a single call to consumer-poll
-kafkaConsumerMaxPollRecords = 50
+[websubhub.config.state.events]
+topic = "websub-events"
+consumerGroup = "websub-events-consumer"
 
-# Kafka topic which is stores websub-events for this server
-websubEventsTopic = "websub-events"
+[websubhub.config.kafka.connection]
+bootstrapServers = "localhost:9092"
 
-# Consolidator HTTP endpoint to be used to retrieve current state-snapshot
-stateSnapshotEndpoint = "http://localhost:10001"
-
-# The interval in which Kafka consumers wait for new messages
+[websubhub.config.kafka.consumer]
+maxPollRecords = 50
 pollingInterval = 10.0
-
-# The period in which Kafka close method waits to complete
 gracefulClosePeriod = 5.0
 
-# The port that is used to start the hub
-hubPort = 9000
+[websubhub.config.delivery]
+timeout = 60.0
 
-# SSL keystore file path
-sslKeystorePath = "./resources/hub.keystore.jks"
-
-# SSL keystore password
-sslKeystorePassword = "password"
-
-# The period between retry requests
-messageDeliveryRetryInterval = 3.0
-
-# The maximum retry count
-messageDeliveryCount = 3
-
-# The message delivery timeout
-messageDeliveryTimeout = 10.0
-
-# The HTTP status codes for which the client should retry
-messageDeliveryRetryableStatusCodes = [500, 502, 503]
-
-# The Oauth2 authorization related configurations
-[websubhub.config.oauth2Config]
-issuer = "https://localhost:9443/oauth2/token"
-audience = "ballerina"
-jwksUrl = "https://localhost:9443/oauth2/jwks"
-trustStore = "./resources/client-truststore.jks"
-trustStorePassword = "wso2carbon"
-
-# The MTLS configurations related to Kafka connection
-[websubhub.config.kafkaMtlsConfig]
-cert.path = "./resources/brokercerts/client-truststore.jks"
-cert.password = "password"
-key.keyStore.path = "./resources/brokercerts/client-keystore.jks"
-key.keyStore.password = "password"
-
-[ballerina.log]
-level = "DEBUG"
+[websubhub.config.delivery.retry]
+count = 3
+interval = 3.0
+backOffFactor = 2.0
+maxWaitInterval = 20.0
+statusCodes = [500, 502, 503]

@@ -136,7 +136,7 @@ websubhub:Service hubService = service object {
             string consumerGroup = common:generateGroupName(message.hubTopic, message.hubCallback);
             message[CONSUMER_GROUP] = consumerGroup;
         }
-        message[SERVER_ID] = config:serverIdentifier;
+        message[SERVER_ID] = config:server.id;
         error? persistingResult = persist:addSubscription(message.cloneReadOnly());
         if persistingResult is error {
             log:printError("Error occurred while persisting the subscription ", persistingResult);

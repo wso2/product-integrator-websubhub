@@ -40,17 +40,21 @@ class BallerinaPlugin implements Plugin<Project> {
             def buildConfigDir = new File("${project.rootDir}/build-config/resources/${componentName}")
             def componentDirectory = project.projectDir
             def projectVersion = project.version
+            def ballerinaVersion = project.ballerinaDistributionVersion
             from(buildConfigDir) {
                 include '**/*.toml'
                 filter {
-                    line ->
-                    line.replace('@toml.version@', projectVersion)
+                    line -> {
+                        line.replace('@toml.version@', projectVersion)
+                            .replace('@ballerina.version@', ballerinaVersion)
+                    }
                 }
             }
             into componentDirectory
 
             inputs.files project.fileTree(buildConfigDir)
             inputs.property('projectVersion', projectVersion)
+            inputs.property('ballerinaVersion', ballerinaVersion)
             outputs.files project.fileTree(componentDirectory) {
                 include '**/*.toml'
             }
@@ -77,9 +81,9 @@ class BallerinaPlugin implements Plugin<Project> {
                     workingDir project.projectDir
                     ignoreExitValue true
                     if (OperatingSystem.current().isWindows()) {
-                        commandLine 'cmd', '/c', "git add Ballerina.toml Cloud.toml Dependencies.toml && git commit -m \"[Automated] Updating package versions\""
+                        commandLine 'cmd', '/c', "git add Ballerina.toml Dependencies.toml && git commit -m \"[Automated] Updating package versions\""
                     } else {
-                        commandLine 'sh', '-c', "git add Ballerina.toml Cloud.toml Dependencies.toml && git commit -m '[Automated] Updating package versions'"
+                        commandLine 'sh', '-c', "git add Ballerina.toml Dependencies.toml && git commit -m '[Automated] Updating package versions'"
                     }
                 }
             }
