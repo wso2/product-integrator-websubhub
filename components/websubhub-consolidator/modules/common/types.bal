@@ -14,7 +14,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import ballerina/crypto;
 import ballerina/http;
 import ballerina/websubhub;
 import ballerinax/kafka;
@@ -29,7 +28,7 @@ public type SystemStateSnapshot record {|
 
 # Defines the configuration for the WebSubHub consolidator server endpoint.
 public type ServerConfig record {|
-    # The port on which the WebSubHub consolidator service will listen
+    # The port on which the WebSubHub consolidator service will start
     int port;
     # SSL/TLS configurations for the service endpoint
     http:ListenerSecureSocket secureSocket?;
@@ -49,17 +48,6 @@ public type KafkaTopicConfig record {|
     string topic;
     # The consumer group ID to be used when consuming from the topic
     string consumerGroup;
-|};
-
-# Defines the mTLS configurations for a secure connection.
-public type KafkaMtlsConfig record {|
-    # The truststore to be used for verifying the server's certificate
-    crypto:TrustStore|string cert;
-    # The keystore and key to be used for client authentication
-    record {|
-        crypto:KeyStore keyStore;
-        string keyPassword?;
-    |}|kafka:CertKey key?;
 |};
 
 # Defines the complete set of Kafka configurations required for the application.
