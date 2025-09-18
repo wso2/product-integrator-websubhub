@@ -1,4 +1,4 @@
-[consolidator.config]
+[websubhub.consolidator.config]
 # IP and Port of the Kafka bootstrap node
 kafkaBootstrapNode = "localhost:9094"
 
@@ -18,7 +18,7 @@ gracefulClosePeriod = 5.0
 consolidatorHttpEndpointPort = 10001
 
 # The MTLS configurations related to Kafka connection
-[consolidator.config.kafkaMtlsConfig]
+[websubhub.consolidator.config.kafkaMtlsConfig]
 cert.path = "./resources/brokercerts/client-truststore.jks"
 cert.password = "password"
 key.keyStore.path = "./resources/brokercerts/client-keystore.jks"
