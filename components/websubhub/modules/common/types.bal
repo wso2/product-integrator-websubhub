@@ -99,7 +99,7 @@ public type KafkaConnectionConfig record {|
 
 # Defines configurations for the Kafka consumer.
 public type KafkaConsumerConfig record {|
-    # The maximum number of records to return in a single call to `poll()`
+    # The maximum number of records to return in a single call to `poll` function
     int maxPollRecords;
     # The polling interval in seconds for fetching new records
     decimal pollingInterval = 10;
