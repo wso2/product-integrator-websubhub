@@ -20,7 +20,7 @@ import websubhub.consolidator.connections as conn;
 
 public isolated function persistWebsubEventsSnapshot(common:SystemStateSnapshot systemStateSnapshot) returns error? {
     json payload = systemStateSnapshot.toJson();
-    check produceKafkaMessage(config:websubEventsSnapshotTopic, payload);
+    check produceKafkaMessage(config:state.snapshot.topic, payload);
 }
 
 isolated function produceKafkaMessage(string topicName, json payload) returns error? {

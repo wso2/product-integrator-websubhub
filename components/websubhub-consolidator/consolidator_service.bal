@@ -38,7 +38,7 @@ http:Service consolidatorService = service object {
 isolated function consolidateSystemState() returns error? {
     do {
         while true {
-            kafka:BytesConsumerRecord[] records = check conn:websubEventConsumer->poll(config:pollingInterval);
+            kafka:BytesConsumerRecord[] records = check conn:websubEventConsumer->poll(config:kafka.consumer.pollingInterval);
             foreach kafka:BytesConsumerRecord currentRecord in records {
                 string lastPersistedData = check string:fromBytes(currentRecord.value);
                 error? result = processPersistedData(lastPersistedData);
@@ -48,7 +48,7 @@ isolated function consolidateSystemState() returns error? {
             }
         }
     } on fail var e {
-        _ = check conn:websubEventConsumer->close(config:gracefulClosePeriod);
+        _ = check conn:websubEventConsumer->close(config:kafka.consumer.gracefulClosePeriod);
         return e;
     }
 }

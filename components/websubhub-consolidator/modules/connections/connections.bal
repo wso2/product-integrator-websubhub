@@ -16,77 +16,25 @@
 
 import websubhub.consolidator.config;
 
-import ballerina/crypto;
-import ballerina/log;
-import ballerina/os;
 import ballerinax/kafka;
-
-public final kafka:SecureSocket & readonly secureSocketConfig = {
-    cert: getCertConfig().cloneReadOnly(),
-    protocol: {
-        name: kafka:SSL
-    },
-    'key: check getKeystoreConfig().cloneReadOnly()
-};
-
-isolated function getCertConfig() returns crypto:TrustStore|string {
-    crypto:TrustStore|string cert = config:kafkaMtlsConfig.cert;
-    if cert is string {
-        return cert;
-    }
-    string trustStorePassword = os:getEnv("TRUSTSTORE_PASSWORD") == "" ? cert.password : os:getEnv("TRUSTSTORE_PASSWORD");
-    string trustStorePath = getFilePath(cert.path, "TRUSTSTORE_FILE_NAME");
-    log:printDebug("Kafka client SSL truststore configuration: ", path = trustStorePath);
-    return {
-        path: trustStorePath,
-        password: trustStorePassword
-    };
-}
-
-isolated function getKeystoreConfig() returns record {|crypto:KeyStore keyStore; string keyPassword?;|}|kafka:CertKey|error? {
-    if config:kafkaMtlsConfig.key is () {
-        return;
-    }
-    if config:kafkaMtlsConfig.key is kafka:CertKey {
-        return config:kafkaMtlsConfig.key;
-    }
-    record {|crypto:KeyStore keyStore; string keyPassword?;|} 'key = check config:kafkaMtlsConfig.key.ensureType();
-    string keyStorePassword = os:getEnv("KEYSTORE_PASSWORD") == "" ? 'key.keyStore.password : os:getEnv("KEYSTORE_PASSWORD");
-    string keyStorePath = getFilePath('key.keyStore.path, "KEYSTORE_FILE_NAME");
-    log:printDebug("Kafka client SSL keystore configuration: ", path = keyStorePath);
-    return {
-        keyStore: {
-            path: keyStorePath,
-            password: keyStorePassword
-        },
-        keyPassword: 'key.keyPassword
-    };
-}
-
-isolated function getFilePath(string defaultFilePath, string envVariableName) returns string {
-    string trustStoreFileName = os:getEnv(envVariableName);
-    if trustStoreFileName == "" {
-        return defaultFilePath;
-    }
-    return string `/home/ballerina/resources/brokercerts/${trustStoreFileName}`;
-}
 
 // Producer which persist the current consolidated in-memory state of the system
 kafka:ProducerConfiguration statePersistConfig = {
     clientId: "consolidated-state-persist",
     acks: "1",
     retryCount: 3,
-    secureSocket: secureSocketConfig,
-    securityProtocol: kafka:PROTOCOL_SSL
+    secureSocket: config:kafka.connection.secureSocket,
+    securityProtocol: config:kafka.connection.securityProtocol
 };
-public final kafka:Producer statePersistProducer = check new (config:kafkaUrl, statePersistConfig);
+public final kafka:Producer statePersistProducer = check new (config:kafka.connection.bootstrapServers, statePersistConfig);
 
 // Consumer which reads the persisted topic-registration/topic-deregistration/subscription/unsubscription events
 public final kafka:ConsumerConfiguration websubEventConsumerConfig = {
-    groupId: config:websubEventsConsumerGroup,
+    groupId: config:state.events.consumerGroup,
     offsetReset: "earliest",
-    topics: [config:websubEventsTopic],
-    secureSocket: secureSocketConfig,
-    securityProtocol: kafka:PROTOCOL_SSL
+    topics: [config:state.events.topic],
+    secureSocket: config:kafka.connection.secureSocket,
+    securityProtocol: config:kafka.connection.securityProtocol,
+    maxPollRecords: config:kafka.consumer.maxPollRecords
 };
-public final kafka:Consumer websubEventConsumer = check new (config:kafkaUrl, websubEventConsumerConfig);
+public final kafka:Consumer websubEventConsumer = check new (config:kafka.connection.bootstrapServers, websubEventConsumerConfig);
