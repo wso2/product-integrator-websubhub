@@ -2,7 +2,6 @@
 org = "wso2"
 name = "websubhub"
 version = "0.1.0-SNAPSHOT"
-distribution = "2201.10.5"
 
 [build-options]
 observabilityIncluded = true
