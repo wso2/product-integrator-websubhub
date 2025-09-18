@@ -1,9 +1,9 @@
 [websubhub.config.server]
-port = 9090
+port = 9000
 id = "hub-1"
 
 [websubhub.config.server.secureSocket]
-key.path = "conf/resources/hub.keystore.jks"
+key.path = "resources/hub.keystore.jks"
 key.password = "password"
 
 [websubhub.config.state.snapshot]

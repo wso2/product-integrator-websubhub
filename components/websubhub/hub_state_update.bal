@@ -18,36 +18,30 @@ import websubhub.common;
 import websubhub.config;
 import websubhub.connections as conn;
 
-// import ballerina/http;
+import ballerina/http;
 import ballerina/lang.value;
-import ballerina/log;
 import ballerina/websubhub;
 import ballerinax/kafka;
 
 function initializeHubState() returns error? {
-    // http:Client stateSnapshot;
-    // common:HttpClientConfig? config = config:state.snapshot.config;
-    // if config is common:HttpClientConfig {
-    //     http:ClientConfiguration clientConfig = {
-    //         timeout: config.timeout,
-    //         retryConfig: config.'retry,
-    //         secureSocket: config.secureSocket
-    //     };
-    //     stateSnapshot = check new (config:state.snapshot.url, clientConfig);
-    // } else {
-    //     stateSnapshot = check new (config:state.snapshot.url);
-    // }
-    do {
-        // common:SystemStateSnapshot systemStateSnapshot = check stateSnapshot->/consolidator/state\-snapshot;
-        common:SystemStateSnapshot systemStateSnapshot = {
-            topics: [],
-            subscriptions: []
+    http:Client stateSnapshot;
+    common:HttpClientConfig? config = config:state.snapshot.config;
+    if config is common:HttpClientConfig {
+        http:ClientConfiguration clientConfig = {
+            timeout: config.timeout,
+            retryConfig: config.'retry,
+            secureSocket: config.secureSocket
         };
+        stateSnapshot = check new (config:state.snapshot.url, clientConfig);
+    } else {
+        stateSnapshot = check new (config:state.snapshot.url);
+    }
+    do {
+        common:SystemStateSnapshot systemStateSnapshot = check stateSnapshot->/consolidator/state\-snapshot;
         check processWebsubTopicsSnapshotState(systemStateSnapshot.topics);
         check processWebsubSubscriptionsSnapshotState(systemStateSnapshot.subscriptions);
         // Start hub-state update worker
         _ = start updateHubState();
-        log:printInfo("Start hub state update");
     } on fail error httpError {
         common:logError("Error occurred while initializing the hub-state using the latest state-snapshot", httpError, severity = "FATAL");
         return httpError;

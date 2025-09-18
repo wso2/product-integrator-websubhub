@@ -22,23 +22,19 @@ import ballerina/log;
 import ballerina/websubhub;
 
 public function main() returns error? {
-    log:printInfo("Initializing the hub");
-    // Initialize the Hub
-    check initializeHubState();
-
-    log:printInfo("Starting the heath check service");
-    // Start the HealthCheck Service
+    // Starting the health-check service
     http:Listener httpListener = check new (config:server.port,
         secureSocket = config:server.secureSocket
     );
-    // runtime:registerListener(httpListener);
     check httpListener.attach(healthCheckService, "/health");
-    log:printInfo("Health check service started");
 
     // Start the Hub
     websubhub:Listener hubListener = check new (httpListener);
     check hubListener.attach(hubService, "hub");
     check hubListener.'start();
     runtime:registerListener(hubListener);
+
+    // Initialize the Hub
+    check initializeHubState();
     log:printInfo("Websubhub service started successfully");
 }
