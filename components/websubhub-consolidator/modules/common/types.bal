@@ -35,21 +35,27 @@ public type ServerConfig record {|
     http:ListenerSecureSocket secureSocket?;
 |};
 
-# Defines configurations for retrieving and maintaining the server's state.
+# Defines configurations for publishing and maintaining the server's state.
 public type ServerStateConfig record {|
-    # Configurations related to state-snapshot Kafka topic
+    # Configurations for the Kafka topic where the state snapshot is published
     KafkaTopicConfig snapshot;
-    # Configurations related to state update events Kafka topic
+    # Configurations for the Kafka topic where state update events are published
     KafkaTopicConfig events;
 |};
 
+# Defines the configurations for a Kafka topic.
 public type KafkaTopicConfig record {|
+    # The name of the Kafka topic
     string topic;
+    # The consumer group ID to be used when consuming from the topic
     string consumerGroup;
 |};
 
+# Defines the mTLS configurations for a secure connection.
 public type KafkaMtlsConfig record {|
+    # The truststore to be used for verifying the server's certificate
     crypto:TrustStore|string cert;
+    # The keystore and key to be used for client authentication
     record {|
         crypto:KeyStore keyStore;
         string keyPassword?;
