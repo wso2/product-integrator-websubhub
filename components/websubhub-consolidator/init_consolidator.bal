@@ -14,15 +14,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import consolidator.common;
-import consolidator.config;
-import consolidator.persistence as persist;
+import websubhub.consolidator.common;
+import websubhub.consolidator.config;
+import websubhub.consolidator.connections as conn;
+import websubhub.consolidator.persistence as persist;
 
 import ballerina/http;
 import ballerina/lang.runtime;
 import ballerina/log;
 import ballerinax/kafka;
-import consolidator.connections as conn;
 
 public function main() returns error? {
     // Initialize consolidator-service state

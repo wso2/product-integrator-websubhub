@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import consolidator.config;
+import websubhub.consolidator.config;
 
 import ballerina/crypto;
 import ballerina/log;

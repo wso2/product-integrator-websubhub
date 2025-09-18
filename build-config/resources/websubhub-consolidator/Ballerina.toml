@@ -1,8 +1,8 @@
 [package]
 org = "wso2"
-name = "consolidator"
+name = "websubhub.consolidator"
 version = "@toml.version@"
-distribution = "2201.10.5"
+distribution = "@ballerina.version@"
 
 [build-options]
 observabilityIncluded = true
