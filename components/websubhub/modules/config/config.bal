@@ -19,7 +19,7 @@ import websubhub.common;
 # Common configurations used to configure the websubhub server
 public configurable common:ServerConfig server = ?;
 
-# Configurations related to websubhub server state update
+# Configurations related to websubhub server state
 public configurable common:ServerStateConfig state = ?;
 
 # Kafka connection related configurations

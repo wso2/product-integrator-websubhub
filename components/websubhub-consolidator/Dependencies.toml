@@ -54,9 +54,6 @@ dependencies = [
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerina", name = "time"}
 ]
-modules = [
-	{org = "ballerina", packageName = "crypto", moduleName = "crypto"}
-]
 
 [[package]]
 org = "ballerina"
@@ -274,9 +271,6 @@ dependencies = [
 	{org = "ballerina", name = "io"},
 	{org = "ballerina", name = "jballerina.java"}
 ]
-modules = [
-	{org = "ballerina", packageName = "os", moduleName = "os"}
-]
 
 [[package]]
 org = "ballerina"
@@ -398,25 +392,23 @@ modules = [
 
 [[package]]
 org = "wso2"
-name = "consolidator"
+name = "websubhub.consolidator"
 version = "0.1.0-SNAPSHOT"
 dependencies = [
-	{org = "ballerina", name = "crypto"},
 	{org = "ballerina", name = "http"},
 	{org = "ballerina", name = "lang.runtime"},
 	{org = "ballerina", name = "lang.value"},
 	{org = "ballerina", name = "log"},
-	{org = "ballerina", name = "os"},
 	{org = "ballerina", name = "random"},
 	{org = "ballerina", name = "websubhub"},
 	{org = "ballerinai", name = "observe"},
 	{org = "ballerinax", name = "kafka"}
 ]
 modules = [
-	{org = "wso2", packageName = "consolidator", moduleName = "consolidator"},
-	{org = "wso2", packageName = "consolidator", moduleName = "consolidator.common"},
-	{org = "wso2", packageName = "consolidator", moduleName = "consolidator.config"},
-	{org = "wso2", packageName = "consolidator", moduleName = "consolidator.connections"},
-	{org = "wso2", packageName = "consolidator", moduleName = "consolidator.persistence"}
+	{org = "wso2", packageName = "websubhub.consolidator", moduleName = "websubhub.consolidator"},
+	{org = "wso2", packageName = "websubhub.consolidator", moduleName = "websubhub.consolidator.common"},
+	{org = "wso2", packageName = "websubhub.consolidator", moduleName = "websubhub.consolidator.config"},
+	{org = "wso2", packageName = "websubhub.consolidator", moduleName = "websubhub.consolidator.connections"},
+	{org = "wso2", packageName = "websubhub.consolidator", moduleName = "websubhub.consolidator.persistence"}
 ]
 

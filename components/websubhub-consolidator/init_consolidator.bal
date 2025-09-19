@@ -14,15 +14,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import consolidator.common;
-import consolidator.config;
-import consolidator.persistence as persist;
+import websubhub.consolidator.common;
+import websubhub.consolidator.config;
+import websubhub.consolidator.persistence as persist;
 
 import ballerina/http;
 import ballerina/lang.runtime;
 import ballerina/log;
 import ballerinax/kafka;
-import consolidator.connections as conn;
 
 public function main() returns error? {
     // Initialize consolidator-service state
@@ -33,7 +32,9 @@ public function main() returns error? {
     }
 
     // Start the HTTP endpoint
-    http:Listener httpListener = check new (config:consolidatorHttpEndpointPort);
+    http:Listener httpListener = check new (config:server.port,
+        secureSocket = config:server.secureSocket
+    );
     runtime:registerListener(httpListener);
     check httpListener.attach(consolidatorService, "/consolidator");
     check httpListener.attach(healthCheckService, "/health");
@@ -49,15 +50,16 @@ public function main() returns error? {
 
 isolated function syncSystemState() returns error? {
     kafka:ConsumerConfiguration websubEventsSnapshotConfig = {
-        groupId: config:websubEventsSnapshotConsumerGroup,
+        groupId: config:state.snapshot.consumerGroup,
         offsetReset: "earliest",
-        topics: [config:websubEventsSnapshotTopic],
-        secureSocket: conn:secureSocketConfig,
-        securityProtocol: kafka:PROTOCOL_SSL
+        topics: [config:state.snapshot.topic],
+        secureSocket: config:kafka.connection.secureSocket,
+        securityProtocol: config:kafka.connection.securityProtocol,
+        maxPollRecords: config:kafka.consumer.maxPollRecords
     };
-    kafka:Consumer websubEventsSnapshotConsumer = check new (config:kafkaUrl, websubEventsSnapshotConfig);
+    kafka:Consumer websubEventsSnapshotConsumer = check new (config:kafka.connection.bootstrapServers, websubEventsSnapshotConfig);
     do {
-        common:SystemStateSnapshot[] events = check websubEventsSnapshotConsumer->pollPayload(config:pollingInterval);
+        common:SystemStateSnapshot[] events = check websubEventsSnapshotConsumer->pollPayload(config:kafka.consumer.pollingInterval);
         if events.length() > 0 {
             common:SystemStateSnapshot lastStateSnapshot = events.pop();
             refreshTopicCache(lastStateSnapshot.topics);
@@ -66,7 +68,7 @@ isolated function syncSystemState() returns error? {
         }
     } on fail error kafkaError {
         common:logError("Error occurred while syncing system-state", kafkaError, "FATAL");
-        error? result = check websubEventsSnapshotConsumer->close();
+        error? result = check websubEventsSnapshotConsumer->close(config:kafka.consumer.gracefulClosePeriod);
         if result is error {
             common:logError("Error occurred while gracefully closing kafka:Consumer", result);
         }
