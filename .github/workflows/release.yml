@@ -79,7 +79,7 @@ jobs:
       - name: Configure Git
         run: |
           git config --global user.name ${{ secrets.WSO2_INTEGRATOR_BOT_USERNAME }}
-          git config --global user.email ${{ secrets.WSO2_INTEGRATOR_BOT_USERNAME }}
+          git config --global user.email ${{ secrets.WSO2_INTEGRATOR_BOT_EMAIL }}
 
       - name: Build Project
         env:
@@ -151,8 +151,8 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config --global user.name "${{ github.actor }}"
-          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          git config --global user.name ${{ secrets.WSO2_INTEGRATOR_BOT_USERNAME }}
+          git config --global user.email ${{ secrets.WSO2_INTEGRATOR_BOT_EMAIL }}
 
       - name: Create Release Branch
         run: |
@@ -201,7 +201,6 @@ jobs:
                 --build-arg SERVER_NAME=wso2${component} \
                 --build-arg SERVER_VERSION=${{ needs.prepare.outputs.version }} \
                 --build-arg SERVER_DIST_PATH=distribution/build/distributions \
-                --build-arg BALLERINA_VERSION=${{ needs.prepare.outputs.ballerina-version }} \
                 --cache-from type=gha \
                 --cache-to type=gha,mode=max \
                 .
