@@ -15,9 +15,8 @@
 # ---------------------------------------------------------------------------
 
 # ---------- Build stage ----------
-# ARG BASE_IMAGE_DIGEST=sha256:de18608d022b1835259f2c488ac7d936735a6397ab0afdf9a508f620d75bcb3a
-# FROM ballerina/jvm-runtime@${BASE_IMAGE_DIGEST} AS build
-FROM eclipse-temurin:21.0.8_9-jre-noble AS build
+ARG BASE_IMAGE_DIGEST=sha256:de18608d022b1835259f2c488ac7d936735a6397ab0afdf9a508f620d75bcb3a
+FROM ballerina/jvm-runtime@${BASE_IMAGE_DIGEST} AS build
 
 # Install required tools for build stage
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -38,9 +37,8 @@ RUN unzip ${SERVER}.zip -d ${SERVER} \
     && rm -rf ${SERVER}.zip ${SERVER}/${SERVER}
 
 # ---------- Runtime stage ----------
-# ARG BASE_IMAGE_DIGEST=sha256:de18608d022b1835259f2c488ac7d936735a6397ab0afdf9a508f620d75bcb3a
-# FROM ballerina/jvm-runtime@${BASE_IMAGE_DIGEST}
-FROM eclipse-temurin:21.0.8_9-jre-noble
+ARG BASE_IMAGE_DIGEST=sha256:de18608d022b1835259f2c488ac7d936735a6397ab0afdf9a508f620d75bcb3a
+FROM ballerina/jvm-runtime@${BASE_IMAGE_DIGEST}
 
 LABEL maintainer="WSO2 Docker Maintainers <dev@wso2.org>"
 
