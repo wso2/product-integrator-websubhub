@@ -197,8 +197,8 @@ jobs:
               docker buildx build \
                 --file docker/components/${component}/Dockerfile \
                 --push \
-                --tag ${{ secrets.DOCKERHUB_USERNAME }}/${component}:latest \
-                --build-arg SERVER_NAME=${component} \
+                --tag ${{ secrets.DOCKERHUB_USERNAME }}/wso2${component}:latest \
+                --build-arg SERVER_NAME=wso2${component} \
                 --build-arg SERVER_VERSION=${{ needs.prepare.outputs.version }} \
                 --build-arg SERVER_DIST_PATH=distribution/build/distributions \
                 --build-arg BALLERINA_VERSION=${{ needs.prepare.outputs.ballerina-version }} \
