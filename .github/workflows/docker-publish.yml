@@ -10,8 +10,8 @@ on:
         description: 'The component name to build Docker image for'
         required: true
         options:
-          - websubhub
-          - websubhub-consolidator
+          - wso2websubhub
+          - wso2websubhub-consolidator
 
 jobs:
   build-and-push:

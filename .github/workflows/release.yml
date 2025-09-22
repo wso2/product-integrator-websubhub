@@ -256,7 +256,7 @@ jobs:
               echo "Triggering Docker build for component: ${component}"
               gh workflow run docker-build.yml \
                 -f release_version="${{ needs.prepare.outputs.version }}" \
-                -f component_name="${component}"
+                -f component_name="wso2${component}"
             else
               echo "No Dockerfile found for component: ${component}, skipping workflow trigger..."
             fi
