@@ -19,10 +19,9 @@ ARG BASE_IMAGE_DIGEST=sha256:de18608d022b1835259f2c488ac7d936735a6397ab0afdf9a50
 FROM ballerina/jvm-runtime@${BASE_IMAGE_DIGEST} AS build
 
 # Install required tools for build stage
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apk add --no-cache \
     bash \
-    unzip \
- && rm -rf /var/lib/apt/lists/*
+    unzip
 
 # Copy and unpack the server distribution
 ARG SERVER_NAME=wso2websubhub-consolidator
@@ -50,15 +49,15 @@ ARG USER_GROUP_ID=10001
 ARG USER_HOME=/home/${USER}
 ARG MOTD='printf "\nWelcome to WSO2 Docker Resources\n---------------------------------\nThis container runs a WSO2 product under Apache License 2.0.\nMore info: http://www.apache.org/licenses/LICENSE-2.0.\n"'
 
-RUN groupadd -g ${USER_GROUP_ID} ${USER_GROUP} \
-    && useradd -u ${USER_ID} -g ${USER_GROUP} -d ${USER_HOME} -m ${USER} \
+# Create group and user
+RUN addgroup -g ${USER_GROUP_ID} ${USER_GROUP} \
+    && adduser -D -u ${USER_ID} -G ${USER_GROUP} -h ${USER_HOME} ${USER} \
     && echo "${MOTD}" > /etc/profile.d/motd.sh
 
 # Install minimal runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apk add --no-cache \
     bash \
-    gzip \
- && rm -rf /var/lib/apt/lists/*
+    gzip
 
 # Copy server
 ARG SERVER_NAME=websubhub
