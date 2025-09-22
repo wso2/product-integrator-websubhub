@@ -38,7 +38,6 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Get Release Version
         id: version
@@ -64,7 +63,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.WSO2_INTEGRATOR_BOT_TOKEN }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -79,13 +78,13 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config --global user.name "${{ github.actor }}"
-          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          git config --global user.name ${{ secrets.WSO2_INTEGRATOR_BOT_USERNAME }}
+          git config --global user.email ${{ secrets.WSO2_INTEGRATOR_BOT_USERNAME }}
 
       - name: Build Project
         env:
-          packageUser: ${{ github.actor }}
-          packagePAT: ${{ secrets.GITHUB_TOKEN }}
+          packageUser: ${{ secrets.WSO2_INTEGRATOR_BOT_USERNAME }}
+          packagePAT: ${{ secrets.WSO2_INTEGRATOR_BOT_TOKEN }}
         run: |
           if [ "${{ github.event.inputs.skip_tests }}" == "true" ]; then
             echo "Skipping tests as requested"
@@ -165,11 +164,12 @@ jobs:
           ./gradlew clean release -Prelease.useAutomaticVersion=true
           ./gradlew -Pversion=${{ needs.prepare.outputs.version }} publish
         env:
-          publishUser: ${{ github.actor }}
-          publishPAT: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          publishUser: ${{ secrets.WSO2_INTEGRATOR_BOT_USERNAME }}
+          publishPAT: ${{ secrets.WSO2_INTEGRATOR_BOT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.WSO2_INTEGRATOR_BOT_TOKEN }}
 
       - name: Log in to Docker Hub
+        if: github.event.inputs.skip_latest_docker_tag == 'false'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -210,16 +210,9 @@ jobs:
             fi
           done
 
-      - name: Create GitHub App Token
-        uses: actions/create-github-app-token@v2
-        id: app-token
-        with:
-          app-id: ${{ secrets.RELEASE_SYNC_BOT_ID }}
-          private-key: ${{ secrets.RELEASE_SYNC_PRIVATE_KEY }}
-
       - name: Create GitHub Release
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.WSO2_INTEGRATOR_BOT_TOKEN }}
         run: |
           gh release create v${{ needs.prepare.outputs.version }} \
             --title "WSO2 Integrator: WebSubHub v${{ needs.prepare.outputs.version }}" \
@@ -228,7 +221,7 @@ jobs:
 
       - name: Create Sync PR
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.WSO2_INTEGRATOR_BOT_TOKEN }}
         run: |
           gh pr create \
             --base ${{ github.ref_name }} \
