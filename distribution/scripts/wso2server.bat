@@ -46,6 +46,11 @@ if not defined JAVA_OPTS (
     set "JAVA_OPTS=-Xms256m -Xmx1024m"
 )
 
+rem Set default config file path if not already set
+if not defined BAL_CONFIG_FILES (
+    set "BAL_CONFIG_FILES=%CONF_DIR%\Config.toml"
+)
+
 rem Find the JAR file
 set "JAR_FILE="
 for /f "delims=" %%F in ('dir /b /s "%LIB_DIR%\*.jar" 2^>nul') do (
@@ -79,7 +84,6 @@ if exist "%PID_FILE%" (
 )
 
 echo Starting WSO2 WSO2 Integrator: WebSubHub...
-set "BAL_CONFIG_FILES=%CONF_DIR%\Config.toml"
 start /B "" "%JAVA_CMD%" %JAVA_OPTS% -jar "%JAR_FILE%"
 
 rem Get the PID of the started process
@@ -154,8 +158,7 @@ echo Starting WSO2 WSO2 Integrator: WebSubHub in foreground...
 echo Using JAVA_CMD: %JAVA_CMD%
 echo Using JAVA_OPTS: %JAVA_OPTS%
 echo JAR: %JAR_FILE%
-echo Config: %CONF_DIR%\Config.toml
-set "BAL_CONFIG_FILES=%CONF_DIR%\Config.toml"
+echo Config: %BAL_CONFIG_FILES%
 "%JAVA_CMD%" %JAVA_OPTS% -jar "%JAR_FILE%"
 goto end
 

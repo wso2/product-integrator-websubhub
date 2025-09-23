@@ -18,7 +18,7 @@
 # ---------------------------------------------------------------------------
 
 # WSO2 Integrator: WebSubHub startup script
-# This script starts, stops, and restarts the WSO2 Integrator: WebSubHub using Java
+# This script starts, stops, and restarts the WSO2 Integrator: WebSubHub
 # Usage: apiserver.sh {start|stop|restart|status}
 
 # resolve links - $0 may be a softlink
@@ -58,6 +58,11 @@ if [ -z "$JAVA_OPTS" ]; then
     JAVA_OPTS="-Xms256m -Xmx1024m"
 fi
 
+# Set default config file path if not already set
+if [ -z "$BAL_CONFIG_FILES" ]; then
+    BAL_CONFIG_FILES="$CONF_DIR/Config.toml"
+fi
+
 # Find the JAR file
 JAR_FILE=$(find "$LIB_DIR" -name "*.jar" | head -n 1)
 
@@ -78,7 +83,7 @@ startServer() {
     echo "Starting WSO2 WSO2 Integrator: WebSubHub..."
     
     # Start the server in background with nohup
-    nohup env BAL_CONFIG_FILES="$CONF_DIR/Config.toml" "$JAVA_CMD" $JAVA_OPTS -jar "$JAR_FILE" > /dev/null 2>&1 &
+    nohup env BAL_CONFIG_FILES="$BAL_CONFIG_FILES" "$JAVA_CMD" $JAVA_OPTS -jar "$JAR_FILE" > /dev/null 2>&1 &
     PID=$!
     echo $PID > "$PID_FILE"
     
@@ -161,8 +166,8 @@ else
         echo "Using JAVA_CMD: $JAVA_CMD"
         echo "Using JAVA_OPTS: $JAVA_OPTS"
         echo "JAR: $JAR_FILE"
-        echo "Config: $CONF_DIR/Config.toml"
-        exec env BAL_CONFIG_FILES="$CONF_DIR/Config.toml" "$JAVA_CMD" $JAVA_OPTS -jar "$JAR_FILE"
+        echo "Config: $BAL_CONFIG_FILES"
+        exec env BAL_CONFIG_FILES="$BAL_CONFIG_FILES" "$JAVA_CMD" $JAVA_OPTS -jar "$JAR_FILE"
     else
         echo "Usage: $0 {start|stop|restart|status}"
         exit 1
