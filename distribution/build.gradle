@@ -39,11 +39,11 @@ distributions {
             }
 
             from("${hubDir}/resources") {
-                into "conf/resources"
+                into "resources"
             }
             
             from(scriptsDir) {
-                include "*.sh"
+                include "*.sh", "*.bat"
                 into "bin"
                 fileMode = 0755
             }
@@ -73,11 +73,11 @@ distributions {
             }
 
             from("${consolidatorDir}/resources") {
-                into "conf/resources"
+                into "resources"
             }
 
             from(scriptsDir) {
-                include "*.sh"
+                include "*.sh", "*.bat"
                 into "bin"
                 fileMode = 0755
             }
@@ -142,3 +142,8 @@ websubhubDistributionDistZip.dependsOn(consolidatorDistZip)
 websubhubDistributionDistTar.enabled = false
 
 build.dependsOn(hubDistZip, consolidatorDistZip, websubhubDistributionDistZip)
+
+websubhubDistributionDistZip.doLast {
+    delete hubDistZip.outputs.files
+    delete consolidatorDistZip.outputs.files
+}
