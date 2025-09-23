@@ -25,7 +25,6 @@ distributions {
     hub {
         distributionBaseName = 'wso2websubhub'
         def hubDir = project(':websubhub').projectDir
-        def confDir = file('conf/websubhub')
         def scriptsDir = file('scripts/websubhub')
         contents {
             from("${hubDir}/target/bin") {
@@ -33,7 +32,7 @@ distributions {
                 into "lib"
             }
             
-            from(confDir) {
+            from("${hubDir}") {    
                 include "Config.toml"
                 into "conf"
             }
@@ -59,7 +58,6 @@ distributions {
     consolidator {
         distributionBaseName = 'wso2websubhub-consolidator'
         def consolidatorDir = project(':websubhub-consolidator').projectDir
-        def confDir = file('conf/websubhub-consolidator')
         def scriptsDir = file('scripts/websubhub-consolidator')
         contents {
             from("${consolidatorDir}/target/bin") {
@@ -67,7 +65,7 @@ distributions {
                 into "lib"
             }
             
-            from(confDir) {
+            from("${consolidatorDir}") {
                 include "Config.toml"
                 into "conf"
             }
