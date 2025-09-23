@@ -140,8 +140,3 @@ websubhubDistributionDistZip.dependsOn(consolidatorDistZip)
 websubhubDistributionDistTar.enabled = false
 
 build.dependsOn(hubDistZip, consolidatorDistZip, websubhubDistributionDistZip)
-
-websubhubDistributionDistZip.doLast {
-    delete hubDistZip.outputs.files
-    delete consolidatorDistZip.outputs.files
-}
