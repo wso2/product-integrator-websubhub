@@ -73,4 +73,4 @@ WORKDIR ${SERVER_HOME}
 USER ${USER_ID}:${USER_GROUP_ID}
 
 # Start the server
-CMD ["bin/wso2server.sh"]
+CMD ["bin/wso2websubhub-consolidator.sh"]
