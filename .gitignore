@@ -34,3 +34,4 @@ build
 # IDEA and VS Code related directories
 .idea
 .vscode
+*.ctx
