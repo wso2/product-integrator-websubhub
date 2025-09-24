@@ -17,9 +17,9 @@
 # under the License.
 # ---------------------------------------------------------------------------
 
-# WSO2 Integrator: WebSubHub startup script
-# This script starts, stops, and restarts the WSO2 Integrator: WebSubHub using Java
-# Usage: apiserver.sh {start|stop|restart|status}
+# WSO2 WebSubHub Consolidator startup script
+# This script starts, stops, and restarts the WSO2 WebSubHub Consolidator
+# Usage: wso2websubhub-consolidator.sh {start|stop|restart|status}
 
 # resolve links - $0 may be a softlink
 PRG="$0"
@@ -39,7 +39,7 @@ PRGDIR=`dirname "$PRG"`
 BASE_DIR=`cd "$PRGDIR/.." ; pwd`
 LIB_DIR="$BASE_DIR/lib"
 CONF_DIR="$BASE_DIR/conf"
-PID_FILE="$BASE_DIR/apiserver.pid"
+PID_FILE="$BASE_DIR/wso2websubhub-consolidator.pid"
 
 # Validate Java installation
 JAVA_CMD="java"
@@ -58,6 +58,11 @@ if [ -z "$JAVA_OPTS" ]; then
     JAVA_OPTS="-Xms256m -Xmx1024m"
 fi
 
+# Set default config file path if not already set
+if [ -z "$BAL_CONFIG_FILES" ]; then
+    BAL_CONFIG_FILES="$CONF_DIR/Config.toml"
+fi
+
 # Find the JAR file
 JAR_FILE=$(find "$LIB_DIR" -name "*.jar" | head -n 1)
 
@@ -70,24 +75,24 @@ fi
 startServer() {
     if [ -e "$PID_FILE" ]; then
         if ps -p $(cat "$PID_FILE") > /dev/null; then
-            echo "WSO2 Integrator: WebSubHub is already running as process $(cat $PID_FILE)"
+            echo "WSO2 WebSubHub Consolidator is already running as process $(cat $PID_FILE)"
             exit 0
         fi
     fi
     
-    echo "Starting WSO2 WSO2 Integrator: WebSubHub..."
+    echo "Starting WSO2 WSO2 WebSubHub Consolidator..."
     
     # Start the server in background with nohup
-    nohup env BAL_CONFIG_FILES="$CONF_DIR/Config.toml" "$JAVA_CMD" $JAVA_OPTS -jar "$JAR_FILE" > /dev/null 2>&1 &
+    nohup env BAL_CONFIG_FILES="$BAL_CONFIG_FILES" "$JAVA_CMD" $JAVA_OPTS -jar "$JAR_FILE" > /dev/null 2>&1 &
     PID=$!
     echo $PID > "$PID_FILE"
     
     # Check if process started successfully
     sleep 2
     if ps -p $PID > /dev/null; then
-        echo "WSO2 Integrator: WebSubHub started successfully with process ID $PID"
+        echo "WSO2 WebSubHub Consolidator started successfully with process ID $PID"
     else
-        echo "Failed to start WSO2 Integrator: WebSubHub"
+        echo "Failed to start WSO2 WebSubHub Consolidator"
         rm -f "$PID_FILE"
         exit 1
     fi
@@ -96,24 +101,24 @@ startServer() {
 # Function to stop the server
 stopServer() {
     if [ ! -e "$PID_FILE" ]; then
-        echo "WSO2 Integrator: WebSubHub is not running"
+        echo "WSO2 WebSubHub Consolidator is not running"
         return
     fi
     
     PID=$(cat "$PID_FILE")
     if ! ps -p $PID > /dev/null; then
-        echo "WSO2 Integrator: WebSubHub is not running"
+        echo "WSO2 WebSubHub Consolidator is not running"
         rm -f "$PID_FILE"
         return
     fi
     
-    echo "Stopping WSO2 Integrator: WebSubHub (PID: $PID)..."
+    echo "Stopping WSO2 WebSubHub Consolidator (PID: $PID)..."
     kill -TERM $PID
     
     # Wait for graceful shutdown
     for i in {1..30}; do
         if ! ps -p $PID > /dev/null; then
-            echo "WSO2 Integrator: WebSubHub stopped successfully"
+            echo "WSO2 WebSubHub Consolidator stopped successfully"
             rm -f "$PID_FILE"
             return
         fi
@@ -121,15 +126,15 @@ stopServer() {
     done
     
     # Force kill if still running
-    echo "Forcing WSO2 Integrator: WebSubHub shutdown..."
+    echo "Forcing WSO2 WebSubHub Consolidator shutdown..."
     kill -KILL $PID > /dev/null 2>&1
     rm -f "$PID_FILE"
-    echo "WSO2 Integrator: WebSubHub stopped"
+    echo "WSO2 WebSubHub Consolidator stopped"
 }
 
 # Function to restart the server
 restartServer() {
-    echo "Restarting WSO2 Integrator: WebSubHub..."
+    echo "Restarting WSO2 WebSubHub Consolidator..."
     stopServer
     sleep 3
     startServer
@@ -146,23 +151,23 @@ elif [ "$1" = "status" ]; then
     if [ -e "$PID_FILE" ]; then
         PID=$(cat "$PID_FILE")
         if ps -p $PID > /dev/null; then
-            echo "WSO2 Integrator: WebSubHub is running (PID: $PID)"
+            echo "WSO2 WebSubHub Consolidator is running (PID: $PID)"
         else
-            echo "WSO2 Integrator: WebSubHub is not running"
+            echo "WSO2 WebSubHub Consolidator is not running"
             rm -f "$PID_FILE"
         fi
     else
-        echo "WSO2 Integrator: WebSubHub is not running"
+        echo "WSO2 WebSubHub Consolidator is not running"
     fi
 else
     # Default behavior - start in foreground
     if [ -z "$1" ]; then
-        echo "Starting WSO2 Integrator: WebSubHub in foreground..."
+        echo "Starting WSO2 WebSubHub Consolidator in foreground..."
         echo "Using JAVA_CMD: $JAVA_CMD"
         echo "Using JAVA_OPTS: $JAVA_OPTS"
         echo "JAR: $JAR_FILE"
-        echo "Config: $CONF_DIR/Config.toml"
-        exec env BAL_CONFIG_FILES="$CONF_DIR/Config.toml" "$JAVA_CMD" $JAVA_OPTS -jar "$JAR_FILE"
+        echo "Config: $BAL_CONFIG_FILES"
+        exec env BAL_CONFIG_FILES="$BAL_CONFIG_FILES" "$JAVA_CMD" $JAVA_OPTS -jar "$JAR_FILE"
     else
         echo "Usage: $0 {start|stop|restart|status}"
         exit 1

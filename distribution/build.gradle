@@ -21,30 +21,28 @@ plugins {
     id 'maven-publish'
 }
 
-def scriptsDir = file('scripts')
-
 distributions {
     hub {
         distributionBaseName = 'wso2websubhub'
         def hubDir = project(':websubhub').projectDir
-        def confDir = file('conf/websubhub')
+        def scriptsDir = file('scripts/websubhub')
         contents {
             from("${hubDir}/target/bin") {
                 include "*.jar"
                 into "lib"
             }
             
-            from(confDir) {
+            from("${hubDir}") {    
                 include "Config.toml"
                 into "conf"
             }
 
             from("${hubDir}/resources") {
-                into "conf/resources"
+                into "resources"
             }
             
             from(scriptsDir) {
-                include "*.sh"
+                include "*.sh", "*.bat"
                 into "bin"
                 fileMode = 0755
             }
@@ -60,24 +58,24 @@ distributions {
     consolidator {
         distributionBaseName = 'wso2websubhub-consolidator'
         def consolidatorDir = project(':websubhub-consolidator').projectDir
-        def confDir = file('conf/websubhub-consolidator')
+        def scriptsDir = file('scripts/websubhub-consolidator')
         contents {
             from("${consolidatorDir}/target/bin") {
                 include "*.jar"
                 into "lib"
             }
             
-            from(confDir) {
+            from("${consolidatorDir}") {
                 include "Config.toml"
                 into "conf"
             }
 
             from("${consolidatorDir}/resources") {
-                into "conf/resources"
+                into "resources"
             }
 
             from(scriptsDir) {
-                include "*.sh"
+                include "*.sh", "*.bat"
                 into "bin"
                 fileMode = 0755
             }

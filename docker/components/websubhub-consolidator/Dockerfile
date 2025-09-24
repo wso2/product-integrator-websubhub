@@ -24,7 +24,7 @@ RUN apk add --no-cache \
     unzip
 
 # Copy and unpack the server distribution
-ARG SERVER_NAME=wso2websubhub
+ARG SERVER_NAME=wso2websubhub-consolidator
 ARG SERVER_VERSION=0.1.0-SNAPSHOT
 ARG SERVER=${SERVER_NAME}-${SERVER_VERSION}
 ARG SERVER_DIST_PATH=../../../../distribution/build/distributions
@@ -73,4 +73,4 @@ WORKDIR ${SERVER_HOME}
 USER ${USER_ID}:${USER_GROUP_ID}
 
 # Start the server
-CMD ["bin/wso2websubhub.sh"]
+CMD ["bin/wso2websubhub-consolidator.sh"]

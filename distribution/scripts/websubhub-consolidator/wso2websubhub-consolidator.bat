@@ -17,16 +17,16 @@
 @REM ---------------------------------------------------------------------------
 
 @echo off
-rem WSO2 Integrator: WebSubHub startup script
-rem This script starts, stops, and restarts the WSO2 Integrator: WebSubHub using Java
-rem Usage: apiserver.bat {start|stop|restart|status}
+rem WSO2 WebSubHub Consolidator startup script
+rem This script starts, stops, and restarts the WSO2 WebSubHub Consolidator
+rem Usage: wso2websubhub-consolidator.bat {start|stop|restart|status}
 
 rem Get standard environment variables
 set "PRGDIR=%~dp0"
 for %%F in ("%PRGDIR%..") do set "BASE_DIR=%%~fF"
 set "LIB_DIR=%BASE_DIR%\lib"
 set "CONF_DIR=%BASE_DIR%\conf"
-set "PID_FILE=%BASE_DIR%\apiserver.pid"
+set "PID_FILE=%BASE_DIR%\wso2websubhub-consolidator.pid"
 
 rem Validate Java installation
 set "JAVA_CMD=java"
@@ -44,6 +44,11 @@ if %errorlevel% neq 0 (
 rem Set default JVM options if not already set
 if not defined JAVA_OPTS (
     set "JAVA_OPTS=-Xms256m -Xmx1024m"
+)
+
+rem Set default config file path if not already set
+if not defined BAL_CONFIG_FILES (
+    set "BAL_CONFIG_FILES=%CONF_DIR%\Config.toml"
 )
 
 rem Find the JAR file
@@ -72,14 +77,13 @@ if exist "%PID_FILE%" (
     for /f %%p in ('type "%PID_FILE%"') do (
         tasklist /FI "PID eq %%p" 2>nul | find /I "java.exe" >nul
         if not errorlevel 1 (
-            echo WSO2 Integrator: WebSubHub is already running as process %%p
+            echo WSO2 WebSubHub Consolidator is already running as process %%p
             exit /b 0
         )
     )
 )
 
-echo Starting WSO2 WSO2 Integrator: WebSubHub...
-set "BAL_CONFIG_FILES=%CONF_DIR%\Config.toml"
+echo Starting WSO2 WebSubHub Consolidator...
 start /B "" "%JAVA_CMD%" %JAVA_OPTS% -jar "%JAR_FILE%"
 
 rem Get the PID of the started process
@@ -89,44 +93,44 @@ for /f "tokens=2" %%i in ('tasklist /FI "IMAGENAME eq java.exe" /FO CSV ^| find 
 
 if defined SERVER_PID (
     echo %SERVER_PID% > "%PID_FILE%"
-    echo WSO2 Integrator: WebSubHub started successfully with process ID %SERVER_PID%
+    echo WSO2 WebSubHub Consolidator started successfully with process ID %SERVER_PID%
 ) else (
-    echo Failed to start WSO2 Integrator: WebSubHub
+    echo Failed to start WSO2 WebSubHub Consolidator
     exit /b 1
 )
 goto end
 
 :stopServer
 if not exist "%PID_FILE%" (
-    echo WSO2 Integrator: WebSubHub is not running
+    echo WSO2 WebSubHub Consolidator is not running
     goto end
 )
 
 for /f %%p in ('type "%PID_FILE%"') do set "SERVER_PID=%%p"
 tasklist /FI "PID eq %SERVER_PID%" 2>nul | find /I "java.exe" >nul
 if errorlevel 1 (
-    echo WSO2 Integrator: WebSubHub is not running
+    echo WSO2 WebSubHub Consolidator is not running
     del "%PID_FILE%" 2>nul
     goto end
 )
 
-echo Stopping WSO2 Integrator: WebSubHub ^(PID: %SERVER_PID%^)...
+echo Stopping WSO2 WebSubHub Consolidator ^(PID: %SERVER_PID%^)...
 taskkill /PID %SERVER_PID% >nul 2>nul
 timeout /T 5 /NOBREAK >nul
 
 rem Check if process stopped
 tasklist /FI "PID eq %SERVER_PID%" 2>nul | find /I "java.exe" >nul
 if not errorlevel 1 (
-    echo Forcing WSO2 Integrator: WebSubHub shutdown...
+    echo Forcing WSO2 WebSubHub Consolidator shutdown...
     taskkill /F /PID %SERVER_PID% >nul 2>nul
 )
 
 del "%PID_FILE%" 2>nul
-echo WSO2 Integrator: WebSubHub stopped
+echo WSO2 WebSubHub Consolidator stopped
 goto end
 
 :restartServer
-echo Restarting WSO2 Integrator: WebSubHub...
+echo Restarting WSO2 WebSubHub Consolidator...
 call :stopServer
 timeout /T 3 /NOBREAK >nul
 call :startServer
@@ -138,24 +142,23 @@ if exist "%PID_FILE%" (
         set "SERVER_PID=%%p"
         tasklist /FI "PID eq %%p" 2>nul | find /I "java.exe" >nul
         if not errorlevel 1 (
-            echo WSO2 Integrator: WebSubHub is running ^(PID: %%p^)
+            echo WSO2 WebSubHub Consolidator is running ^(PID: %%p^)
         ) else (
-            echo WSO2 Integrator: WebSubHub is not running
+            echo WSO2 WebSubHub Consolidator is not running
             del "%PID_FILE%" 2>nul
         )
     )
 ) else (
-    echo WSO2 Integrator: WebSubHub is not running
+    echo WSO2 WebSubHub Consolidator is not running
 )
 goto end
 
 :runForeground
-echo Starting WSO2 WSO2 Integrator: WebSubHub in foreground...
+echo Starting WSO2 WebSubHub Consolidator in foreground...
 echo Using JAVA_CMD: %JAVA_CMD%
 echo Using JAVA_OPTS: %JAVA_OPTS%
 echo JAR: %JAR_FILE%
-echo Config: %CONF_DIR%\Config.toml
-set "BAL_CONFIG_FILES=%CONF_DIR%\Config.toml"
+echo Config: %BAL_CONFIG_FILES%
 "%JAVA_CMD%" %JAVA_OPTS% -jar "%JAR_FILE%"
 goto end
 
