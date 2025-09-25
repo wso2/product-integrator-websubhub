@@ -14,6 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import websubhub.common;
 import websubhub.config;
 import websubhub.connections as conn;
 
@@ -29,6 +30,10 @@ public isolated function removeRegsiteredTopic(websubhub:TopicDeregistration mes
 }
 
 public isolated function addSubscription(websubhub:VerifiedSubscription message) returns error? {
+    check updateHubState(message);
+}
+
+public isolated function addStaleSubscription(common:StaleSubscription message) returns error? {
     check updateHubState(message);
 }
 
