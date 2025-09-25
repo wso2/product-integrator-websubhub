@@ -42,8 +42,8 @@ isolated function processWebsubSubscriptionsSnapshotState(websubhub:VerifiedSubs
 }
 
 isolated function processSubscription(websubhub:VerifiedSubscription subscription) returns error? {
+    log:printDebug("Subscription request received", topic = subscription.hubTopic, callback = subscription.hubCallback);
     string subscriberId = common:generateSubscriberId(subscription.hubTopic, subscription.hubCallback);
-    log:printDebug(string `Subscription event received for the subscriber ${subscriberId}`);
     websubhub:VerifiedSubscription? existingSubscription = getSubscription(subscriberId);
     boolean isFreshSubscription = existingSubscription is ();
     boolean isRenewingStaleSubscription = false;
@@ -59,12 +59,12 @@ isolated function processSubscription(websubhub:VerifiedSubscription subscriptio
         }
     }
 
-    if !isFreshSubscription && !isRenewingStaleSubscription {
-        log:printDebug(string `Subscriber ${subscriberId} is already available in the 'hub', hence not starting the consumer`);
-        return;
-    }
     if isMarkingSubscriptionAsStale {
         log:printDebug(string `Subscriber ${subscriberId} has been marked as stale, hence not starting the consumer`);
+        return;
+    }
+    if !isFreshSubscription && !isRenewingStaleSubscription {
+        log:printDebug(string `Subscriber ${subscriberId} is already available in the 'hub', hence not starting the consumer`);
         return;
     }
 
@@ -83,8 +83,8 @@ isolated function processSubscription(websubhub:VerifiedSubscription subscriptio
 }
 
 isolated function processUnsubscription(websubhub:VerifiedUnsubscription unsubscription) returns error? {
+    log:printDebug("Unsubscription request received", topic = unsubscription.hubTopic, callback = unsubscription.hubCallback);
     string subscriberId = common:generateSubscriberId(unsubscription.hubTopic, unsubscription.hubCallback);
-    log:printDebug(string `Unsubscription event received for the subscriber ${subscriberId}, hence removing the subscriber from the internal state`);
     lock {
         _ = subscribersCache.removeIfHasKey(subscriberId);
     }
@@ -105,17 +105,17 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
             kafka:BytesConsumerRecord[] records = check consumerEp->poll(config:kafka.consumer.pollingInterval);
             if !isValidConsumer(subscription.hubTopic, subscriberId) {
                 fail error common:InvalidSubscriptionError(
-                    string `Subscription or the topic is invalid`, topic = topic, subscriberId = subscriberId
+                    string `Subscription ${subscriberId} or the topic ${topic} is invalid`, topic = topic, subscriberId = subscriberId
                 );
             }
             _ = check notifySubscribers(records, clientEp);
             check consumerEp->'commit();
         }
     } on fail var e {
-        common:logError("Error occurred while sending notification to subscriber", e);
+        log:printError("Error occurred while sending notification to subscriber", e);
         kafka:Error? result = consumerEp->close(config:kafka.consumer.gracefulClosePeriod);
         if result is kafka:Error {
-            log:printError("Error occurred while gracefully closing kafka-consumer", err = result.message());
+            log:printError("Error occurred while gracefully closing kafka-consumer", result);
         }
 
         if e is common:InvalidSubscriptionError {
@@ -132,7 +132,7 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
             };
             error? persistResult = persist:removeSubscription(unsubscription);
             if persistResult is error {
-                common:logError(
+                log:printError(
                         "Error occurred while removing the subscription", persistResult, subscription = unsubscription);
             }
             return;
@@ -144,7 +144,7 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
         };
         error? persistResult = persist:addStaleSubscription(staleSubscription);
         if persistResult is error {
-            common:logError(
+            log:printError(
                     "Error occurred while persisting the stale subscription", persistResult, subscription = staleSubscription);
         }
     }

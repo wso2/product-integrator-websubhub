@@ -58,7 +58,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
         lock {
             if registeredTopicsCache.hasKey(message.topic) {
                 return error websubhub:TopicRegistrationError(
-                    "Topic has already registered with the Hub", statusCode = http:STATUS_CONFLICT);
+                    string `Topic [${message.topic}] is already registered with the Hub`, statusCode = http:STATUS_CONFLICT);
             }
             error? persistingResult = persist:addRegsiteredTopic(message.cloneReadOnly());
             if persistingResult is error {
@@ -86,7 +86,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
         lock {
             if !registeredTopicsCache.hasKey(message.topic) {
                 return error websubhub:TopicDeregistrationError(
-                    "Topic has not been registered in the Hub", statusCode = http:STATUS_NOT_FOUND);
+                    string `Topic [${message.topic}] is not registered with the Hub`, statusCode = http:STATUS_NOT_FOUND);
             }
             error? persistingResult = persist:removeRegsiteredTopic(message.cloneReadOnly());
             if persistingResult is error {
@@ -121,7 +121,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
         }
         if !topicAvailable {
             return error websubhub:SubscriptionDeniedError(
-                "Topic [" + message.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
+                string `Topic [${message.hubTopic}] is not registered with the Hub`, statusCode = http:STATUS_NOT_ACCEPTABLE);
         } else {
             string subscriberId = common:generateSubscriberId(message.hubTopic, message.hubCallback);
             websubhub:VerifiedSubscription? subscription = getSubscription(subscriberId);
@@ -133,7 +133,9 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             }
             if isValidSubscription(subscriberId) {
                 return error websubhub:SubscriptionDeniedError(
-                    "Subscriber has already registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
+                    string `Active subscription for Topic [${message.hubTopic}] and Callback [${message.hubCallback}] already exists`,
+                    statusCode = http:STATUS_NOT_ACCEPTABLE
+                );
             }
         }
     }
@@ -195,12 +197,14 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
         }
         if !topicAvailable {
             return error websubhub:UnsubscriptionDeniedError(
-                "Topic [" + message.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
+                string `Topic [${message.hubTopic}] is not registered with the Hub`, statusCode = http:STATUS_NOT_ACCEPTABLE);
         } else {
             string subscriberId = common:generateSubscriberId(message.hubTopic, message.hubCallback);
             if !isValidSubscription(subscriberId) {
-                return error websubhub:UnsubscriptionDeniedError("Could not find a valid subscriber for Topic ["
-                                + message.hubTopic + "] and Callback [" + message.hubCallback + "]", statusCode = http:STATUS_NOT_ACCEPTABLE);
+                return error websubhub:UnsubscriptionDeniedError(
+                    string `Could not find a valid subscription for Topic [${message.hubTopic}] and Callback [${message.hubCallback}]`,
+                    statusCode = http:STATUS_NOT_ACCEPTABLE
+                );
             }
         }
     }
@@ -210,7 +214,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     # + message - Details of the unsubscription
     isolated remote function onUnsubscriptionIntentVerified(websubhub:VerifiedUnsubscription message) {
         lock {
-            var persistingResult = persist:removeSubscription(message.cloneReadOnly());
+            error? persistingResult = persist:removeSubscription(message.cloneReadOnly());
             if persistingResult is error {
                 log:printError("Error occurred while persisting the unsubscription ", persistingResult);
             }
@@ -232,14 +236,14 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
         return websubhub:ACKNOWLEDGEMENT;
     }
 
-    isolated function updateMessage(websubhub:UpdateMessage msg, http:Headers headers) returns websubhub:UpdateMessageError? {
+    isolated function updateMessage(websubhub:UpdateMessage message, http:Headers headers) returns websubhub:UpdateMessageError? {
         boolean topicAvailable = false;
         lock {
-            topicAvailable = registeredTopicsCache.hasKey(msg.hubTopic);
+            topicAvailable = registeredTopicsCache.hasKey(message.hubTopic);
         }
         if topicAvailable {
             map<string[]> messageHeaders = getHeadersMap(headers);
-            error? errorResponse = persist:addUpdateMessage(msg.hubTopic, msg, messageHeaders);
+            error? errorResponse = persist:addUpdateMessage(message.hubTopic, message, messageHeaders);
             if errorResponse is websubhub:UpdateMessageError {
                 return errorResponse;
             } else if errorResponse is error {
@@ -249,7 +253,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             }
         } else {
             return error websubhub:UpdateMessageError(
-                "Topic [" + msg.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_FOUND);
+                string `Topic [${message.hubTopic}] is not registered with the Hub`, statusCode = http:STATUS_NOT_FOUND);
         }
     }
 };

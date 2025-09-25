@@ -22,6 +22,7 @@ import ballerina/http;
 import ballerina/lang.value;
 import ballerina/websubhub;
 import ballerinax/kafka;
+import ballerina/log;
 
 function initializeHubState() returns error? {
     http:Client stateSnapshot;
@@ -43,7 +44,7 @@ function initializeHubState() returns error? {
         // Start hub-state update worker
         _ = start updateHubState();
     } on fail error httpError {
-        common:logError("Error occurred while initializing the hub-state using the latest state-snapshot", httpError, severity = "FATAL");
+        log:printError("Error occurred while initializing the hub-state using the latest state-snapshot", httpError, severity = "FATAL");
         return httpError;
     }
 }
@@ -58,7 +59,7 @@ function updateHubState() returns error? {
             string lastPersistedData = check string:fromBytes(currentRecord.value);
             error? result = processStateUpdateEvent(lastPersistedData);
             if result is error {
-                common:logError("Error occurred while processing state-update event", result, severity = "FATAL");
+                log:printError("Error occurred while processing state-update event", result, severity = "FATAL");
                 return result;
             }
         }
