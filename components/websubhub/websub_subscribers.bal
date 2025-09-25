@@ -94,36 +94,62 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
     string topic = subscription.hubTopic;
     string consumerGroup = check value:ensureType(subscription[CONSUMER_GROUP]);
     int[]? topicPartitions = check getTopicPartitions(subscription);
+    log:printDebug("Creating Kafka consumer for subscription", subscriberId = subscriberId, topic = topic, consumerGroup = consumerGroup, partitions = topicPartitions);
     kafka:Consumer consumerEp = check conn:createMessageConsumer(topic, consumerGroup, topicPartitions);
+    log:printDebug("Kafka consumer created successfully", subscriberId = subscriberId, topic = topic);
+
+    log:printDebug("Creating WebSubHub client for content delivery", subscriberId = subscriberId, callback = subscription.hubCallback);
     websubhub:HubClient clientEp = check new (subscription, {
         httpVersion: http:HTTP_2_0,
         retryConfig: config:delivery.'retry,
         timeout: config:delivery.timeout
     });
+    log:printDebug("WebSubHub client created successfully", subscriberId = subscriberId);
+
     do {
+        log:printDebug("Starting message polling loop", subscriberId = subscriberId, topic = topic, pollingInterval = config:kafka.consumer.pollingInterval);
         while true {
+            log:printDebug("Polling for new messages", subscriberId = subscriberId, topic = topic);
             kafka:BytesConsumerRecord[] records = check consumerEp->poll(config:kafka.consumer.pollingInterval);
+            log:printDebug("Polling completed", subscriberId = subscriberId, recordCount = records.length());
+
             if !isValidConsumer(subscription.hubTopic, subscriberId) {
+                log:printDebug("Consumer validation failed - invalidating subscription", subscriberId = subscriberId, topic = topic);
                 fail error common:InvalidSubscriptionError(
                     string `Subscription ${subscriberId} or the topic ${topic} is invalid`, topic = topic, subscriberId = subscriberId
                 );
             }
-            _ = check notifySubscribers(records, clientEp);
+
+            if records.length() > 0 {
+                log:printDebug("Notifying subscribers with received messages", subscriberId = subscriberId, messageCount = records.length());
+                _ = check notifySubscribers(records, clientEp);
+                log:printDebug("Subscriber notification completed successfully", subscriberId = subscriberId);
+            }
+
+            log:printDebug("Committing Kafka offset", subscriberId = subscriberId, topic = topic);
             check consumerEp->'commit();
+            log:printDebug("Kafka offset committed successfully", subscriberId = subscriberId);
         }
     } on fail var e {
+        log:printDebug("Error occurred in polling loop", subscriberId = subscriberId, errorMsg = e.message());
         common:logError("Error occurred while sending notification to subscriber", e);
+
+        log:printDebug("Closing Kafka consumer gracefully", subscriberId = subscriberId, gracePeriod = config:kafka.consumer.gracefulClosePeriod);
         kafka:Error? result = consumerEp->close(config:kafka.consumer.gracefulClosePeriod);
         if result is kafka:Error {
             common:logError("Error occurred while gracefully closing kafka-consumer", result);
+        } else {
+            log:printDebug("Kafka consumer closed successfully", subscriberId = subscriberId);
         }
 
         if e is common:InvalidSubscriptionError {
+            log:printDebug("Invalid subscription error - terminating consumer", subscriberId = subscriberId);
             return;
         }
 
         // If subscription-deleted error received, remove the subscription
         if e is websubhub:SubscriptionDeletedError {
+            log:printDebug("Subscription deleted error - removing subscription from persistence", subscriberId = subscriberId);
             websubhub:VerifiedUnsubscription unsubscription = {
                 hubMode: "unsubscribe",
                 hubTopic: subscription.hubTopic,
@@ -134,11 +160,14 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
             if persistResult is error {
                 common:logError(
                         "Error occurred while removing the subscription", persistResult, subscription = unsubscription);
+            } else {
+                log:printDebug("Subscription removed from persistence successfully", subscriberId = subscriberId);
             }
             return;
         }
 
         // Persist the subscription as a `stale` subscription whenever the content delivery fails
+        log:printDebug("Marking subscription as stale due to delivery failure", subscriberId = subscriberId);
         common:StaleSubscription staleSubscription = {
             ...subscription
         };
@@ -146,15 +175,17 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
         if persistResult is error {
             common:logError(
                     "Error occurred while persisting the stale subscription", persistResult, subscription = staleSubscription);
+        } else {
+            log:printDebug("Subscription marked as stale successfully", subscriberId = subscriberId);
         }
     }
 }
 
 isolated function isValidConsumer(string topicName, string subscriberId) returns boolean {
-    return isValidTopic(topicName) && isValidSubscription(subscriberId);
+    return isTopicExist(topicName) && isSubscriptionExist(subscriberId);
 }
 
-isolated function isValidSubscription(string subscriberId) returns boolean {
+isolated function isSubscriptionExist(string subscriberId) returns boolean {
     lock {
         return subscribersCache.hasKey(subscriberId);
     }
@@ -167,43 +198,68 @@ isolated function getSubscription(string subscriberId) returns websubhub:Verifie
 }
 
 isolated function notifySubscribers(kafka:BytesConsumerRecord[] records, websubhub:HubClient clientEp) returns error? {
+    log:printDebug("Starting subscriber notification process", recordCount = records.length());
     future<websubhub:ContentDistributionSuccess|error>[] distributionResponses = [];
-    foreach var kafkaRecord in records {
+    foreach kafka:BytesConsumerRecord kafkaRecord in records {
+        log:printDebug("Constructing content distribution message", offset = kafkaRecord.offset);
         websubhub:ContentDistributionMessage message = check constructContentDistMsg(kafkaRecord);
+        log:printDebug("Content distribution message constructed", contentType = message.contentType);
+
+        log:printDebug("Starting async content distribution");
         future<websubhub:ContentDistributionSuccess|error> distributionResponse = start clientEp->notifyContentDistribution(message.cloneReadOnly());
         distributionResponses.push(distributionResponse);
     }
+    log:printDebug("All async content distributions started", totalDistributions = distributionResponses.length());
 
+    log:printDebug("Waiting for content distribution responses");
     foreach var responseFuture in distributionResponses {
+        log:printDebug("Waiting for distribution response");
         websubhub:ContentDistributionSuccess|error result = wait responseFuture;
         if result is error {
+            log:printDebug("Content distribution failed", errorMsg = result.message());
             return result;
         }
     }
+    log:printDebug("All content distributions completed successfully", totalDistributions = distributionResponses.length());
 }
 
 isolated function constructContentDistMsg(kafka:BytesConsumerRecord kafkaRecord) returns websubhub:ContentDistributionMessage|error {
+    log:printDebug("Constructing content distribution message from Kafka record", offset = kafkaRecord.offset);
     byte[] content = kafkaRecord.value;
+    log:printDebug("Converting Kafka record bytes to string", contentSize = content.length());
     string message = check string:fromBytes(content);
+    log:printDebug("Parsing JSON payload from string message", messageLength = message.length());
     json payload = check value:fromJsonString(message);
+    log:printDebug("Extracting headers from Kafka record");
+    map<string|string[]> headers = check getHeaders(kafkaRecord);
+    log:printDebug("Creating content distribution message", headerCount = headers.length());
     websubhub:ContentDistributionMessage distributionMsg = {
         content: payload,
         contentType: mime:APPLICATION_JSON,
-        headers: check getHeaders(kafkaRecord)
+        headers: headers
     };
+    log:printDebug("Content distribution message constructed successfully", contentType = distributionMsg.contentType);
     return distributionMsg;
 }
 
 isolated function getHeaders(kafka:BytesConsumerRecord kafkaRecord) returns map<string|string[]>|error {
+    log:printDebug("Processing headers from Kafka record", headerCount = kafkaRecord.headers.length());
     map<string|string[]> headers = {};
     foreach var ['key, value] in kafkaRecord.headers.entries().toArray() {
+        log:printDebug("Processing header", headerKey = 'key);
         if value is byte[] {
-            headers['key] = check string:fromBytes(value);
+            string headerStringValue = check string:fromBytes(value);
+            headers['key] = headerStringValue;
+            log:printDebug("Header processed as string", headerKey = 'key, valueLength = headerStringValue.length());
         } else if value is byte[][] {
             string[] headerValue = value.'map(v => check string:fromBytes(v));
             headers['key] = headerValue;
+            log:printDebug("Header processed as string array", headerKey = 'key, arrayLength = headerValue.length());
+        } else {
+            log:printDebug("Unsupported header value type", headerKey = 'key);
         }
     }
+    log:printDebug("Headers processing completed", totalHeaders = headers.length());
     return headers;
 }
 

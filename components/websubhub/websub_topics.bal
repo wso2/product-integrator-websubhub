@@ -43,7 +43,7 @@ isolated function processTopicDeregistration(websubhub:TopicDeregistration topic
     }
 }
 
-isolated function isValidTopic(string topicName) returns boolean {
+isolated function isTopicExist(string topicName) returns boolean {
     lock {
         return registeredTopicsCache.hasKey(topicName);
     }
