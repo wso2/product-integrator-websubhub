@@ -16,8 +16,8 @@
 
 import websubhub.config;
 
-import ballerina/log;
 import ballerinax/kafka;
+import websubhub.common;
 
 // Producer which persist the current in-memory state of the Hub 
 kafka:ProducerConfiguration statePersistConfig = {
@@ -61,14 +61,14 @@ public isolated function createMessageConsumer(string topicName, string groupNam
 
     kafka:Consumer|kafka:Error consumerEp = check new (config:kafka.connection.bootstrapServers, consumerConfiguration);
     if consumerEp is kafka:Error {
-        log:printError("Error occurred while creating the consumer", consumerEp);
+        common:logError("Error occurred while creating the consumer", consumerEp);
         return consumerEp;
     }
 
     kafka:TopicPartition[] kafkaTopicPartitions = partitions.'map(p => {topic: topicName, partition: p});
     kafka:Error? paritionAssignmentErr = consumerEp->assign(kafkaTopicPartitions);
     if paritionAssignmentErr is kafka:Error {
-        log:printError("Error occurred while assigning partitions to the consumer", paritionAssignmentErr);
+        common:logError("Error occurred while assigning partitions to the consumer", paritionAssignmentErr);
         return paritionAssignmentErr;
     }
 
@@ -76,7 +76,7 @@ public isolated function createMessageConsumer(string topicName, string groupNam
     foreach kafka:TopicPartition partition in kafkaTopicPartitions {
         kafka:PartitionOffset|kafka:Error? offset = consumerEp->getCommittedOffset(partition);
         if offset is kafka:Error {
-            log:printError("Error occurred while retrieving the commited offsets for the topic-partition", offset);
+            common:logError("Error occurred while retrieving the commited offsets for the topic-partition", offset);
             return offset;
         }
 
@@ -87,7 +87,7 @@ public isolated function createMessageConsumer(string topicName, string groupNam
         if offset is kafka:PartitionOffset {
             kafka:Error? kafkaSeekErr = consumerEp->seek(offset);
             if kafkaSeekErr is kafka:Error {
-                log:printError("Error occurred while assigning seeking partitions for the consumer", kafkaSeekErr);
+                common:logError("Error occurred while assigning seeking partitions for the consumer", kafkaSeekErr);
                 return kafkaSeekErr;
             }
         }
@@ -96,7 +96,7 @@ public isolated function createMessageConsumer(string topicName, string groupNam
     if parititionsWithoutCmtdOffsets.length() > 0 {
         kafka:Error? kafkaSeekErr = consumerEp->seekToBeginning(parititionsWithoutCmtdOffsets);
         if kafkaSeekErr is kafka:Error {
-            log:printError("Error occurred while assigning seeking partitions (for paritions without committed offsets) for the consumer", kafkaSeekErr);
+            common:logError("Error occurred while assigning seeking partitions (for paritions without committed offsets) for the consumer", kafkaSeekErr);
             return kafkaSeekErr;
         }
     }

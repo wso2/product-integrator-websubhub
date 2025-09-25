@@ -19,7 +19,6 @@ import websubhub.config;
 
 import ballerina/http;
 import ballerina/jwt;
-import ballerina/log;
 
 final http:ListenerJwtAuthHandler? jwtAuthHandler = getJwtAuthHandler();
 
@@ -61,15 +60,15 @@ public isolated function authorize(http:Headers headers, string[] authScopes) re
         if auth is jwt:Payload {
             http:Forbidden? forbiddenError = handler.authorize(auth, authScopes);
             if forbiddenError is http:Forbidden {
-                log:printError("Forbidden Error received - Authentication credentials invalid");
+                common:logError("Forbidden Error received - Authentication credentials invalid");
                 return error("Not authorized");
             }
         } else {
-            log:printError("Unauthorized Error received - Authentication credentials invalid");
+            common:logError("Unauthorized Error received - Authentication credentials invalid");
             return error("Not authorized");
         }
     } else {
-        log:printError("Authorization header not found");
+        common:logError("Authorization header not found");
         return error("Not authorized");
     }
 }

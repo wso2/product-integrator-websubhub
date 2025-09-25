@@ -112,10 +112,10 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
             check consumerEp->'commit();
         }
     } on fail var e {
-        log:printError("Error occurred while sending notification to subscriber", e);
+        common:logError("Error occurred while sending notification to subscriber", e);
         kafka:Error? result = consumerEp->close(config:kafka.consumer.gracefulClosePeriod);
         if result is kafka:Error {
-            log:printError("Error occurred while gracefully closing kafka-consumer", result);
+            common:logError("Error occurred while gracefully closing kafka-consumer", result);
         }
 
         if e is common:InvalidSubscriptionError {
@@ -132,7 +132,7 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
             };
             error? persistResult = persist:removeSubscription(unsubscription);
             if persistResult is error {
-                log:printError(
+                common:logError(
                         "Error occurred while removing the subscription", persistResult, subscription = unsubscription);
             }
             return;
@@ -144,7 +144,7 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
         };
         error? persistResult = persist:addStaleSubscription(staleSubscription);
         if persistResult is error {
-            log:printError(
+            common:logError(
                     "Error occurred while persisting the stale subscription", persistResult, subscription = staleSubscription);
         }
     }
