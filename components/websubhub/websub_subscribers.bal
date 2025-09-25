@@ -17,6 +17,7 @@
 import websubhub.common;
 import websubhub.config;
 import websubhub.connections as conn;
+import websubhub.persistence as persist;
 
 import ballerina/http;
 import ballerina/lang.value;
@@ -33,33 +34,52 @@ const string SERVER_ID = "SERVER_ID";
 const string STATUS = "status";
 const string STALE_STATE = "stale";
 
-function processWebsubSubscriptionsSnapshotState(websubhub:VerifiedSubscription[] subscriptions) returns error? {
+isolated function processWebsubSubscriptionsSnapshotState(websubhub:VerifiedSubscription[] subscriptions) returns error? {
     log:printDebug("Received latest state-snapshot for websub subscriptions", newState = subscriptions);
     foreach websubhub:VerifiedSubscription subscription in subscriptions {
         check processSubscription(subscription);
     }
 }
 
-function processSubscription(websubhub:VerifiedSubscription subscription) returns error? {
+isolated function processSubscription(websubhub:VerifiedSubscription subscription) returns error? {
     string subscriberId = common:generateSubscriberId(subscription.hubTopic, subscription.hubCallback);
     log:printDebug(string `Subscription event received for the subscriber ${subscriberId}`);
-    boolean subscriberAlreadyAvailable = true;
+    websubhub:VerifiedSubscription? existingSubscription = getSubscription(subscriberId);
+    boolean isFreshSubscription = existingSubscription is ();
+    boolean isRenewingStaleSubscription = false;
+    if existingSubscription is websubhub:VerifiedSubscription {
+        isRenewingStaleSubscription = existingSubscription.hasKey(STATUS) && existingSubscription.get(STATUS) is STALE_STATE;
+    }
+    boolean isMarkingSubscriptionAsStale = subscription.hasKey(STATUS) && subscription.get(STATUS) is STALE_STATE;
+
     lock {
-        // add the subscriber if subscription event received
-        if !subscribersCache.hasKey(subscriberId) {
-            subscriberAlreadyAvailable = false;
+        // add the subscriber if subscription event received for a new subscription or a stale subscription, when renewing a stale subscription
+        if isFreshSubscription || isRenewingStaleSubscription || isMarkingSubscriptionAsStale {
             subscribersCache[subscriberId] = subscription.cloneReadOnly();
         }
     }
+
+    if !isFreshSubscription && !isRenewingStaleSubscription {
+        log:printDebug(string `Subscriber ${subscriberId} is already available in the 'hub', hence not starting the consumer`);
+        return;
+    }
+    if isMarkingSubscriptionAsStale {
+        log:printDebug(string `Subscriber ${subscriberId} has been marked as stale, hence not starting the consumer`);
+        return;
+    }
+
     string serverId = check subscription[SERVER_ID].ensureType();
     // if the subscription already exists in the `hub` instance, or the given subscription
     // does not belong to the `hub` instance do not start the consumer
-    if subscriberAlreadyAvailable || serverId != config:server.id {
-        log:printDebug(string `Subscriber ${subscriberId} is already available or it does not belong to the current server, hence not starting the consumer`,
-                subscriberAvailable = subscriberAlreadyAvailable, serverId = serverId);
+    if serverId != config:server.id {
+        log:printDebug(
+                string `Subscriber ${subscriberId} does not belong to the current server, hence not starting the consumer`,
+                subscriberServerId = serverId
+        );
         return;
     }
-    _ = start pollForNewUpdates(subscriberId, subscription);
+
+    _ = start pollForNewUpdates(subscriberId, subscription.cloneReadOnly());
 }
 
 isolated function processUnsubscription(websubhub:VerifiedUnsubscription unsubscription) returns error? {
@@ -71,9 +91,10 @@ isolated function processUnsubscription(websubhub:VerifiedUnsubscription unsubsc
 }
 
 isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubscription subscription) returns error? {
+    string topic = subscription.hubTopic;
     string consumerGroup = check value:ensureType(subscription[CONSUMER_GROUP]);
     int[]? topicPartitions = check getTopicPartitions(subscription);
-    kafka:Consumer consumerEp = check conn:createMessageConsumer(subscription.hubTopic, consumerGroup, topicPartitions);
+    kafka:Consumer consumerEp = check conn:createMessageConsumer(topic, consumerGroup, topicPartitions);
     websubhub:HubClient clientEp = check new (subscription, {
         httpVersion: http:HTTP_2_0,
         retryConfig: config:delivery.'retry,
@@ -83,18 +104,48 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
         while true {
             kafka:BytesConsumerRecord[] records = check consumerEp->poll(config:kafka.consumer.pollingInterval);
             if !isValidConsumer(subscription.hubTopic, subscriberId) {
-                fail error(string `Subscriber with Id ${subscriberId} or topic ${subscription.hubTopic} is invalid`);
+                fail error common:InvalidSubscriptionError(
+                    string `Subscription or the topic is invalid`, topic = topic, subscriberId = subscriberId
+                );
             }
-            _ = check notifySubscribers(consumerEp, records, clientEp);
+            _ = check notifySubscribers(records, clientEp);
+            check consumerEp->'commit();
         }
     } on fail var e {
         common:logError("Error occurred while sending notification to subscriber", e);
-        lock {
-            _ = subscribersCache.removeIfHasKey(subscriberId);
-        }
         kafka:Error? result = consumerEp->close(config:kafka.consumer.gracefulClosePeriod);
         if result is kafka:Error {
             log:printError("Error occurred while gracefully closing kafka-consumer", err = result.message());
+        }
+
+        if e is common:InvalidSubscriptionError {
+            return;
+        }
+
+        // If subscription-deleted error received, remove the subscription
+        if e is websubhub:SubscriptionDeletedError {
+            websubhub:VerifiedUnsubscription unsubscription = {
+                hubMode: "unsubscribe",
+                hubTopic: subscription.hubTopic,
+                hubCallback: subscription.hubCallback,
+                hubSecret: subscription.hubSecret
+            };
+            error? persistResult = persist:removeSubscription(unsubscription);
+            if persistResult is error {
+                common:logError(
+                        "Error occurred while removing the subscription", persistResult, subscription = unsubscription);
+            }
+            return;
+        }
+
+        // Persist the subscription as a `stale` subscription whenever the content delivery fails
+        common:StaleSubscription staleSubscription = {
+            ...subscription
+        };
+        error? persistResult = persist:addStaleSubscription(staleSubscription);
+        if persistResult is error {
+            common:logError(
+                    "Error occurred while persisting the stale subscription", persistResult, subscription = staleSubscription);
         }
     }
 }
@@ -109,35 +160,29 @@ isolated function isValidSubscription(string subscriberId) returns boolean {
     }
 }
 
-isolated function notifySubscribers(kafka:Consumer consumerEp, kafka:BytesConsumerRecord[] records, websubhub:HubClient clientEp) returns error? {
-    do {
-        future<websubhub:ContentDistributionSuccess|error>[] distributionResponses = [];
-        foreach var kafkaRecord in records {
-            websubhub:ContentDistributionMessage message = check deSerializeKafkaRecord(kafkaRecord);
-            future<websubhub:ContentDistributionSuccess|error> distributionResponse = start clientEp->notifyContentDistribution(message.cloneReadOnly());
-            distributionResponses.push(distributionResponse);
-        }
-
-        boolean hasErrors = distributionResponses
-            .'map(f => waitAndGetResult(f))
-            .'map(r => r is error)
-            .reduce(isolated function(boolean a, boolean b) returns boolean => a && b, false);
-
-        if hasErrors {
-            return error("Error occurred while distributing content to the subscriber");
-        }
-        return consumerEp->'commit();
-    } on fail error e {
-        log:printError("Error occurred while delivering messages to the subscriber", err = e.message());
+isolated function getSubscription(string subscriberId) returns websubhub:VerifiedSubscription? {
+    lock {
+        return subscribersCache[subscriberId].cloneReadOnly();
     }
 }
 
-isolated function waitAndGetResult(future<websubhub:ContentDistributionSuccess|error> response) returns websubhub:ContentDistributionSuccess|error {
-    websubhub:ContentDistributionSuccess|error responseValue = wait response;
-    return responseValue;
+isolated function notifySubscribers(kafka:BytesConsumerRecord[] records, websubhub:HubClient clientEp) returns error? {
+    future<websubhub:ContentDistributionSuccess|error>[] distributionResponses = [];
+    foreach var kafkaRecord in records {
+        websubhub:ContentDistributionMessage message = check constructContentDistMsg(kafkaRecord);
+        future<websubhub:ContentDistributionSuccess|error> distributionResponse = start clientEp->notifyContentDistribution(message.cloneReadOnly());
+        distributionResponses.push(distributionResponse);
+    }
+
+    foreach var responseFuture in distributionResponses {
+        websubhub:ContentDistributionSuccess|error result = wait responseFuture;
+        if result is error {
+            return result;
+        }
+    }
 }
 
-isolated function deSerializeKafkaRecord(kafka:BytesConsumerRecord kafkaRecord) returns websubhub:ContentDistributionMessage|error {
+isolated function constructContentDistMsg(kafka:BytesConsumerRecord kafkaRecord) returns websubhub:ContentDistributionMessage|error {
     byte[] content = kafkaRecord.value;
     string message = check string:fromBytes(content);
     json payload = check value:fromJsonString(message);

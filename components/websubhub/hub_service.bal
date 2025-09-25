@@ -33,7 +33,11 @@ http:Service healthCheckService = service object {
     }
 };
 
-websubhub:Service hubService = service object {
+websubhub:Service hubService = @websubhub:ServiceConfig {
+    webHookConfig: {
+        retryConfig: config:delivery.'retry
+    }
+} service object {
 
     # Registers a `topic` in the hub.
     #
@@ -120,6 +124,13 @@ websubhub:Service hubService = service object {
                 "Topic [" + message.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
         } else {
             string subscriberId = common:generateSubscriberId(message.hubTopic, message.hubCallback);
+            websubhub:VerifiedSubscription? subscription = getSubscription(subscriberId);
+            if subscription is () {
+                return;
+            }
+            if subscription.hasKey(STATUS) && subscription.get(STATUS) is STALE_STATE {
+                return;
+            }
             if isValidSubscription(subscriberId) {
                 return error websubhub:SubscriptionDeniedError(
                     "Subscriber has already registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
@@ -132,15 +143,30 @@ websubhub:Service hubService = service object {
     # + message - Details of the subscription
     # + return - `error` if there is any unexpected error or else `()`
     isolated remote function onSubscriptionIntentVerified(websubhub:VerifiedSubscription message) returns error? {
+        websubhub:VerifiedSubscription subscription = self.prepareSubscriptionToBePersisted(message);
+        error? persistingResult = persist:addSubscription(subscription);
+        if persistingResult is error {
+            log:printError("Error occurred while persisting the subscription ", persistingResult);
+        }
+    }
+
+    isolated function prepareSubscriptionToBePersisted(websubhub:VerifiedSubscription message) returns websubhub:VerifiedSubscription {
+        string subscriberId = common:generateSubscriberId(message.hubTopic, message.hubCallback);
+        websubhub:VerifiedSubscription? subscription = getSubscription(subscriberId);
+        // if we have a stale subscription, remove the `status` flag from the subscription and persist it again
+        if subscription is websubhub:Subscription {
+            websubhub:VerifiedSubscription updatedSubscription = {
+                ...subscription
+            };
+            _ = updatedSubscription.removeIfHasKey(STATUS);
+            return updatedSubscription;
+        }
         if !message.hasKey(CONSUMER_GROUP) {
             string consumerGroup = common:generateGroupName(message.hubTopic, message.hubCallback);
             message[CONSUMER_GROUP] = consumerGroup;
         }
         message[SERVER_ID] = config:server.id;
-        error? persistingResult = persist:addSubscription(message.cloneReadOnly());
-        if persistingResult is error {
-            log:printError("Error occurred while persisting the subscription ", persistingResult);
-        }
+        return message;
     }
 
     # Unsubscribes a `subscriber` from the hub.

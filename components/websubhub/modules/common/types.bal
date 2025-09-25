@@ -27,6 +27,18 @@ public type SystemStateSnapshot record {|
     websubhub:VerifiedSubscription[] subscriptions;
 |};
 
+public type StaleSubscription record {|
+    *websubhub:VerifiedSubscription;
+    string status = "stale";
+|};
+
+public type SubscriptionDetails record {|
+    string topic;
+    string subscriberId;
+|};
+
+public type InvalidSubscriptionError distinct error<SubscriptionDetails>;
+
 # Defines the configuration for the WebSubHub server endpoint.
 public type ServerConfig record {|
     # The port on which the WebSubHub service will listen
