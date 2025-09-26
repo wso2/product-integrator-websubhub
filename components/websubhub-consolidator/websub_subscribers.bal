@@ -16,54 +16,63 @@
 
 import websubhub.consolidator.common;
 
-import ballerina/lang.value;
+import ballerina/log;
 import ballerina/websubhub;
 
 isolated map<websubhub:VerifiedSubscription> subscribersCache = {};
 
-isolated function deSerializeSubscribersMessage(string lastPersistedData) returns websubhub:VerifiedSubscription[]|error {
-    websubhub:VerifiedSubscription[] currentSubscriptions = [];
-    json[] payload = <json[]>check value:fromJsonString(lastPersistedData);
-    foreach var data in payload {
-        websubhub:VerifiedSubscription subscription = check data.cloneWithType(websubhub:VerifiedSubscription);
-        currentSubscriptions.push(subscription);
-    }
-    return currentSubscriptions;
-}
-
 isolated function refreshSubscribersCache(websubhub:VerifiedSubscription[] persistedSubscribers) {
+    log:printDebug("Refreshing subscribers cache from persisted data", persistedSubscriberCount = persistedSubscribers.length());
     foreach var subscriber in persistedSubscribers {
         string groupName = common:generatedSubscriberId(subscriber.hubTopic, subscriber.hubCallback);
         lock {
             subscribersCache[groupName] = subscriber.cloneReadOnly();
         }
+        log:printDebug("Added subscriber to cache during refresh", subscriberId = groupName, topic = subscriber.hubTopic, callback = subscriber.hubCallback);
     }
+    log:printDebug("Subscribers cache refresh completed", totalCachedSubscribers = subscribersCache.length());
 }
 
 isolated function processSubscription(json payload) returns error? {
+    log:printDebug("Processing subscription event");
     websubhub:VerifiedSubscription subscription = check payload.cloneWithType(websubhub:VerifiedSubscription);
     string subscriberId = common:generatedSubscriberId(subscription.hubTopic, subscription.hubCallback);
+    log:printDebug("Deserialized subscription", subscriberId = subscriberId, topic = subscription.hubTopic, callback = subscription.hubCallback);
+    boolean subscriptionAdded = false;
     lock {
         // add the subscriber if subscription event received
         if !subscribersCache.hasKey(subscriberId) {
             subscribersCache[subscriberId] = subscription.cloneReadOnly();
+            subscriptionAdded = true;
+            log:printDebug("Added new subscription to cache", subscriberId = subscriberId, totalSubscriptions = subscribersCache.length());
+        } else {
+            log:printDebug("Subscription already exists in cache, skipping", subscriberId = subscriberId);
         }
     }
     check processStateUpdate();
+    log:printDebug("Subscription processing completed", subscriberId = subscriberId, wasAdded = subscriptionAdded);
 }
 
 isolated function processUnsubscription(json payload) returns error? {
+    log:printDebug("Processing unsubscription event");
     websubhub:VerifiedUnsubscription unsubscription = check payload.cloneWithType(websubhub:VerifiedUnsubscription);
     string subscriberId = common:generatedSubscriberId(unsubscription.hubTopic, unsubscription.hubCallback);
+    log:printDebug("Deserialized unsubscription", subscriberId = subscriberId, topic = unsubscription.hubTopic, callback = unsubscription.hubCallback);
     lock {
         // remove the subscriber if the unsubscription event received
-        _ = subscribersCache.removeIfHasKey(subscriberId);
+        websubhub:VerifiedSubscription? removedSubscription = subscribersCache.removeIfHasKey(subscriberId);
+        boolean subscriptionRemoved = removedSubscription is websubhub:VerifiedSubscription;
+        log:printDebug("Removed subscription from cache", subscriberId = subscriberId, wasRemoved = subscriptionRemoved, totalSubscriptions = subscribersCache.length());
     }
     check processStateUpdate();
+    log:printDebug("Unsubscription processing completed", subscriberId = subscriberId);
 }
 
 isolated function getSubscriptions() returns websubhub:VerifiedSubscription[] {
+    websubhub:VerifiedSubscription[] subscriptions;
     lock {
-        return subscribersCache.toArray().cloneReadOnly();
+        subscriptions = subscribersCache.toArray().cloneReadOnly();
     }
+    log:printDebug("Retrieved subscriptions from cache", subscriptionCount = subscriptions.length());
+    return subscriptions;
 }

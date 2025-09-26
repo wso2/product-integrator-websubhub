@@ -13,6 +13,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 import ballerina/log;
 import ballerina/random;
 
@@ -51,15 +52,12 @@ public isolated function generateRandomString() returns string {
 
 # Logs errors with proper details.
 #
-# + baseErrorMsg - Base error message  
-# + err - Current error
-# + severity - Severity of the error
-public isolated function logError(string baseErrorMsg, error err, string severity = "RECOVERABLE") {
-    string errorMsg = string `${baseErrorMsg}: ${err.message()}`;
-    error? cause = err.cause();
-    while cause is error {
-        errorMsg += string `: ${cause.message()}`;
-        cause = cause.cause();
+# + msg - Base error message  
+# + error - Current error
+# + keyValues - Additional key values to be logged
+public isolated function logError(string msg, error? 'error = (), *log:KeyValues keyValues) {
+    if !keyValues.hasKey("severity") {
+        keyValues["severity"] = "RECOVERABLE";
     }
-    log:printError(errorMsg, severity = severity, stackTrace = err.stackTrace());
+    log:printError(msg, 'error, keyValues = keyValues);
 }

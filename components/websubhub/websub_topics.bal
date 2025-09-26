@@ -27,7 +27,7 @@ isolated function processWebsubTopicsSnapshotState(websubhub:TopicRegistration[]
 }
 
 isolated function processTopicRegistration(websubhub:TopicRegistration topicRegistration) returns error? {
-    log:printDebug(string `Topic registration event received for topic ${topicRegistration.topic}, hence adding the topic to the internal state`);
+    log:printDebug("Topic registration request received", topic = topicRegistration.topic);
     lock {
         // add the topic if topic-registration event received
         if !registeredTopicsCache.hasKey(topicRegistration.topic) {
@@ -37,13 +37,13 @@ isolated function processTopicRegistration(websubhub:TopicRegistration topicRegi
 }
 
 isolated function processTopicDeregistration(websubhub:TopicDeregistration topicDeregistration) returns error? {
-    log:printDebug(string `Topic deregistration event received for topic ${topicDeregistration.topic}, hence removing the topic from the internal state`);
+    log:printDebug("Topic deregistration request received", topic = topicDeregistration.topic);
     lock {
         _ = registeredTopicsCache.removeIfHasKey(topicDeregistration.topic);
     }
 }
 
-isolated function isValidTopic(string topicName) returns boolean {
+isolated function isTopicExist(string topicName) returns boolean {
     lock {
         return registeredTopicsCache.hasKey(topicName);
     }
