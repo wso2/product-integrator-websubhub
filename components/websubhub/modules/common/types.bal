@@ -54,7 +54,7 @@ public type ServerConfig record {|
 # Represents JWT validator configurations for JWT-based authentication.
 public type JwtValidatorConfig record {|
     # The key used to extract the 'scope' claim from the JWT payload
-    string scopeKey;
+    string scopeKey = "scope";
     # The expected issuer of the JWT, corresponding to the `iss` claim
     string issuer;
     # The expected audience for the JWT, corresponding to the `aud` claim
