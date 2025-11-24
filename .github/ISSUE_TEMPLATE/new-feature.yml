@@ -20,7 +20,7 @@ body:
     id: alternatives
     attributes:
       label: Alternatives
-      description: Describe any alternatives have you considered
+      description: Describe any alternatives you have considered
     validations:
       required: false
   - type: input
