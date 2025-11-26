@@ -21,7 +21,8 @@ import websubhub.connections as conn;
 import ballerina/http;
 import ballerina/lang.value;
 import ballerina/websubhub;
-import ballerinax/kafka;
+
+import wso2/messaging.store;
 
 function initializeHubState() returns error? {
     http:Client stateSnapshot;
@@ -50,17 +51,15 @@ function initializeHubState() returns error? {
 
 function updateHubState() returns error? {
     while true {
-        kafka:BytesConsumerRecord[] records = check conn:websubEventsConsumer->poll(config:kafka.consumer.pollingInterval);
-        if records.length() <= 0 {
+        store:Message? message = check conn:websubEventsConsumer->receive();
+        if message is () {
             continue;
         }
-        foreach kafka:BytesConsumerRecord currentRecord in records {
-            string lastPersistedData = check string:fromBytes(currentRecord.value);
-            error? result = processStateUpdateEvent(lastPersistedData);
-            if result is error {
-                common:logError("Error occurred while processing state-update event", result, severity = "FATAL");
-                return result;
-            }
+        string lastPersistedData = check string:fromBytes(message.payload);
+        error? result = processStateUpdateEvent(lastPersistedData);
+        if result is error {
+            common:logError("Error occurred while processing state-update event", result, severity = "FATAL");
+            return result;
         }
     }
 }

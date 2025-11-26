@@ -19,7 +19,11 @@ import websubhub.config;
 import websubhub.connections as conn;
 
 import ballerina/websubhub;
-import ballerinax/kafka;
+
+import wso2/messaging.store;
+
+type StateUpdateEvent websubhub:TopicRegistration|websubhub:TopicDeregistration|
+    websubhub:VerifiedSubscription|websubhub:VerifiedUnsubscription|common:StaleSubscription;
 
 public isolated function addRegsiteredTopic(websubhub:TopicRegistration message) returns error? {
     check updateHubState(message);
@@ -41,31 +45,24 @@ public isolated function removeSubscription(websubhub:VerifiedUnsubscription mes
     check updateHubState(message);
 }
 
-isolated function updateHubState(websubhub:TopicRegistration|websubhub:TopicDeregistration|
-                                websubhub:VerifiedSubscription|websubhub:VerifiedUnsubscription message) returns error? {
-    json jsonData = message.toJson();
+isolated function updateHubState(StateUpdateEvent message) returns error? {
     do {
-        check produceKafkaMessage(config:state.events.topic, jsonData);
+        json jsonData = message.toJson();
+        byte[] payload = jsonData.toJsonString().toBytes();
+        return produceMessage(config:state.events.topic, payload);
     } on fail error e {
         return error(string `Failed to send updates for hub-state: ${e.message()}`, cause = e);
     }
 }
 
-public isolated function addUpdateMessage(string topicName, websubhub:UpdateMessage message,
-        map<string|string[]> headers = {}) returns error? {
-    json payload = <json>message.content;
-    check produceKafkaMessage(topicName, payload);
+public isolated function addUpdateMessage(string topicName, websubhub:UpdateMessage message, map<string|string[]>? metadata = ())
+    returns error? {
+    json jsonData = <json>message.content;
+    byte[] payload = jsonData.toJsonString().toBytes();
+    check produceMessage(topicName, payload, metadata);
 }
 
-isolated function produceKafkaMessage(string topicName, json payload,
-        map<string|string[]> headers = {}) returns error? {
-    kafka:AnydataProducerRecord message = getProducerMsg(topicName, payload, headers);
-    check conn:statePersistProducer->send(message);
-    check conn:statePersistProducer->'flush();
-}
-
-isolated function getProducerMsg(string topic, json payload,
-        map<string|string[]> headers) returns kafka:AnydataProducerRecord {
-    byte[] value = payload.toJsonString().toBytes();
-    return headers.length() == 0 ? {topic, value} : {topic, value, headers};
+isolated function produceMessage(string topic, byte[] payload, map<string|string[]>? metadata = ()) returns error? {
+    store:Message message = {payload, metadata};
+    return (check conn:getMessageProducer(topic))->send(topic, message);
 }

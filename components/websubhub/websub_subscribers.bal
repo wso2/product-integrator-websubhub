@@ -24,15 +24,12 @@ import ballerina/lang.value;
 import ballerina/log;
 import ballerina/mime;
 import ballerina/websubhub;
-import ballerinax/kafka;
+
+import wso2/messaging.store;
 
 isolated map<websubhub:VerifiedSubscription> subscribersCache = {};
 
-const string CONSUMER_GROUP = "consumerGroup";
-const string CONSUMER_TOPIC_PARTITIONS = "topicPartitions";
-const string SERVER_ID = "SERVER_ID";
-const string STATUS = "status";
-const string STALE_STATE = "stale";
+const SUBSCRIPTON_STALE_STATE = "stale";
 
 isolated function processWebsubSubscriptionsSnapshotState(websubhub:VerifiedSubscription[] subscriptions) returns error? {
     log:printDebug("Received latest state-snapshot for websub subscriptions", newState = subscriptions);
@@ -48,9 +45,9 @@ isolated function processSubscription(websubhub:VerifiedSubscription subscriptio
     boolean isFreshSubscription = existingSubscription is ();
     boolean isRenewingStaleSubscription = false;
     if existingSubscription is websubhub:VerifiedSubscription {
-        isRenewingStaleSubscription = existingSubscription.hasKey(STATUS) && existingSubscription.get(STATUS) is STALE_STATE;
+        isRenewingStaleSubscription = existingSubscription.hasKey(common:SUBSCRIPTION_STATUS) && existingSubscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTON_STALE_STATE;
     }
-    boolean isMarkingSubscriptionAsStale = subscription.hasKey(STATUS) && subscription.get(STATUS) is STALE_STATE;
+    boolean isMarkingSubscriptionAsStale = subscription.hasKey(common:SUBSCRIPTION_STATUS) && subscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTON_STALE_STATE;
 
     lock {
         // add the subscriber if subscription event received for a new subscription or a stale subscription, when renewing a stale subscription
@@ -68,7 +65,7 @@ isolated function processSubscription(websubhub:VerifiedSubscription subscriptio
         return;
     }
 
-    string serverId = check subscription[SERVER_ID].ensureType();
+    string serverId = check subscription[common:SUBSCRIPTION_SERVER_ID].ensureType();
     // if the subscription already exists in the `hub` instance, or the given subscription
     // does not belong to the `hub` instance do not start the consumer
     if serverId != config:server.id {
@@ -92,9 +89,7 @@ isolated function processUnsubscription(websubhub:VerifiedUnsubscription unsubsc
 
 isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubscription subscription) returns error? {
     string topic = subscription.hubTopic;
-    string consumerGroup = check value:ensureType(subscription[CONSUMER_GROUP]);
-    int[]? topicPartitions = check getTopicPartitions(subscription);
-    kafka:Consumer consumerEp = check conn:createMessageConsumer(topic, consumerGroup, topicPartitions);
+    store:Consumer consumerEp = check conn:createConsumer(subscription);
     websubhub:HubClient clientEp = check new (subscription, {
         httpVersion: http:HTTP_2_0,
         retryConfig: config:delivery.'retry,
@@ -102,19 +97,27 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
     });
     do {
         while true {
-            kafka:BytesConsumerRecord[] records = check consumerEp->poll(config:kafka.consumer.pollingInterval);
+            store:Message? message = check consumerEp->receive();
             if !isValidConsumer(subscription.hubTopic, subscriberId) {
                 fail error common:InvalidSubscriptionError(
                     string `Subscription or the topic is invalid`, topic = topic, subscriberId = subscriberId
                 );
             }
-            _ = check notifySubscribers(records, clientEp);
-            check consumerEp->'commit();
+            if message is () {
+                continue;
+            }
+            error? result = notifySubscriber(message, clientEp);
+            if result is error {
+                check consumerEp->nack(message);
+                check result;
+            } else {
+                check consumerEp->ack(message);
+            }
         }
     } on fail var e {
         common:logError("Error occurred while sending notification to subscriber", e);
-        kafka:Error? result = consumerEp->close(config:kafka.consumer.gracefulClosePeriod);
-        if result is kafka:Error {
+        error? result = consumerEp->close();
+        if result is error {
             log:printError("Error occurred while gracefully closing kafka-consumer", err = result.message());
         }
 
@@ -166,52 +169,18 @@ isolated function getSubscription(string subscriberId) returns websubhub:Verifie
     }
 }
 
-isolated function notifySubscribers(kafka:BytesConsumerRecord[] records, websubhub:HubClient clientEp) returns error? {
-    future<websubhub:ContentDistributionSuccess|error>[] distributionResponses = [];
-    foreach var kafkaRecord in records {
-        websubhub:ContentDistributionMessage message = check constructContentDistMsg(kafkaRecord);
-        future<websubhub:ContentDistributionSuccess|error> distributionResponse = start clientEp->notifyContentDistribution(message.cloneReadOnly());
-        distributionResponses.push(distributionResponse);
-    }
-
-    foreach var responseFuture in distributionResponses {
-        websubhub:ContentDistributionSuccess|error result = wait responseFuture;
-        if result is error {
-            return result;
-        }
-    }
+isolated function notifySubscriber(store:Message message, websubhub:HubClient clientEp) returns error? {
+    websubhub:ContentDistributionMessage notification = check constructContentDistMsg(message);
+    _ = check clientEp->notifyContentDistribution(notification);
 }
 
-isolated function constructContentDistMsg(kafka:BytesConsumerRecord kafkaRecord) returns websubhub:ContentDistributionMessage|error {
-    byte[] content = kafkaRecord.value;
-    string message = check string:fromBytes(content);
-    json payload = check value:fromJsonString(message);
+isolated function constructContentDistMsg(store:Message message) returns websubhub:ContentDistributionMessage|error {
+    string payloadString = check string:fromBytes(message.payload);
+    json payload = check value:fromJsonString(payloadString);
     websubhub:ContentDistributionMessage distributionMsg = {
         content: payload,
         contentType: mime:APPLICATION_JSON,
-        headers: check getHeaders(kafkaRecord)
+        headers: message.metadata
     };
     return distributionMsg;
-}
-
-isolated function getHeaders(kafka:BytesConsumerRecord kafkaRecord) returns map<string|string[]>|error {
-    map<string|string[]> headers = {};
-    foreach var ['key, value] in kafkaRecord.headers.entries().toArray() {
-        if value is byte[] {
-            headers['key] = check string:fromBytes(value);
-        } else if value is byte[][] {
-            string[] headerValue = value.'map(v => check string:fromBytes(v));
-            headers['key] = headerValue;
-        }
-    }
-    return headers;
-}
-
-isolated function getTopicPartitions(websubhub:VerifiedSubscription subscription) returns int[]|error? {
-    if !subscription.hasKey(CONSUMER_TOPIC_PARTITIONS) {
-        return;
-    }
-    // Kafka topic partitions will be a string with comma separated integers eg: "1,2,3,4"
-    string partitionInfo = check value:ensureType(subscription[CONSUMER_TOPIC_PARTITIONS]);
-    return re `,`.split(partitionInfo).'map(p => p.trim()).'map(p => check int:fromString(p));
 }

@@ -21,6 +21,7 @@ import websubhub.security;
 
 import ballerina/http;
 import ballerina/log;
+import ballerina/time;
 import ballerina/websubhub;
 
 http:Service healthCheckService = service object {
@@ -128,7 +129,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             if subscription is () {
                 return;
             }
-            if subscription.hasKey(STATUS) && subscription.get(STATUS) is STALE_STATE {
+            if subscription.hasKey(common:SUBSCRIPTION_STATUS) && subscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTON_STALE_STATE {
                 return;
             }
             if isValidSubscription(subscriberId) {
@@ -158,14 +159,11 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             websubhub:VerifiedSubscription updatedSubscription = {
                 ...subscription
             };
-            _ = updatedSubscription.removeIfHasKey(STATUS);
+            _ = updatedSubscription.removeIfHasKey(common:SUBSCRIPTION_STATUS);
             return updatedSubscription;
         }
-        if !message.hasKey(CONSUMER_GROUP) {
-            string consumerGroup = common:generateGroupName(message.hubTopic, message.hubCallback);
-            message[CONSUMER_GROUP] = consumerGroup;
-        }
-        message[SERVER_ID] = config:server.id;
+        message[common:SUBSCRIPTION_TIMESTAMP] = time:monotonicNow().toBalString();
+        message[common:SUBSCRIPTION_SERVER_ID] = config:server.id;
         return message;
     }
 

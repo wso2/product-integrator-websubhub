@@ -16,89 +16,36 @@
 
 import websubhub.config;
 
-import ballerina/log;
-import ballerinax/kafka;
+import ballerina/websubhub;
+
+import wso2/messaging.store;
 
 // Producer which persist the current in-memory state of the Hub 
-kafka:ProducerConfiguration statePersistConfig = {
-    clientId: "state-persist",
-    acks: "1",
-    retryCount: 3,
-    secureSocket: config:kafka.connection.secureSocket,
-    securityProtocol: config:kafka.connection.securityProtocol
-};
-public final kafka:Producer statePersistProducer = check new (config:kafka.connection.bootstrapServers, statePersistConfig);
+public final store:Producer statePersistProducer = check initStatePersistProducer();
+
+function initStatePersistProducer() returns store:Producer|error {
+    return store:createKafkaProducer("state-persist", config:broker);
+}
 
 // Consumer which reads the persisted subscriber details
-kafka:ConsumerConfiguration websubEventsConsumerConfig = {
-    groupId: config:state.events.consumerGroup,
-    offsetReset: "earliest",
-    topics: [config:state.events.topic],
-    secureSocket: config:kafka.connection.secureSocket,
-    securityProtocol: config:kafka.connection.securityProtocol
-};
-public final kafka:Consumer websubEventsConsumer = check new (config:kafka.connection.bootstrapServers, websubEventsConsumerConfig);
+public final store:Consumer websubEventsConsumer = check initWebSubEventsConsumer();
 
-# Creates a `kafka:Consumer` for a subscriber.
+function initWebSubEventsConsumer() returns store:Consumer|error {
+    return store:createKafkaConsumer(config:broker, config:state.events.consumerGroup, config:state.events.topic);
+}
+
+# Initialize a `store:Consumer` for a WebSub subscriber.
 #
-# + topicName - The kafka-topic to which the consumer should subscribe  
-# + groupName - The consumer group name  
-# + partitions - The kafka topic-partitions
-# + return - `kafka:Consumer` if succcessful or else `error`
-public isolated function createMessageConsumer(string topicName, string groupName, int[]? partitions = ()) returns kafka:Consumer|error {
-    kafka:ConsumerConfiguration consumerConfiguration = {
-        groupId: groupName,
-        autoCommit: false,
-        secureSocket: config:kafka.connection.secureSocket,
-        securityProtocol: config:kafka.connection.securityProtocol,
-        maxPollRecords: config:kafka.consumer.maxPollRecords
-    };
-    if partitions is () {
-        // Kafka consumer topic subscription should only be used when manual partition assignment is not used
-        consumerConfiguration.topics = [topicName];
-        return new (config:kafka.connection.bootstrapServers, consumerConfiguration);
-    }
+# + subscription - The WebSub subscriber details
+# + return - A `store:Consumer` for the message store, or else return an `error` if the operation fails
+public isolated function createConsumer(websubhub:VerifiedSubscription subscription) returns store:Consumer|error {
+    return createKafkaConsumerForSubscriber(subscription, config:broker);
+}
 
-    kafka:Consumer|kafka:Error consumerEp = check new (config:kafka.connection.bootstrapServers, consumerConfiguration);
-    if consumerEp is kafka:Error {
-        log:printError("Error occurred while creating the consumer", consumerEp);
-        return consumerEp;
-    }
-
-    kafka:TopicPartition[] kafkaTopicPartitions = partitions.'map(p => {topic: topicName, partition: p});
-    kafka:Error? paritionAssignmentErr = consumerEp->assign(kafkaTopicPartitions);
-    if paritionAssignmentErr is kafka:Error {
-        log:printError("Error occurred while assigning partitions to the consumer", paritionAssignmentErr);
-        return paritionAssignmentErr;
-    }
-
-    kafka:TopicPartition[] parititionsWithoutCmtdOffsets = [];
-    foreach kafka:TopicPartition partition in kafkaTopicPartitions {
-        kafka:PartitionOffset|kafka:Error? offset = consumerEp->getCommittedOffset(partition);
-        if offset is kafka:Error {
-            log:printError("Error occurred while retrieving the commited offsets for the topic-partition", offset);
-            return offset;
-        }
-
-        if offset is () {
-            parititionsWithoutCmtdOffsets.push(partition);
-        }
-
-        if offset is kafka:PartitionOffset {
-            kafka:Error? kafkaSeekErr = consumerEp->seek(offset);
-            if kafkaSeekErr is kafka:Error {
-                log:printError("Error occurred while assigning seeking partitions for the consumer", kafkaSeekErr);
-                return kafkaSeekErr;
-            }
-        }
-    }
-
-    if parititionsWithoutCmtdOffsets.length() > 0 {
-        kafka:Error? kafkaSeekErr = consumerEp->seekToBeginning(parititionsWithoutCmtdOffsets);
-        if kafkaSeekErr is kafka:Error {
-            log:printError("Error occurred while assigning seeking partitions (for paritions without committed offsets) for the consumer", kafkaSeekErr);
-            return kafkaSeekErr;
-        }
-    }
-    return consumerEp;
+# Retrieves a message producer per topic.
+#
+# + topic - The message store topic
+# + return - A `store:Producer` for the message store, or else an `error` if the operation fails
+public isolated function getMessageProducer(string topic) returns store:Producer|error {
+    return statePersistProducer;
 }
