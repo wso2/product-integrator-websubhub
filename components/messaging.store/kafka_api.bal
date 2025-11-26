@@ -127,7 +127,7 @@ isolated client class KafkaConsumer {
 
         kafka:BytesConsumerRecord current;
         lock {
-            current = self.messageBatch.pop().cloneReadOnly();
+            current = self.messageBatch.shift().cloneReadOnly();
         }
         return {
             payload: current.value,

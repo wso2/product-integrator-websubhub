@@ -29,7 +29,7 @@ import wso2/messaging.store;
 
 isolated map<websubhub:VerifiedSubscription> subscribersCache = {};
 
-const SUBSCRIPTON_STALE_STATE = "stale";
+const SUBSCRIPTION_STALE_STATE = "stale";
 
 isolated function processWebsubSubscriptionsSnapshotState(websubhub:VerifiedSubscription[] subscriptions) returns error? {
     log:printDebug("Received latest state-snapshot for websub subscriptions", newState = subscriptions);
@@ -45,9 +45,9 @@ isolated function processSubscription(websubhub:VerifiedSubscription subscriptio
     boolean isFreshSubscription = existingSubscription is ();
     boolean isRenewingStaleSubscription = false;
     if existingSubscription is websubhub:VerifiedSubscription {
-        isRenewingStaleSubscription = existingSubscription.hasKey(common:SUBSCRIPTION_STATUS) && existingSubscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTON_STALE_STATE;
+        isRenewingStaleSubscription = existingSubscription.hasKey(common:SUBSCRIPTION_STATUS) && existingSubscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTION_STALE_STATE;
     }
-    boolean isMarkingSubscriptionAsStale = subscription.hasKey(common:SUBSCRIPTION_STATUS) && subscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTON_STALE_STATE;
+    boolean isMarkingSubscriptionAsStale = subscription.hasKey(common:SUBSCRIPTION_STATUS) && subscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTION_STALE_STATE;
 
     lock {
         // add the subscriber if subscription event received for a new subscription or a stale subscription, when renewing a stale subscription

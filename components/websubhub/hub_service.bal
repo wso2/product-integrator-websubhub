@@ -129,7 +129,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             if subscription is () {
                 return;
             }
-            if subscription.hasKey(common:SUBSCRIPTION_STATUS) && subscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTON_STALE_STATE {
+            if subscription.hasKey(common:SUBSCRIPTION_STATUS) && subscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTION_STALE_STATE {
                 return;
             }
             if isValidSubscription(subscriberId) {
