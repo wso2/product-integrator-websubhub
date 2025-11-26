@@ -16,8 +16,6 @@
 
 import websubhub.common;
 
-import wso2/messaging.store;
-
 # Common configurations used to configure the websubhub server
 public configurable common:ServerConfig server = ?;
 
@@ -25,7 +23,7 @@ public configurable common:ServerConfig server = ?;
 public configurable common:ServerStateConfig state = ?;
 
 # Messaging store connection related configurations
-public configurable store:KafkaConfig broker = ?;
+public configurable common:KafkaMessageStore store = ?;
 
 # Message delivery related configurations
 public configurable common:HttpClientConfig delivery = ?;

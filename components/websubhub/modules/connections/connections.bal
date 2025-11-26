@@ -24,14 +24,14 @@ import wso2/messaging.store;
 public final store:Producer statePersistProducer = check initStatePersistProducer();
 
 function initStatePersistProducer() returns store:Producer|error {
-    return store:createKafkaProducer("state-persist", config:broker);
+    return store:createKafkaProducer("state-persist", config:store.kafka);
 }
 
 // Consumer which reads the persisted subscriber details
 public final store:Consumer websubEventsConsumer = check initWebSubEventsConsumer();
 
 function initWebSubEventsConsumer() returns store:Consumer|error {
-    return store:createKafkaConsumer(config:broker, config:state.events.consumerGroup, config:state.events.topic);
+    return store:createKafkaConsumer(config:store.kafka, config:state.events.consumerGroup, config:state.events.topic);
 }
 
 # Initialize a `store:Consumer` for a WebSub subscriber.
@@ -39,7 +39,7 @@ function initWebSubEventsConsumer() returns store:Consumer|error {
 # + subscription - The WebSub subscriber details
 # + return - A `store:Consumer` for the message store, or else return an `error` if the operation fails
 public isolated function createConsumer(websubhub:VerifiedSubscription subscription) returns store:Consumer|error {
-    return createKafkaConsumerForSubscriber(subscription, config:broker);
+    return createKafkaConsumerForSubscriber(subscription, config:store.kafka);
 }
 
 # Retrieves a message producer per topic.
