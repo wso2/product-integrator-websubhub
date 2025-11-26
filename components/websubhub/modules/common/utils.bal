@@ -25,20 +25,22 @@ public isolated function generateSubscriberId(string topic, string callbackUrl) 
     return string `${topic}___${callbackUrl}`;
 }
 
-# Logs errors with proper details.
+# Logs a fatal errors with proper details.
 #
 # + msg - Base error message  
 # + error - Current error
 # + keyValues - Additional key values to be logged
-public isolated function logError(string msg, error 'error, *log:KeyValues keyValues) {
-    if !keyValues.hasKey("severity") {
-        keyValues["severity"] = "RECOVERABLE";
-    }
-    string errorMsg = string `${msg}: ${'error.message()}`;
-    error? cause = 'error.cause();
-    while cause is error {
-        errorMsg += string `: ${cause.message()}`;
-        cause = cause.cause();
-    }
-    log:printError(errorMsg, stackTrace = 'error.stackTrace(), keyValues = keyValues);
+public isolated function logFatalError(string msg, error? 'error = (), *log:KeyValues keyValues) {
+    keyValues["severity"] = "FATAL";
+    log:printError(msg, 'error, keyValues = keyValues);
+}
+
+# Logs a recoverable errors with proper details.
+#
+# + msg - Base error message  
+# + error - Current error
+# + keyValues - Additional key values to be logged
+public isolated function logRecoverableError(string msg, error? 'error = (), *log:KeyValues keyValues) {
+    keyValues["severity"] = "RECOVERABLE";
+    log:printError(msg, 'error, keyValues = keyValues);
 }

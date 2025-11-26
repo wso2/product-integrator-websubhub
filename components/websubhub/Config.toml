@@ -11,7 +11,7 @@ url = "http://localhost:10001"
 
 [websubhub.config.state.events]
 topic = "websub-events"
-consumerGroup = "websub-events-consumer"
+consumerId = "websub-events-consumer"
 
 [websubhub.config.store.kafka]
 bootstrapServers = "localhost:9092"

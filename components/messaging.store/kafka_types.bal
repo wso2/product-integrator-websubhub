@@ -16,6 +16,12 @@
 
 import ballerinax/kafka;
 
+# Defines the Kafka message store configurations
+public type KafkaMessageStore record {|
+    # Configurations related to Kafka message store connection
+    KafkaConfig kafka;
+|};
+
 # Defines the complete set of Kafka configurations required for the application.
 public type KafkaConfig record {|
     *KafkaConnectionConfig;

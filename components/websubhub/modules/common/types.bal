@@ -18,8 +18,6 @@ import ballerina/http;
 import ballerina/jwt;
 import ballerina/websubhub;
 
-import wso2/messaging.store;
-
 # Represents a snapshot of the WebSubHub's state, containing all topics and subscriptions.
 public type SystemStateSnapshot record {|
     # An array of current topic registrations in the hub
@@ -81,18 +79,13 @@ public type ServerStateConfig record {|
         # Client configurations for the HTTP call to the consolidator
         HttpClientConfig config?;
     |} snapshot;
-    # Configurations for consuming state update events from a Kafka topic.
+    # Configurations for consuming state update events from a message store.
     record {|
-        # The Kafka topic that stores WebSub events for this server
+        # The message store topic that stores WebSub events for this server
         string topic;
-        # The consumer group ID used by the Kafka consumer for state update events
-        string consumerGroup;
+        # The consumer Id used by the message store consumer for state update events
+        string consumerId;
     |} events;
-|};
-
-# Defines the Kafka message store configurations
-public type KafkaMessageStore record {|
-    store:KafkaConfig kafka;
 |};
 
 # Defines configurations for an HTTP client.

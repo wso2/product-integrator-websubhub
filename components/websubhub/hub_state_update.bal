@@ -44,7 +44,7 @@ function initializeHubState() returns error? {
         // Start hub-state update worker
         _ = start updateHubState();
     } on fail error httpError {
-        common:logError("Error occurred while initializing the hub-state using the latest state-snapshot", httpError, severity = "FATAL");
+        common:logFatalError("Error occurred while initializing the hub-state using the latest state-snapshot", httpError);
         return httpError;
     }
 }
@@ -58,7 +58,7 @@ function updateHubState() returns error? {
         string lastPersistedData = check string:fromBytes(message.payload);
         error? result = processStateUpdateEvent(lastPersistedData);
         if result is error {
-            common:logError("Error occurred while processing state-update event", result, severity = "FATAL");
+            common:logFatalError("Error occurred while processing state-update event", result);
             return result;
         }
     }
