@@ -24,7 +24,7 @@ import wso2/messaging.store;
 public final store:Producer statePersistProducer = check initStatePersistProducer();
 
 function initStatePersistProducer() returns store:Producer|error {
-    return store:createKafkaProducer("state-persist", config:store.kafka);
+    return store:createKafkaProducer(config:store.kafka, "state-persist");
 }
 
 // Consumer which reads the persisted subscriber details

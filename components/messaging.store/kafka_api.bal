@@ -181,10 +181,10 @@ isolated client class KafkaConsumer {
 
 # Initialize a producer for Kafka message store.
 #
-# + clientId - The client Id
 # + config - The Kafka connection configurations
+# + clientId - The client Id
 # + return - A `store:Producer` for Kafka message store, or else return an `error` if the operation fails
-public isolated function createKafkaProducer(string clientId, KafkaConfig config) returns Producer|error {
+public isolated function createKafkaProducer(KafkaConfig config, string clientId) returns Producer|error {
     return new KafkaProducer(clientId, config);
 }
 
