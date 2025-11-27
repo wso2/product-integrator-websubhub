@@ -22,7 +22,7 @@ import ballerina/http;
 import ballerina/lang.value;
 import ballerina/websubhub;
 
-import wso2/messaging.store;
+import wso2/message.store;
 
 function initializeHubState() returns error? {
     http:Client stateSnapshot;

@@ -1,6 +1,6 @@
 [workspace]
 packages = [
+    "message.store",
     "websubhub", 
-    "websubhub-consolidator", 
-    "messaging.store"
+    "websubhub-consolidator"
 ]

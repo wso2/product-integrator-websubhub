@@ -16,7 +16,7 @@
 
 import websubhub.common;
 
-import wso2/messaging.store;
+import wso2/message.store;
 
 # Common configurations used to configure the websubhub server
 public configurable common:ServerConfig server = ?;

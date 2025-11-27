@@ -25,7 +25,7 @@ import ballerina/log;
 import ballerina/mime;
 import ballerina/websubhub;
 
-import wso2/messaging.store;
+import wso2/message.store;
 
 isolated map<websubhub:VerifiedSubscription> subscribersCache = {};
 

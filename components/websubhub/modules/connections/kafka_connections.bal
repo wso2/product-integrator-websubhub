@@ -19,7 +19,7 @@ import websubhub.common;
 import ballerina/lang.value;
 import ballerina/websubhub;
 
-import wso2/messaging.store;
+import wso2/message.store;
 
 const string CONSUMER_GROUP = "consumerGroup";
 const string CONSUMER_TOPIC_PARTITIONS = "topicPartitions";

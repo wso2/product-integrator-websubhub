@@ -20,7 +20,7 @@ import websubhub.connections as conn;
 
 import ballerina/websubhub;
 
-import wso2/messaging.store;
+import wso2/message.store;
 
 type StateUpdateEvent websubhub:TopicRegistration|websubhub:TopicDeregistration|
     websubhub:VerifiedSubscription|websubhub:VerifiedUnsubscription|common:StaleSubscription;

@@ -158,13 +158,13 @@ modules = [
 
 [[package]]
 org = "wso2"
-name = "messaging.store"
+name = "message.store"
 version = "0.1.0"
 dependencies = [
 	{org = "ballerina", name = "log"},
 	{org = "ballerinax", name = "kafka"}
 ]
 modules = [
-	{org = "wso2", packageName = "messaging.store", moduleName = "messaging.store"}
+	{org = "wso2", packageName = "message.store", moduleName = "message.store"}
 ]
 
