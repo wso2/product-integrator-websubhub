@@ -44,6 +44,7 @@ jobs:
         with:
           name: build-output
           path: components/**/target/bin
+          retention-days: 7
 
   trivy-scan:
     name: Trivy Vulnerability Scan
