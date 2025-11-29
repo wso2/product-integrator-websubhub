@@ -1,0 +1,8 @@
+[package]
+org = "wso2"
+name = "message.store"
+version = "@toml.version@"
+distribution = "@ballerina.version@"
+
+[build-options]
+observabilityIncluded = true
