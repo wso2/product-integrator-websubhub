@@ -9,10 +9,14 @@ consumerGroup = "websub-events-snapshot-consumer"
 topic = "websub-events"
 consumerGroup = "consolidator-websub-events-consumer"
 
-[websubhub.consolidator.config.kafka.connection]
+[websubhub.consolidator.config.store.kafka]
 bootstrapServers = "localhost:9092"
 
-[websubhub.consolidator.config.kafka.consumer]
+[websubhub.consolidator.config.store.kafka.producer]
+acks = "all"
+retryCount = 3
+
+[websubhub.consolidator.config.store.kafka.consumer]
 maxPollRecords = 50
 pollingInterval = 10.0
 gracefulClosePeriod = 5.0

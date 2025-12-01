@@ -15,14 +15,14 @@
 // under the License.
 
 import websubhub.consolidator.common;
-import websubhub.consolidator.config;
 import websubhub.consolidator.connections as conn;
 import websubhub.consolidator.persistence as persist;
 
 import ballerina/http;
 import ballerina/lang.value;
 import ballerina/log;
-import ballerinax/kafka;
+
+import wso2/message.store;
 
 http:Service consolidatorService = service object {
     isolated resource function get state\-snapshot() returns common:SystemStateSnapshot {
@@ -38,17 +38,20 @@ http:Service consolidatorService = service object {
 isolated function consolidateSystemState() returns error? {
     do {
         while true {
-            kafka:BytesConsumerRecord[] records = check conn:websubEventConsumer->poll(config:kafka.consumer.pollingInterval);
-            foreach kafka:BytesConsumerRecord currentRecord in records {
-                string lastPersistedData = check string:fromBytes(currentRecord.value);
-                error? result = processPersistedData(lastPersistedData);
-                if result is error {
-                    log:printError("Error occurred while processing received event ", 'error = result);
-                }
+            store:Message? message = check conn:websubEventsConsumer->receive();
+            if message is () {
+                continue;
+            }
+
+            string lastPersistedData = check string:fromBytes(message.payload);
+            error? result = processPersistedData(lastPersistedData);
+            if result is error {
+                common:logFatalError("Error occurred while processing received event ", 'error = result);
+                return result;
             }
         }
     } on fail var e {
-        _ = check conn:websubEventConsumer->close(config:kafka.consumer.gracefulClosePeriod);
+        _ = check conn:websubEventsConsumer->close();
         return e;
     }
 }

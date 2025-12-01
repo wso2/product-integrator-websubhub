@@ -16,11 +16,13 @@
 
 import websubhub.consolidator.common;
 
+import wso2/message.store;
+
 # Common configurations used to configure the websubhub consolidator server
 public configurable common:ServerConfig server = ?;
 
 # Configurations related to websubhub consolidator server state
 public configurable common:ServerStateConfig state = ?;
 
-# Kafka connection related configurations
-public configurable common:KafkaConfig kafka = ?;
+# Messaging store connection related configurations
+public configurable store:KafkaMessageStore store = ?;

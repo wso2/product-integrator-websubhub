@@ -18,13 +18,15 @@ import websubhub.consolidator.common;
 import websubhub.consolidator.config;
 import websubhub.consolidator.connections as conn;
 
+import wso2/message.store;
+
 public isolated function persistWebsubEventsSnapshot(common:SystemStateSnapshot systemStateSnapshot) returns error? {
-    json payload = systemStateSnapshot.toJson();
-    check produceKafkaMessage(config:state.snapshot.topic, payload);
+    json data = systemStateSnapshot.toJson();
+    byte[] payload = data.toJsonString().toBytes();
+    check produceMessage(config:state.snapshot.topic, payload);
 }
 
-isolated function produceKafkaMessage(string topicName, json payload) returns error? {
-    byte[] serializedContent = payload.toJsonString().toBytes();
-    check conn:statePersistProducer->send({topic: topicName, value: serializedContent});
-    check conn:statePersistProducer->'flush();
+isolated function produceMessage(string topic, byte[] payload) returns error? {
+    store:Message message = {payload};
+    return (check conn:getMessageProducer(topic))->send(topic, message);
 }
