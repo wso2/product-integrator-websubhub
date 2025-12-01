@@ -11,12 +11,16 @@ url = "http://localhost:10001"
 
 [websubhub.config.state.events]
 topic = "websub-events"
-consumerGroup = "websub-events-consumer"
+consumerId = "websub-events-consumer"
 
-[websubhub.config.kafka.connection]
+[websubhub.config.store.kafka]
 bootstrapServers = "localhost:9092"
 
-[websubhub.config.kafka.consumer]
+[websubhub.config.store.kafka.producer]
+acks = "all"
+retryCount = 3
+
+[websubhub.config.store.kafka.consumer]
 maxPollRecords = 50
 pollingInterval = 10.0
 gracefulClosePeriod = 5.0
