@@ -1,6 +1,6 @@
 [package]
 org = "wso2"
-name = "message.store"
+name = "messagestore"
 version = "@toml.version@"
 distribution = "@ballerina.version@"
 
