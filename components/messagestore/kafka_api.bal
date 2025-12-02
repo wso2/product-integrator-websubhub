@@ -127,9 +127,6 @@ isolated client class KafkaConsumer {
 
         kafka:BytesConsumerRecord current;
         lock {
-            if self.messageBatch.length() == 0 {
-                return;
-            }
             current = self.messageBatch.shift().cloneReadOnly();
         }
         return {
@@ -150,7 +147,7 @@ isolated client class KafkaConsumer {
         }
         kafka:BytesConsumerRecord[] messages = check self.consumer->poll(self.config.pollingInterval);
         lock {
-            self.messageBatch = messages.cloneReadOnly();
+            self.messageBatch.push(...messages.cloneReadOnly());
         }
     }
 
