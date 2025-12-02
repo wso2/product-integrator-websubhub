@@ -22,7 +22,7 @@ import ballerina/http;
 import ballerina/lang.value;
 import ballerina/log;
 
-import wso2/message.store;
+import wso2/messagestore as store;
 
 http:Service consolidatorService = service object {
     isolated resource function get state\-snapshot() returns common:SystemStateSnapshot {

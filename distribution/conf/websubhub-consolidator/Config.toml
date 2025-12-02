@@ -3,11 +3,11 @@ port = 10001
 
 [websubhub.consolidator.config.state.snapshot]
 topic = "websub-events-snapshot"
-consumerGroup = "websub-events-snapshot-consumer"
+consumerId = "websub-events-snapshot-consumer"
 
 [websubhub.consolidator.config.state.events]
 topic = "websub-events"
-consumerGroup = "consolidator-websub-events-consumer"
+consumerId = "consolidator-websub-events-consumer"
 
 [websubhub.consolidator.config.store.kafka]
 bootstrapServers = "localhost:9092"

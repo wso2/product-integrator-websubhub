@@ -16,7 +16,7 @@
 
 import websubhub.consolidator.config;
 
-import wso2/message.store;
+import wso2/messagestore as store;
 
 // Producer which persist the current consolidated in-memory state of the system
 public final store:Producer statePersistProducer = check initStatePersistProducer();

@@ -16,7 +16,7 @@
 
 import websubhub.consolidator.common;
 
-import wso2/message.store;
+import wso2/messagestore as store;
 
 # Common configurations used to configure the websubhub consolidator server
 public configurable common:ServerConfig server = ?;

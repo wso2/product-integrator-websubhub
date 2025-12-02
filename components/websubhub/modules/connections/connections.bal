@@ -18,7 +18,7 @@ import websubhub.config;
 
 import ballerina/websubhub;
 
-import wso2/message.store;
+import wso2/messagestore as store;
 
 // Producer which persist the current in-memory state of the Hub 
 public final store:Producer statePersistProducer = check initStatePersistProducer();

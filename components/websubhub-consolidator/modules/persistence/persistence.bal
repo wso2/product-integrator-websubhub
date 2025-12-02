@@ -18,7 +18,7 @@ import websubhub.consolidator.common;
 import websubhub.consolidator.config;
 import websubhub.consolidator.connections as conn;
 
-import wso2/message.store;
+import wso2/messagestore as store;
 
 public isolated function persistWebsubEventsSnapshot(common:SystemStateSnapshot systemStateSnapshot) returns error? {
     json data = systemStateSnapshot.toJson();

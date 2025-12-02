@@ -24,7 +24,7 @@ import ballerina/lang.runtime;
 import ballerina/lang.value;
 import ballerina/log;
 
-import wso2/message.store;
+import wso2/messagestore as store;
 
 public function main() returns error? {
     // Initialize consolidator-service state
