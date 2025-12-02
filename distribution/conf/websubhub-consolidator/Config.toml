@@ -20,3 +20,6 @@ retryCount = 3
 maxPollRecords = 50
 pollingInterval = 10.0
 gracefulClosePeriod = 5.0
+
+[ballerina.log]
+level = "INFO"
