@@ -127,6 +127,9 @@ isolated client class KafkaConsumer {
 
         kafka:BytesConsumerRecord current;
         lock {
+            if self.messageBatch.length() == 0 {
+                return;
+            }
             current = self.messageBatch.shift().cloneReadOnly();
         }
         return {
@@ -152,6 +155,9 @@ isolated client class KafkaConsumer {
     }
 
     isolated function convertHeaders(map<byte[]|byte[][]> kafkaHeaders) returns map<string|string[]>|error {
+        if kafkaHeaders.length() == 0 {
+            return {};
+        }
         map<string|string[]> headers = {};
         foreach var ['key, value] in kafkaHeaders.entries().toArray() {
             if value is byte[] {
