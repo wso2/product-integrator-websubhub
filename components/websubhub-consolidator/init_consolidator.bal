@@ -54,20 +54,24 @@ public function main() returns error? {
 isolated function syncSystemState() returns error? {
     store:Consumer websubEventsSnapshotConsumer = check conn:initWebSubEventSnapshotConsumer();
     do {
-        store:Message? message = check websubEventsSnapshotConsumer->receive();
-        if message is () {
-            return websubEventsSnapshotConsumer->close();
+        store:Message? lastMessage = ();
+        while true {
+            store:Message? message = check websubEventsSnapshotConsumer->receive();
+            if message is () {
+                check websubEventsSnapshotConsumer->close();
+                break;
+            }
+            lastMessage = message;
         }
 
-        string persistedMsg = check string:fromBytes(message.payload);
-        common:SystemStateSnapshot[] events = check value:fromJsonString(persistedMsg).ensureType();
-        if events.length() > 0 {
-            common:SystemStateSnapshot lastStateSnapshot = events.pop();
-            refreshTopicCache(lastStateSnapshot.topics);
-            refreshSubscribersCache(lastStateSnapshot.subscriptions);
-            check persist:persistWebsubEventsSnapshot(lastStateSnapshot);
+        if lastMessage is () {
+            return;
         }
-        return websubEventsSnapshotConsumer->close();
+        string persistedMsg = check string:fromBytes(lastMessage.payload);
+        common:SystemStateSnapshot lastStateSnapshot = check (check value:fromJsonString(persistedMsg)).fromJsonWithType();
+        refreshTopicCache(lastStateSnapshot.topics);
+        refreshSubscribersCache(lastStateSnapshot.subscriptions);
+        check persist:persistWebsubEventsSnapshot(lastStateSnapshot);
     } on fail error kafkaError {
         common:logFatalError("Error occurred while syncing system-state", kafkaError);
         error? result = check websubEventsSnapshotConsumer->close();
