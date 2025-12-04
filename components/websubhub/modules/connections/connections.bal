@@ -31,7 +31,12 @@ function initStatePersistProducer() returns store:Producer|error {
 public final store:Consumer websubEventsConsumer = check initWebSubEventsConsumer();
 
 function initWebSubEventsConsumer() returns store:Consumer|error {
-    return store:createKafkaConsumer(config:store.kafka, config:state.events.consumerId, config:state.events.topic);
+    return store:createKafkaConsumer(
+            config:store.kafka,
+            config:state.events.consumerId,
+            config:state.events.topic,
+            autoCommit = false
+    );
 }
 
 # Initialize a `store:Consumer` for a WebSub subscriber.
