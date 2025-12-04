@@ -128,10 +128,10 @@ isolated client class KafkaConsumer {
         KafkaConsumerRecord current;
         lock {
             current = self.messageBatch.shift().cloneReadOnly();
-        }
+        }        
+        // TODO: Temporary disabling kafka-header mapping as there is bug which crashes the `store:Consumer` when retrieving headers
         return {
-            payload: current.value,
-            metadata: current.headers
+            payload: current.value
         };
     }
 
