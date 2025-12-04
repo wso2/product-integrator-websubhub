@@ -21,6 +21,7 @@ import websubhub.consolidator.persistence as persist;
 import ballerina/http;
 import ballerina/lang.value;
 import ballerina/log;
+import ballerina/websubhub;
 
 import wso2/messagestore as store;
 
@@ -44,7 +45,7 @@ isolated function consolidateSystemState() returns error? {
             }
 
             string lastPersistedData = check string:fromBytes(message.payload);
-            error? result = processPersistedData(lastPersistedData);
+            error? result = processStateUpdateEvent(lastPersistedData);
             if result is error {
                 common:logFatalError("Error occurred while processing received event ", 'error = result);
                 check conn:websubEventsConsumer->nack(message);
@@ -59,21 +60,25 @@ isolated function consolidateSystemState() returns error? {
     }
 }
 
-isolated function processPersistedData(string persistedData) returns error? {
-    json payload = check value:fromJsonString(persistedData);
-    string hubMode = check payload.hubMode;
+isolated function processStateUpdateEvent(string persistedData) returns error? {
+    json event = check value:fromJsonString(persistedData);
+    string hubMode = check event.hubMode;
     match hubMode {
         "register" => {
-            check processTopicRegistration(payload);
+            websubhub:TopicRegistration topicRegistration = check event.fromJsonWithType();
+            check processTopicRegistration(topicRegistration);
         }
         "deregister" => {
-            check processTopicDeregistration(payload);
+            websubhub:TopicDeregistration topicDeregistration = check event.fromJsonWithType();
+            check processTopicDeregistration(topicDeregistration);
         }
         "subscribe" => {
-            check processSubscription(payload);
+            websubhub:VerifiedSubscription subscription = check event.fromJsonWithType();
+            check processSubscription(subscription);
         }
         "unsubscribe" => {
-            check processUnsubscription(payload);
+            websubhub:VerifiedUnsubscription unsubscription = check event.fromJsonWithType();
+            check processUnsubscription(unsubscription);
         }
         _ => {
             return error(string `Error occurred while deserializing subscriber events with invalid hubMode [${hubMode}]`);
