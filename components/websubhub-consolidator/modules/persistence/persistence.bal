@@ -20,13 +20,16 @@ import websubhub.consolidator.connections as conn;
 
 import wso2/messagestore as store;
 
-public isolated function persistWebsubEventsSnapshot(common:SystemStateSnapshot systemStateSnapshot) returns error? {
-    json data = systemStateSnapshot.toJson();
-    byte[] payload = data.toJsonString().toBytes();
-    check produceMessage(config:state.snapshot.topic, payload);
+public isolated function saveLastSnapshotMessage(store:Message message) returns error? {
+    return produceMessage(config:state.snapshot.topic, message);
 }
 
-isolated function produceMessage(string topic, byte[] payload) returns error? {
-    store:Message message = {payload};
+public isolated function saveWebsubEventsSnapshot(common:SystemStateSnapshot systemStateSnapshot) returns error? {
+    json data = systemStateSnapshot.toJson();
+    byte[] payload = data.toJsonString().toBytes();
+    return produceMessage(config:state.snapshot.topic, {payload});
+}
+
+isolated function produceMessage(string topic, store:Message message) returns error? {
     return (check conn:getMessageProducer(topic))->send(topic, message);
 }

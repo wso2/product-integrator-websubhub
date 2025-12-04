@@ -47,7 +47,10 @@ isolated function consolidateSystemState() returns error? {
             error? result = processPersistedData(lastPersistedData);
             if result is error {
                 common:logFatalError("Error occurred while processing received event ", 'error = result);
-                return result;
+                check conn:websubEventsConsumer->nack(message);
+                check result;
+            } else {
+                check conn:websubEventsConsumer->ack(message);
             }
         }
     } on fail var e {
@@ -83,5 +86,5 @@ isolated function processStateUpdate() returns error? {
         topics: getTopics(),
         subscriptions: getSubscriptions()
     };
-    check persist:persistWebsubEventsSnapshot(stateSnapshot);
+    check persist:saveWebsubEventsSnapshot(stateSnapshot);
 }

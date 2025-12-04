@@ -61,17 +61,22 @@ isolated function syncSystemState() returns error? {
                 check websubEventsSnapshotConsumer->close();
                 break;
             }
-            lastMessage = message;
+            check websubEventsSnapshotConsumer->ack(message);
+            lastMessage = {
+                payload: message.payload,
+                metadata: message.metadata
+            };
         }
 
         if lastMessage is () {
             return;
         }
+
+        check persist:saveLastSnapshotMessage(lastMessage);
         string persistedMsg = check string:fromBytes(lastMessage.payload);
         common:SystemStateSnapshot lastStateSnapshot = check (check value:fromJsonString(persistedMsg)).fromJsonWithType();
         refreshTopicCache(lastStateSnapshot.topics);
         refreshSubscribersCache(lastStateSnapshot.subscriptions);
-        check persist:persistWebsubEventsSnapshot(lastStateSnapshot);
     } on fail error kafkaError {
         common:logFatalError("Error occurred while syncing system-state", kafkaError);
         error? result = check websubEventsSnapshotConsumer->close();
