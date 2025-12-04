@@ -93,3 +93,9 @@ isolated function processStateUpdate() returns error? {
     };
     check persist:saveWebsubEventsSnapshot(stateSnapshot);
 }
+
+isolated function constructStateSnapshot() returns common:SystemStateSnapshot => {
+    topics: getTopics(),
+    subscriptions: getSubscriptions()
+};
+
