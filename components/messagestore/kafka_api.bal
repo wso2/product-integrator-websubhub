@@ -49,7 +49,7 @@ isolated client class KafkaConsumer {
     private final kafka:Consumer consumer;
     private final readonly & KafkaConsumerConfig config;
 
-    private kafka:BytesConsumerRecord[] messageBatch = [];
+    private KafkaConsumerRecord[] messageBatch = [];
 
     isolated function init(KafkaConfig config, string groupId, string topic, boolean autoCommit = true,
             kafka:OffsetResetMethod? offsetReset = (), int[]? partitions = ()) returns error? {
@@ -125,13 +125,13 @@ isolated client class KafkaConsumer {
             return;
         }
 
-        kafka:BytesConsumerRecord current;
+        KafkaConsumerRecord current;
         lock {
             current = self.messageBatch.shift().cloneReadOnly();
         }
         return {
             payload: current.value,
-            metadata: check self.convertHeaders(current.headers)
+            metadata: current.headers
         };
     }
 
@@ -145,26 +145,10 @@ isolated client class KafkaConsumer {
         if !self.isCurrentBatchEmpty() {
             return;
         }
-        kafka:BytesConsumerRecord[] messages = check self.consumer->poll(self.config.pollingInterval);
+        KafkaConsumerRecord[] messages = check self.consumer->poll(self.config.pollingInterval);
         lock {
             self.messageBatch.push(...messages.cloneReadOnly());
         }
-    }
-
-    isolated function convertHeaders(map<byte[]|byte[][]> kafkaHeaders) returns map<string|string[]>|error {
-        if kafkaHeaders.length() == 0 {
-            return {};
-        }
-        map<string|string[]> headers = {};
-        foreach var ['key, value] in kafkaHeaders.entries().toArray() {
-            if value is byte[] {
-                headers['key] = check string:fromBytes(value);
-            } else if value is byte[][] {
-                string[] headerValue = value.'map(v => check string:fromBytes(v));
-                headers['key] = headerValue;
-            }
-        }
-        return headers;
     }
 
     isolated remote function ack(Message message) returns error? {
