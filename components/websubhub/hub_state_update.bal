@@ -21,7 +21,8 @@ import websubhub.connections as conn;
 import ballerina/http;
 import ballerina/lang.value;
 import ballerina/websubhub;
-import ballerinax/kafka;
+
+import wso2/messagestore as store;
 
 function initializeHubState() returns error? {
     http:Client stateSnapshot;
@@ -43,25 +44,32 @@ function initializeHubState() returns error? {
         // Start hub-state update worker
         _ = start updateHubState();
     } on fail error httpError {
-        common:logError("Error occurred while initializing the hub-state using the latest state-snapshot", httpError, severity = "FATAL");
+        common:logFatalError("Error occurred while initializing the hub-state using the latest state-snapshot", httpError);
         return httpError;
     }
 }
 
 function updateHubState() returns error? {
-    while true {
-        kafka:BytesConsumerRecord[] records = check conn:websubEventsConsumer->poll(config:kafka.consumer.pollingInterval);
-        if records.length() <= 0 {
-            continue;
-        }
-        foreach kafka:BytesConsumerRecord currentRecord in records {
-            string lastPersistedData = check string:fromBytes(currentRecord.value);
+    do {
+        while true {
+            store:Message? message = check conn:websubEventsConsumer->receive();
+            if message is () {
+                continue;
+            }
+
+            string lastPersistedData = check string:fromBytes(message.payload);
             error? result = processStateUpdateEvent(lastPersistedData);
             if result is error {
-                common:logError("Error occurred while processing state-update event", result, severity = "FATAL");
-                return result;
+                common:logFatalError("Error occurred while processing state-update event", result);
+                check conn:websubEventsConsumer->nack(message);
+                check result;
+            } else {
+                check conn:websubEventsConsumer->ack(message);
             }
         }
+    } on fail error e {
+        check conn:websubEventsConsumer->close();
+        return e;
     }
 }
 

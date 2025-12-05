@@ -32,12 +32,10 @@ plugins {
 
 rootProject.name = 'product-integrator-websubhub'
 
-include ':websubhub'
-include ':websubhub-consolidator'
+include ':websubhub-workspace'
 include ':distribution'
 
-project(':websubhub').projectDir = file("components${File.separator}websubhub")
-project(':websubhub-consolidator').projectDir = file("components${File.separator}websubhub-consolidator")
+project(':websubhub-workspace').projectDir = file("components")
 project(':distribution').projectDir = file("distribution")
 
 gradleEnterprise {

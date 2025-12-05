@@ -15,14 +15,15 @@
 // under the License.
 
 import websubhub.consolidator.common;
-import websubhub.consolidator.config;
 import websubhub.consolidator.connections as conn;
 import websubhub.consolidator.persistence as persist;
 
 import ballerina/http;
 import ballerina/lang.value;
 import ballerina/log;
-import ballerinax/kafka;
+import ballerina/websubhub;
+
+import wso2/messagestore as store;
 
 http:Service consolidatorService = service object {
     isolated resource function get state\-snapshot() returns common:SystemStateSnapshot {
@@ -38,36 +39,46 @@ http:Service consolidatorService = service object {
 isolated function consolidateSystemState() returns error? {
     do {
         while true {
-            kafka:BytesConsumerRecord[] records = check conn:websubEventConsumer->poll(config:kafka.consumer.pollingInterval);
-            foreach kafka:BytesConsumerRecord currentRecord in records {
-                string lastPersistedData = check string:fromBytes(currentRecord.value);
-                error? result = processPersistedData(lastPersistedData);
-                if result is error {
-                    log:printError("Error occurred while processing received event ", 'error = result);
-                }
+            store:Message? message = check conn:websubEventsConsumer->receive();
+            if message is () {
+                continue;
+            }
+
+            string lastPersistedData = check string:fromBytes(message.payload);
+            error? result = processStateUpdateEvent(lastPersistedData);
+            if result is error {
+                common:logFatalError("Error occurred while processing received event ", 'error = result);
+                check conn:websubEventsConsumer->nack(message);
+                check result;
+            } else {
+                check conn:websubEventsConsumer->ack(message);
             }
         }
     } on fail var e {
-        _ = check conn:websubEventConsumer->close(config:kafka.consumer.gracefulClosePeriod);
+        _ = check conn:websubEventsConsumer->close();
         return e;
     }
 }
 
-isolated function processPersistedData(string persistedData) returns error? {
-    json payload = check value:fromJsonString(persistedData);
-    string hubMode = check payload.hubMode;
+isolated function processStateUpdateEvent(string persistedData) returns error? {
+    json event = check value:fromJsonString(persistedData);
+    string hubMode = check event.hubMode;
     match hubMode {
         "register" => {
-            check processTopicRegistration(payload);
+            websubhub:TopicRegistration topicRegistration = check event.fromJsonWithType();
+            check processTopicRegistration(topicRegistration);
         }
         "deregister" => {
-            check processTopicDeregistration(payload);
+            websubhub:TopicDeregistration topicDeregistration = check event.fromJsonWithType();
+            check processTopicDeregistration(topicDeregistration);
         }
         "subscribe" => {
-            check processSubscription(payload);
+            websubhub:VerifiedSubscription subscription = check event.fromJsonWithType();
+            check processSubscription(subscription);
         }
         "unsubscribe" => {
-            check processUnsubscription(payload);
+            websubhub:VerifiedUnsubscription unsubscription = check event.fromJsonWithType();
+            check processUnsubscription(unsubscription);
         }
         _ => {
             return error(string `Error occurred while deserializing subscriber events with invalid hubMode [${hubMode}]`);
@@ -80,5 +91,11 @@ isolated function processStateUpdate() returns error? {
         topics: getTopics(),
         subscriptions: getSubscriptions()
     };
-    check persist:persistWebsubEventsSnapshot(stateSnapshot);
+    check persist:saveWebsubEventsSnapshot(stateSnapshot);
 }
+
+isolated function constructStateSnapshot() returns common:SystemStateSnapshot => {
+    topics: getTopics(),
+    subscriptions: getSubscriptions()
+};
+

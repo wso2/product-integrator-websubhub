@@ -21,14 +21,15 @@ plugins {
     id 'maven-publish'
 }
 
+def componentsDir = project(':websubhub-workspace').projectDir
 distributions {
     hub {
         distributionBaseName = 'wso2websubhub'
-        def hubDir = project(':websubhub').projectDir
+        // def hubDir = project(':websubhub').projectDir
         def scriptsDir = file('scripts/websubhub')
         def confDir = file('conf/websubhub')
         contents {
-            from("${hubDir}/target/bin") {
+            from("${componentsDir}/websubhub/target/bin") {
                 include "*.jar"
                 into "lib"
             }
@@ -38,7 +39,7 @@ distributions {
                 into "conf"
             }
 
-            from("${hubDir}/resources") {
+            from("${componentsDir}/websubhub/resources") {
                 into "conf/resources"
             }
             
@@ -58,11 +59,11 @@ distributions {
 
     consolidator {
         distributionBaseName = 'wso2websubhub-consolidator'
-        def consolidatorDir = project(':websubhub-consolidator').projectDir
+        // def consolidatorDir = project(':websubhub-consolidator').projectDir
         def scriptsDir = file('scripts/websubhub-consolidator')
         def confDir = file('conf/websubhub-consolidator')
         contents {
-            from("${consolidatorDir}/target/bin") {
+            from("${componentsDir}/websubhub-consolidator/target/bin") {
                 include "*.jar"
                 into "lib"
             }
@@ -72,7 +73,7 @@ distributions {
                 into "conf"
             }
 
-            from("${consolidatorDir}/resources") {
+            from("${componentsDir}/websubhub-consolidator/resources") {
                 into "conf/resources"
             }
 
@@ -131,10 +132,10 @@ publishing {
     }
 }
 
-hubDistZip.dependsOn(':websubhub:build')
+hubDistZip.dependsOn(':websubhub-workspace:build')
 hubDistTar.enabled = false
 
-consolidatorDistZip.dependsOn(':websubhub-consolidator:build')
+consolidatorDistZip.dependsOn(':websubhub-workspace:build')
 consolidatorDistTar.enabled = false
 
 websubhubDistributionDistZip.dependsOn(hubDistZip)

@@ -14,15 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import websubhub.consolidator.common;
+public const SUBSCRIPTION_TIMESTAMP = "timestamp";
+public const SUBSCRIPTION_STATUS = "status";
+public const SUBSCRIPTION_SERVER_ID = "serverId";
 
-import wso2/messagestore as store;
-
-# Common configurations used to configure the websubhub consolidator server
-public configurable common:ServerConfig server = ?;
-
-# Configurations related to websubhub consolidator server state
-public configurable common:ServerStateConfig state = ?;
-
-# Messaging store connection related configurations
-public configurable store:KafkaMessageStore store = ?;

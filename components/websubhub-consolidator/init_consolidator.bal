@@ -16,18 +16,21 @@
 
 import websubhub.consolidator.common;
 import websubhub.consolidator.config;
+import websubhub.consolidator.connections as conn;
 import websubhub.consolidator.persistence as persist;
 
 import ballerina/http;
 import ballerina/lang.runtime;
+import ballerina/lang.value;
 import ballerina/log;
-import ballerinax/kafka;
+
+import wso2/messagestore as store;
 
 public function main() returns error? {
     // Initialize consolidator-service state
     error? stateSyncResult = syncSystemState();
     if stateSyncResult is error {
-        common:logError("Error while syncing system state during startup", stateSyncResult, "FATAL");
+        common:logFatalError("Error while syncing system state during startup", stateSyncResult);
         return;
     }
 
@@ -46,33 +49,51 @@ public function main() returns error? {
     lock {
         startupCompleted = true;
     }
+    runtime:onGracefulStop(onShutdown);
 }
 
 isolated function syncSystemState() returns error? {
-    kafka:ConsumerConfiguration websubEventsSnapshotConfig = {
-        groupId: config:state.snapshot.consumerGroup,
-        offsetReset: "earliest",
-        topics: [config:state.snapshot.topic],
-        secureSocket: config:kafka.connection.secureSocket,
-        securityProtocol: config:kafka.connection.securityProtocol,
-        maxPollRecords: config:kafka.consumer.maxPollRecords
-    };
-    kafka:Consumer websubEventsSnapshotConsumer = check new (config:kafka.connection.bootstrapServers, websubEventsSnapshotConfig);
+    store:Consumer websubEventsSnapshotConsumer = check conn:initWebSubEventSnapshotConsumer();
     do {
-        common:SystemStateSnapshot[] events = check websubEventsSnapshotConsumer->pollPayload(config:kafka.consumer.pollingInterval);
-        if events.length() > 0 {
-            common:SystemStateSnapshot lastStateSnapshot = events.pop();
-            refreshTopicCache(lastStateSnapshot.topics);
-            refreshSubscribersCache(lastStateSnapshot.subscriptions);
-            check persist:persistWebsubEventsSnapshot(lastStateSnapshot);
+        store:Message? lastMessage = ();
+        while true {
+            store:Message? message = check websubEventsSnapshotConsumer->receive();
+            if message is () {
+                check websubEventsSnapshotConsumer->close();
+                break;
+            }
+            check websubEventsSnapshotConsumer->ack(message);
+            lastMessage = {
+                payload: message.payload,
+                metadata: message.metadata
+            };
         }
+
+        if lastMessage is () {
+            return;
+        }
+
+        check persist:saveLastSnapshotMessage(lastMessage);
+        string persistedMsg = check string:fromBytes(lastMessage.payload);
+        common:SystemStateSnapshot lastStateSnapshot = check (check value:fromJsonString(persistedMsg)).fromJsonWithType();
+        refreshTopicCache(lastStateSnapshot.topics);
+        refreshSubscribersCache(lastStateSnapshot.subscriptions);
     } on fail error kafkaError {
-        common:logError("Error occurred while syncing system-state", kafkaError, "FATAL");
-        error? result = check websubEventsSnapshotConsumer->close(config:kafka.consumer.gracefulClosePeriod);
+        common:logFatalError("Error occurred while syncing system-state", kafkaError);
+        error? result = check websubEventsSnapshotConsumer->close();
         if result is error {
-            common:logError("Error occurred while gracefully closing kafka:Consumer", result);
+            common:logFatalError("Error occurred while gracefully closing the message store consumer", result);
         }
         return kafkaError;
     }
-    check websubEventsSnapshotConsumer->close();
+}
+
+isolated function onShutdown() returns error? {
+    log:printInfo("Shutting down the Event consolidator service, persisting the system state");
+    error? persistError = processStateUpdate();
+    if persistError is error {
+        log:printError("Error occurred while persisting the consolidated state during shutdown, hence logging the state",
+                state = constructStateSnapshot());
+        return persistError;
+    }
 }

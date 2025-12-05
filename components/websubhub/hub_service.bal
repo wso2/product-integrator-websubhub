@@ -20,7 +20,7 @@ import websubhub.persistence as persist;
 import websubhub.security;
 
 import ballerina/http;
-import ballerina/log;
+import ballerina/time;
 import ballerina/websubhub;
 
 http:Service healthCheckService = service object {
@@ -62,7 +62,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             }
             error? persistingResult = persist:addRegsiteredTopic(message.cloneReadOnly());
             if persistingResult is error {
-                log:printError("Error occurred while persisting the topic-registration ", persistingResult);
+                common:logRecoverableError("Error occurred while persisting the topic-registration ", persistingResult);
             }
         }
     }
@@ -90,7 +90,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             }
             error? persistingResult = persist:removeRegsiteredTopic(message.cloneReadOnly());
             if persistingResult is error {
-                log:printError("Error occurred while persisting the topic-deregistration ", persistingResult);
+                common:logRecoverableError("Error occurred while persisting the topic-deregistration ", persistingResult);
             }
         }
     }
@@ -128,7 +128,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             if subscription is () {
                 return;
             }
-            if subscription.hasKey(STATUS) && subscription.get(STATUS) is STALE_STATE {
+            if subscription.hasKey(common:SUBSCRIPTION_STATUS) && subscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTION_STALE_STATE {
                 return;
             }
             if isValidSubscription(subscriberId) {
@@ -146,7 +146,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
         websubhub:VerifiedSubscription subscription = self.prepareSubscriptionToBePersisted(message);
         error? persistingResult = persist:addSubscription(subscription);
         if persistingResult is error {
-            log:printError("Error occurred while persisting the subscription ", persistingResult);
+            common:logRecoverableError("Error occurred while persisting the subscription ", persistingResult);
         }
     }
 
@@ -158,14 +158,11 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             websubhub:VerifiedSubscription updatedSubscription = {
                 ...subscription
             };
-            _ = updatedSubscription.removeIfHasKey(STATUS);
+            _ = updatedSubscription.removeIfHasKey(common:SUBSCRIPTION_STATUS);
             return updatedSubscription;
         }
-        if !message.hasKey(CONSUMER_GROUP) {
-            string consumerGroup = common:generateGroupName(message.hubTopic, message.hubCallback);
-            message[CONSUMER_GROUP] = consumerGroup;
-        }
-        message[SERVER_ID] = config:server.id;
+        message[common:SUBSCRIPTION_TIMESTAMP] = time:monotonicNow().toBalString();
+        message[common:SUBSCRIPTION_SERVER_ID] = config:server.id;
         return message;
     }
 
@@ -212,7 +209,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
         lock {
             var persistingResult = persist:removeSubscription(message.cloneReadOnly());
             if persistingResult is error {
-                log:printError("Error occurred while persisting the unsubscription ", persistingResult);
+                common:logRecoverableError("Error occurred while persisting the unsubscription ", persistingResult);
             }
         }
     }
@@ -243,7 +240,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             if errorResponse is websubhub:UpdateMessageError {
                 return errorResponse;
             } else if errorResponse is error {
-                log:printError("Error occurred while publishing the content ", errorResponse);
+                common:logRecoverableError("Error occurred while publishing the content ", errorResponse);
                 return error websubhub:UpdateMessageError(
                     errorResponse.message(), statusCode = http:STATUS_INTERNAL_SERVER_ERROR);
             }

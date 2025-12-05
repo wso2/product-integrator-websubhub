@@ -16,25 +16,45 @@
 
 import websubhub.consolidator.config;
 
-import ballerinax/kafka;
+import wso2/messagestore as store;
 
 // Producer which persist the current consolidated in-memory state of the system
-kafka:ProducerConfiguration statePersistConfig = {
-    clientId: "consolidated-state-persist",
-    acks: "1",
-    retryCount: 3,
-    secureSocket: config:kafka.connection.secureSocket,
-    securityProtocol: config:kafka.connection.securityProtocol
-};
-public final kafka:Producer statePersistProducer = check new (config:kafka.connection.bootstrapServers, statePersistConfig);
+public final store:Producer statePersistProducer = check initStatePersistProducer();
+
+function initStatePersistProducer() returns store:Producer|error {
+    return store:createKafkaProducer(config:store.kafka, "consolidated-state-persist");
+}
 
 // Consumer which reads the persisted topic-registration/topic-deregistration/subscription/unsubscription events
-public final kafka:ConsumerConfiguration websubEventConsumerConfig = {
-    groupId: config:state.events.consumerGroup,
-    offsetReset: "earliest",
-    topics: [config:state.events.topic],
-    secureSocket: config:kafka.connection.secureSocket,
-    securityProtocol: config:kafka.connection.securityProtocol,
-    maxPollRecords: config:kafka.consumer.maxPollRecords
-};
-public final kafka:Consumer websubEventConsumer = check new (config:kafka.connection.bootstrapServers, websubEventConsumerConfig);
+public final store:Consumer websubEventsConsumer = check initWebSubEventsConsumer();
+
+function initWebSubEventsConsumer() returns store:Consumer|error {
+    return store:createKafkaConsumer(
+            config:store.kafka,
+            config:state.events.consumerId,
+            config:state.events.topic,
+            autoCommit = false,
+            offsetReset = "earliest"
+    );
+}
+
+# Initializes the WebSub event snapshot consumer.
+#
+# + return - A `store:Consumer` for the message store, or else return an `error` if the operation fails
+public isolated function initWebSubEventSnapshotConsumer() returns store:Consumer|error {
+    return store:createKafkaConsumer(
+            config:store.kafka,
+            config:state.snapshot.consumerId,
+            config:state.snapshot.topic,
+            autoCommit = false,
+            offsetReset = "earliest"
+    );
+}
+
+# Retrieves a message producer per topic.
+#
+# + topic - The message store topic
+# + return - A `store:Producer` for the message store, or else an `error` if the operation fails
+public isolated function getMessageProducer(string topic) returns store:Producer|error {
+    return statePersistProducer;
+}

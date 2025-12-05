@@ -78,7 +78,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "http"
-version = "2.15.2"
+version = "2.15.3"
 dependencies = [
 	{org = "ballerina", name = "auth"},
 	{org = "ballerina", name = "cache"},
@@ -258,7 +258,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "observe"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"}
 ]
@@ -270,18 +270,6 @@ version = "1.10.1"
 dependencies = [
 	{org = "ballerina", name = "io"},
 	{org = "ballerina", name = "jballerina.java"}
-]
-
-[[package]]
-org = "ballerina"
-name = "random"
-version = "1.7.0"
-dependencies = [
-	{org = "ballerina", name = "jballerina.java"},
-	{org = "ballerina", name = "time"}
-]
-modules = [
-	{org = "ballerina", packageName = "random", moduleName = "random"}
 ]
 
 [[package]]
@@ -386,9 +374,6 @@ dependencies = [
 	{org = "ballerinax", name = "confluent.cavroserdes"},
 	{org = "ballerinax", name = "confluent.cregistry"}
 ]
-modules = [
-	{org = "ballerinax", packageName = "kafka", moduleName = "kafka"}
-]
 
 [[package]]
 org = "wso2"
@@ -399,10 +384,9 @@ dependencies = [
 	{org = "ballerina", name = "lang.runtime"},
 	{org = "ballerina", name = "lang.value"},
 	{org = "ballerina", name = "log"},
-	{org = "ballerina", name = "random"},
 	{org = "ballerina", name = "websubhub"},
 	{org = "ballerinai", name = "observe"},
-	{org = "ballerinax", name = "kafka"}
+	{org = "wso2", name = "messagestore"}
 ]
 modules = [
 	{org = "wso2", packageName = "websubhub.consolidator", moduleName = "websubhub.consolidator"},

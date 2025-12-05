@@ -13,8 +13,8 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 import ballerina/log;
-import ballerina/random;
 
 # Generates a group-name for a subscriber.
 #
@@ -25,41 +25,22 @@ public isolated function generatedSubscriberId(string topic, string callbackUrl)
     return string `${topic}___${callbackUrl}`;
 }
 
-# Generates a random `string` of 10 characters
+# Logs a fatal errors with proper details.
 #
-# + return - The generated `string`
-public isolated function generateRandomString() returns string {
-    int[] codePoints = [];
-    int leftLimit = 48; // numeral '0'
-    int rightLimit = 122; // letter 'z'
-    int iterator = 0;
-    while iterator < 10 {
-        int|error randomInt = random:createIntInRange(leftLimit, rightLimit);
-        if randomInt is error {
-            break;
-        } else {
-            // character literals from 48 - 57 are numbers | 65 - 90 are capital letters | 97 - 122 are simple letters
-            if (randomInt <= 57 || randomInt >= 65) && (randomInt <= 90 || randomInt >= 97) {
-                codePoints.push(randomInt);
-                iterator += 1;
-            }
-        }
-    }
-    string|error generatedValue = string:fromCodePointInts(codePoints);
-    return generatedValue is string ? generatedValue : "";
+# + msg - Base error message  
+# + error - Current error
+# + keyValues - Additional key values to be logged
+public isolated function logFatalError(string msg, error? 'error = (), *log:KeyValues keyValues) {
+    keyValues["severity"] = "FATAL";
+    log:printError(msg, 'error, keyValues = keyValues);
 }
 
-# Logs errors with proper details.
+# Logs a recoverable errors with proper details.
 #
-# + baseErrorMsg - Base error message  
-# + err - Current error
-# + severity - Severity of the error
-public isolated function logError(string baseErrorMsg, error err, string severity = "RECOVERABLE") {
-    string errorMsg = string `${baseErrorMsg}: ${err.message()}`;
-    error? cause = err.cause();
-    while cause is error {
-        errorMsg += string `: ${cause.message()}`;
-        cause = cause.cause();
-    }
-    log:printError(errorMsg, severity = severity, stackTrace = err.stackTrace());
+# + msg - Base error message  
+# + error - Current error
+# + keyValues - Additional key values to be logged
+public isolated function logRecoverableError(string msg, error? 'error = (), *log:KeyValues keyValues) {
+    keyValues["severity"] = "RECOVERABLE";
+    log:printError(msg, 'error, keyValues = keyValues);
 }
