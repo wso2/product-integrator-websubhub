@@ -49,6 +49,7 @@ public function main() returns error? {
     lock {
         startupCompleted = true;
     }
+    runtime:onGracefulStop(onShutdown);
 }
 
 isolated function syncSystemState() returns error? {
@@ -61,17 +62,22 @@ isolated function syncSystemState() returns error? {
                 check websubEventsSnapshotConsumer->close();
                 break;
             }
-            lastMessage = message;
+            check websubEventsSnapshotConsumer->ack(message);
+            lastMessage = {
+                payload: message.payload,
+                metadata: message.metadata
+            };
         }
 
         if lastMessage is () {
             return;
         }
+
+        check persist:saveLastSnapshotMessage(lastMessage);
         string persistedMsg = check string:fromBytes(lastMessage.payload);
         common:SystemStateSnapshot lastStateSnapshot = check (check value:fromJsonString(persistedMsg)).fromJsonWithType();
         refreshTopicCache(lastStateSnapshot.topics);
         refreshSubscribersCache(lastStateSnapshot.subscriptions);
-        check persist:persistWebsubEventsSnapshot(lastStateSnapshot);
     } on fail error kafkaError {
         common:logFatalError("Error occurred while syncing system-state", kafkaError);
         error? result = check websubEventsSnapshotConsumer->close();
@@ -79,5 +85,15 @@ isolated function syncSystemState() returns error? {
             common:logFatalError("Error occurred while gracefully closing the message store consumer", result);
         }
         return kafkaError;
+    }
+}
+
+isolated function onShutdown() returns error? {
+    log:printInfo("Shutting down the Event consolidator service, persisting the system state");
+    error? persistError = processStateUpdate();
+    if persistError is error {
+        log:printError("Error occurred while persisting the consolidated state during shutdown, hence logging the state",
+                state = constructStateSnapshot());
+        return persistError;
     }
 }

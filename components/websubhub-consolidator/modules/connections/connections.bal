@@ -33,6 +33,7 @@ function initWebSubEventsConsumer() returns store:Consumer|error {
             config:store.kafka,
             config:state.events.consumerId,
             config:state.events.topic,
+            autoCommit = false,
             offsetReset = "earliest"
     );
 }
@@ -45,6 +46,7 @@ public isolated function initWebSubEventSnapshotConsumer() returns store:Consume
             config:store.kafka,
             config:state.snapshot.consumerId,
             config:state.snapshot.topic,
+            autoCommit = false,
             offsetReset = "earliest"
     );
 }

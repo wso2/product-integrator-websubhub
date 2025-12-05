@@ -40,8 +40,7 @@ isolated function refreshSubscribersCache(websubhub:VerifiedSubscription[] persi
     }
 }
 
-isolated function processSubscription(json payload) returns error? {
-    websubhub:VerifiedSubscription subscription = check payload.cloneWithType(websubhub:VerifiedSubscription);
+isolated function processSubscription(websubhub:VerifiedSubscription subscription) returns error? {
     string subscriberId = common:generatedSubscriberId(subscription.hubTopic, subscription.hubCallback);
     lock {
         // add the subscriber if subscription event received
@@ -52,8 +51,7 @@ isolated function processSubscription(json payload) returns error? {
     check processStateUpdate();
 }
 
-isolated function processUnsubscription(json payload) returns error? {
-    websubhub:VerifiedUnsubscription unsubscription = check payload.cloneWithType(websubhub:VerifiedUnsubscription);
+isolated function processUnsubscription(websubhub:VerifiedUnsubscription unsubscription) returns error? {
     string subscriberId = common:generatedSubscriberId(unsubscription.hubTopic, unsubscription.hubCallback);
     lock {
         // remove the subscriber if the unsubscription event received

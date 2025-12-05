@@ -50,17 +50,26 @@ function initializeHubState() returns error? {
 }
 
 function updateHubState() returns error? {
-    while true {
-        store:Message? message = check conn:websubEventsConsumer->receive();
-        if message is () {
-            continue;
+    do {
+        while true {
+            store:Message? message = check conn:websubEventsConsumer->receive();
+            if message is () {
+                continue;
+            }
+
+            string lastPersistedData = check string:fromBytes(message.payload);
+            error? result = processStateUpdateEvent(lastPersistedData);
+            if result is error {
+                common:logFatalError("Error occurred while processing state-update event", result);
+                check conn:websubEventsConsumer->nack(message);
+                check result;
+            } else {
+                check conn:websubEventsConsumer->ack(message);
+            }
         }
-        string lastPersistedData = check string:fromBytes(message.payload);
-        error? result = processStateUpdateEvent(lastPersistedData);
-        if result is error {
-            common:logFatalError("Error occurred while processing state-update event", result);
-            return result;
-        }
+    } on fail error e {
+        check conn:websubEventsConsumer->close();
+        return e;
     }
 }
 

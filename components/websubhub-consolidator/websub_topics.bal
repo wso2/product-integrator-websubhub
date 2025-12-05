@@ -14,7 +14,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import ballerina/lang.value;
 import ballerina/websubhub;
 
 isolated map<websubhub:TopicRegistration> registeredTopicsCache = {};
@@ -27,20 +26,18 @@ isolated function refreshTopicCache(websubhub:TopicRegistration[] persistedTopic
     }
 }
 
-isolated function processTopicRegistration(json payload) returns error? {
-    websubhub:TopicRegistration registration = check value:cloneWithType(payload);
+isolated function processTopicRegistration(websubhub:TopicRegistration topicRegistration) returns error? {
     lock {
         // add the topic if topic-registration event received
-        registeredTopicsCache[registration.topic] = registration.cloneReadOnly();
+        registeredTopicsCache[topicRegistration.topic] = topicRegistration.cloneReadOnly();
     }
     check processStateUpdate();
 }
 
-isolated function processTopicDeregistration(json payload) returns error? {
-    websubhub:TopicDeregistration deregistration = check value:cloneWithType(payload);
+isolated function processTopicDeregistration(websubhub:TopicDeregistration topicDeregistration) returns error? {
     lock {
         // remove the topic if topic-deregistration event received
-        _ = registeredTopicsCache.removeIfHasKey(deregistration.topic);
+        _ = registeredTopicsCache.removeIfHasKey(topicDeregistration.topic);
     }
     check processStateUpdate();
 }
