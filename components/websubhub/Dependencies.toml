@@ -402,6 +402,7 @@ dependencies = [
 ]
 modules = [
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub"},
+	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.admin"},
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.common"},
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.config"},
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.connections"},
