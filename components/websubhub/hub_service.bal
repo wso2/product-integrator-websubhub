@@ -63,15 +63,14 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             }
         }
         do {
-            error? result = admin:createTopic(message);
-            if result is websubhub:TopicRegistrationError {
-                return result;
-            }
-            check result;
+            check admin:createTopic(message);
             check persist:addRegsiteredTopic(message);
         } on fail error topicRegErr {
             string errorMessage = string `Failed to register ${message.topic}: ${topicRegErr.message()}`;
             common:logRecoverableError(errorMessage, topicRegErr);
+            if topicRegErr is websubhub:TopicRegistrationError {
+                return topicRegErr;
+            }
             return error websubhub:TopicRegistrationError(errorMessage, statusCode = http:STATUS_INTERNAL_SERVER_ERROR);
         }
     }
@@ -99,15 +98,14 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             }
         }
         do {
-            error? result = admin:deleteTopic(message);
-            if result is websubhub:TopicDeregistrationError {
-                return result;
-            }
-            check result;
+            check admin:deleteTopic(message);
             check persist:removeRegsiteredTopic(message);
         } on fail error topicDeregErr {
             string errorMessage = string `Failed to deregister ${message.topic}: ${topicDeregErr.message()}`;
             common:logRecoverableError(errorMessage, topicDeregErr);
+            if topicDeregErr is websubhub:TopicDeregistrationError {
+                return topicDeregErr;
+            }
             return error websubhub:TopicDeregistrationError(errorMessage, statusCode = http:STATUS_INTERNAL_SERVER_ERROR);
         }
     }
