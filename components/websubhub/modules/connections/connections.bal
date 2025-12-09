@@ -48,7 +48,7 @@ public isolated function createConsumer(websubhub:VerifiedSubscription subscript
 }
 
 # Initialize a `store:Administrator` for the websubhub server.
-# 
+#
 # + return - A `store:Administrator` for the message store, or else return an `error` if the operation fails
 public isolated function createAdministrator() returns store:Administrator|error {
     return new store:Administrator();

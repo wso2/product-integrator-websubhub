@@ -105,7 +105,7 @@ public isolated client class Administrator {
     # + topic - Name of the topic to be deleted
     # + return - `TopicNotFound` if the topic does not exist, `error?` for other errors,
     # or `()` on success
-    function deleteTopic(string topic) returns TopicNotFound|error? {
+    isolated remote function deleteTopic(string topic) returns TopicNotFound|error? {
         return;
     }
 
@@ -115,7 +115,7 @@ public isolated client class Administrator {
     # + subscriberId - Unique identifier of the subscriber
     # + return - `SubscriptionExists` if the subscription already exists, `error?` for other
     # errors, or `()` on success
-    function createSubscription(string topic, string subscriberId) returns SubscriptionExists|error? {
+    isolated remote function createSubscription(string topic, string subscriberId) returns SubscriptionExists|error? {
         return;
     }
 
@@ -125,14 +125,14 @@ public isolated client class Administrator {
     # + subscriberId - Unique identifier of the subscriber
     # + return - `SubscriptionNotFound` if the subscription does not exist, `error?` for
     # other errors, or `()` on success
-    function deleteSubscription(string topic, string subscriberId) returns SubscriptionNotFound|error? {
+    isolated remote function deleteSubscription(string topic, string subscriberId) returns SubscriptionNotFound|error? {
         return;
     }
 
     # Closes the administrative client and releases any associated resources.
     #
     # + return - `error?` if closing the client fails, or `()` on success
-    function close() returns error? {
+    isolated remote function close() returns error? {
         return;
     }
 }
