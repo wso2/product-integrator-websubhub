@@ -88,7 +88,6 @@ public type SubscriptionExists distinct error;
 # Error indicating that the specified subscription does not exist.
 public type SubscriptionNotFound distinct error;
 
-
 # Represents an administrative client used to manage topics and subscriptions in the underlying message store.
 public isolated client class Administrator {
 
@@ -96,7 +95,7 @@ public isolated client class Administrator {
     #
     # + topic - Name of the topic to be created
     # + return - `TopicExists` if the topic already exists, `error?` for other errors,
-    #            or `()` on success
+    # or `()` on success
     isolated remote function createTopic(string topic) returns TopicExists|error? {
         return;
     }
@@ -105,7 +104,7 @@ public isolated client class Administrator {
     #
     # + topic - Name of the topic to be deleted
     # + return - `TopicNotFound` if the topic does not exist, `error?` for other errors,
-    #            or `()` on success
+    # or `()` on success
     function deleteTopic(string topic) returns TopicNotFound|error? {
         return;
     }
@@ -115,7 +114,7 @@ public isolated client class Administrator {
     # + topic - The topic to subscribe to
     # + subscriberId - Unique identifier of the subscriber
     # + return - `SubscriptionExists` if the subscription already exists, `error?` for other
-    #            errors, or `()` on success
+    # errors, or `()` on success
     function createSubscription(string topic, string subscriberId) returns SubscriptionExists|error? {
         return;
     }
@@ -125,7 +124,7 @@ public isolated client class Administrator {
     # + topic - The topic associated with the subscription
     # + subscriberId - Unique identifier of the subscriber
     # + return - `SubscriptionNotFound` if the subscription does not exist, `error?` for
-    #            other errors, or `()` on success
+    # other errors, or `()` on success
     function deleteSubscription(string topic, string subscriberId) returns SubscriptionNotFound|error? {
         return;
     }
