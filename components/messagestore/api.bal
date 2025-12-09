@@ -75,3 +75,65 @@ public isolated client class Consumer {
         return error("Calling an abstract API");
     }
 }
+
+# Error indicating that the topic already exists in the message store.
+public type TopicExists distinct error;
+
+# Error indicating that the topic does not exist in the message store.
+public type TopicNotFound distinct error;
+
+# Error indicating that the subscription already exists for the given topic and subscriber ID.
+public type SubscriptionExists distinct error;
+
+# Error indicating that the specified subscription does not exist.
+public type SubscriptionNotFound distinct error;
+
+
+# Represents an administrative client used to manage topics and subscriptions in the underlying message store.
+public isolated client class Administrator {
+
+    # Creates a new topic in the message store.
+    #
+    # + topic - Name of the topic to be created
+    # + return - `TopicExists` if the topic already exists, `error?` for other errors,
+    #            or `()` on success
+    isolated remote function createTopic(string topic) returns TopicExists|error? {
+        return;
+    }
+
+    # Deletes an existing topic from the message store.
+    #
+    # + topic - Name of the topic to be deleted
+    # + return - `TopicNotFound` if the topic does not exist, `error?` for other errors,
+    #            or `()` on success
+    function deleteTopic(string topic) returns TopicNotFound|error? {
+        return;
+    }
+
+    # Creates a new subscription for a given topic and subscriber ID.
+    #
+    # + topic - The topic to subscribe to
+    # + subscriberId - Unique identifier of the subscriber
+    # + return - `SubscriptionExists` if the subscription already exists, `error?` for other
+    #            errors, or `()` on success
+    function createSubscription(string topic, string subscriberId) returns SubscriptionExists|error? {
+        return;
+    }
+
+    # Deletes an existing subscription for a given topic and subscriber ID.
+    #
+    # + topic - The topic associated with the subscription
+    # + subscriberId - Unique identifier of the subscriber
+    # + return - `SubscriptionNotFound` if the subscription does not exist, `error?` for
+    #            other errors, or `()` on success
+    function deleteSubscription(string topic, string subscriberId) returns SubscriptionNotFound|error? {
+        return;
+    }
+
+    # Closes the administrative client and releases any associated resources.
+    #
+    # + return - `error?` if closing the client fails, or `()` on success
+    function close() returns error? {
+        return;
+    }
+}
