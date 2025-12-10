@@ -14,6 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import websubhub.admin;
 import websubhub.common;
 import websubhub.config;
 import websubhub.persistence as persist;
@@ -60,10 +61,17 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
                 return error websubhub:TopicRegistrationError(
                     "Topic has already registered with the Hub", statusCode = http:STATUS_CONFLICT);
             }
-            error? persistingResult = persist:addRegsiteredTopic(message.cloneReadOnly());
-            if persistingResult is error {
-                common:logRecoverableError("Error occurred while persisting the topic-registration ", persistingResult);
+        }
+        do {
+            check admin:createTopic(message);
+            check persist:addRegsiteredTopic(message);
+        } on fail error topicRegErr {
+            string errorMessage = string `Failed to register ${message.topic}: ${topicRegErr.message()}`;
+            common:logRecoverableError(errorMessage, topicRegErr);
+            if topicRegErr is websubhub:TopicRegistrationError {
+                return topicRegErr;
             }
+            return error websubhub:TopicRegistrationError(errorMessage, statusCode = http:STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -88,10 +96,17 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
                 return error websubhub:TopicDeregistrationError(
                     "Topic has not been registered in the Hub", statusCode = http:STATUS_NOT_FOUND);
             }
-            error? persistingResult = persist:removeRegsiteredTopic(message.cloneReadOnly());
-            if persistingResult is error {
-                common:logRecoverableError("Error occurred while persisting the topic-deregistration ", persistingResult);
+        }
+        do {
+            check admin:deleteTopic(message);
+            check persist:removeRegsiteredTopic(message);
+        } on fail error topicDeregErr {
+            string errorMessage = string `Failed to deregister ${message.topic}: ${topicDeregErr.message()}`;
+            common:logRecoverableError(errorMessage, topicDeregErr);
+            if topicDeregErr is websubhub:TopicDeregistrationError {
+                return topicDeregErr;
             }
+            return error websubhub:TopicDeregistrationError(errorMessage, statusCode = http:STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -144,9 +159,13 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     # + return - `error` if there is any unexpected error or else `()`
     isolated remote function onSubscriptionIntentVerified(websubhub:VerifiedSubscription message) returns error? {
         websubhub:VerifiedSubscription subscription = self.prepareSubscriptionToBePersisted(message);
-        error? persistingResult = persist:addSubscription(subscription);
-        if persistingResult is error {
-            common:logRecoverableError("Error occurred while persisting the subscription ", persistingResult);
+        do {
+            check admin:createSubscription(message);
+            check persist:addSubscription(subscription);
+        } on fail error subscriptionErr {
+            string errorMessage = string
+                `Failed to register subscription for topic ${message.hubTopic} and subscriber ${message.hubCallback}: ${subscriptionErr.message()}`;
+            common:logRecoverableError(errorMessage, subscriptionErr);
         }
     }
 
@@ -206,11 +225,20 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     #
     # + message - Details of the unsubscription
     isolated remote function onUnsubscriptionIntentVerified(websubhub:VerifiedUnsubscription message) {
-        lock {
-            var persistingResult = persist:removeSubscription(message.cloneReadOnly());
-            if persistingResult is error {
-                common:logRecoverableError("Error occurred while persisting the unsubscription ", persistingResult);
-            }
+        string subscriberId = common:generateSubscriberId(message.hubTopic, message.hubCallback);
+        websubhub:VerifiedSubscription? subscription = getSubscription(subscriberId);
+        if subscription is () {
+            return;
+        }
+
+        do {
+            message[common:SUBSCRIPTION_TIMESTAMP] = subscription[common:SUBSCRIPTION_TIMESTAMP];
+            check admin:deleteSubscription(message);
+            check persist:removeSubscription(message);
+        } on fail error unsubscriptionErr {
+            string errorMessage = string
+                `Failed to deregister subscription for topic ${message.hubTopic} and subscriber ${message.hubCallback}: ${unsubscriptionErr.message()}`;
+            common:logRecoverableError(errorMessage, unsubscriptionErr);
         }
     }
 

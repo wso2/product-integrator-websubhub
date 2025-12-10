@@ -21,7 +21,7 @@ import ballerina/websubhub;
 import wso2/messagestore as store;
 
 // Producer which persist the current in-memory state of the Hub 
-public final store:Producer statePersistProducer = check initStatePersistProducer();
+final store:Producer statePersistProducer = check initStatePersistProducer();
 
 function initStatePersistProducer() returns store:Producer|error {
     return store:createKafkaProducer(config:store.kafka, "state-persist");
@@ -45,6 +45,13 @@ function initWebSubEventsConsumer() returns store:Consumer|error {
 # + return - A `store:Consumer` for the message store, or else return an `error` if the operation fails
 public isolated function createConsumer(websubhub:VerifiedSubscription subscription) returns store:Consumer|error {
     return createKafkaConsumerForSubscriber(subscription, config:store.kafka);
+}
+
+# Initialize a `store:Administrator` for the websubhub server.
+#
+# + return - A `store:Administrator` for the message store, or else return an `error` if the operation fails
+public isolated function createAdministrator() returns store:Administrator|error {
+    return new store:Administrator();
 }
 
 # Retrieves a message producer per topic.
