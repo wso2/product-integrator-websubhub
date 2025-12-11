@@ -190,7 +190,7 @@ public isolated function createKafkaProducer(KafkaConfig config, string clientId
 public isolated function createKafkaConsumer(KafkaConfig config, string groupId, string topic, boolean autoCommit = true,
         kafka:OffsetResetMethod? offsetReset = (), record {} meta = {}) returns Consumer|error {
 
-    string consumerGroup = check reolveConsumerGroup(groupId, meta);
+    string consumerGroup = check resolveConsumerGroup(groupId, meta);
     int[]? topicPartitions = check resolveTopicPartitions(meta);
     return new KafkaConsumer(config, consumerGroup, topic, autoCommit, offsetReset, topicPartitions);
 }
@@ -198,7 +198,7 @@ public isolated function createKafkaConsumer(KafkaConfig config, string groupId,
 const string CONSUMER_GROUP = "consumerGroup";
 const string CONSUMER_TOPIC_PARTITIONS = "topicPartitions";
 
-isolated function reolveConsumerGroup(string defaultGroupId, record {} meta) returns string|error {
+isolated function resolveConsumerGroup(string defaultGroupId, record {} meta) returns string|error {
     if meta.hasKey(CONSUMER_GROUP) {
         return value:ensureType(meta[CONSUMER_GROUP]);
     }
