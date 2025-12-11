@@ -44,7 +44,7 @@ function initWebSubEventsConsumer() returns store:Consumer|error {
 # + subscription - The WebSub subscriber details
 # + return - A `store:Consumer` for the message store, or else return an `error` if the operation fails
 public isolated function createConsumer(websubhub:VerifiedSubscription subscription) returns store:Consumer|error {
-    return createKafkaConsumerForSubscriber(subscription, config:store.kafka);
+    return createKafkaConsumerForSubscriber(config:store.kafka, subscription);
 }
 
 # Initialize a `store:Administrator` for the websubhub server.

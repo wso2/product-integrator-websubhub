@@ -21,36 +21,16 @@ import ballerina/websubhub;
 
 import wso2/messagestore as store;
 
-const string CONSUMER_GROUP = "consumerGroup";
-const string CONSUMER_TOPIC_PARTITIONS = "topicPartitions";
-
-isolated function createKafkaConsumerForSubscriber(websubhub:VerifiedSubscription subscription, store:KafkaConfig config)
+isolated function createKafkaConsumerForSubscriber(store:KafkaConfig config, websubhub:VerifiedSubscription subscription)
     returns store:Consumer|error {
 
-    string consumerGroup = check getKafkaConsumerGroup(subscription);
-    int[]? topicPartitions = check getKafkaTopicPartitions(subscription);
+    string timestamp = check value:ensureType(subscription[common:SUBSCRIPTION_TIMESTAMP]);
+    string defaultGroupId = string `${subscription.hubTopic}___${subscription.hubCallback}___${timestamp}`;
     return store:createKafkaConsumer(
             config,
-            consumerGroup,
+            defaultGroupId,
             subscription.hubTopic,
             autoCommit = false,
-            partitions = topicPartitions
+            meta = subscription
     );
-}
-
-isolated function getKafkaConsumerGroup(websubhub:VerifiedSubscription subscription) returns string|error {
-    if subscription.hasKey(CONSUMER_GROUP) {
-        return value:ensureType(subscription[CONSUMER_GROUP]);
-    }
-    string timestamp = check value:ensureType(subscription[common:SUBSCRIPTION_TIMESTAMP]);
-    return string `${subscription.hubTopic}___${subscription.hubCallback}___${timestamp}`;
-}
-
-isolated function getKafkaTopicPartitions(websubhub:VerifiedSubscription subscription) returns int[]|error? {
-    if !subscription.hasKey(CONSUMER_TOPIC_PARTITIONS) {
-        return;
-    }
-    // Kafka topic partitions will be a string with comma separated integers eg: "1,2,3,4"
-    string partitionInfo = check value:ensureType(subscription[CONSUMER_TOPIC_PARTITIONS]);
-    return re `,`.split(partitionInfo).'map(p => p.trim()).'map(p => check int:fromString(p));
 }
