@@ -396,3 +396,11 @@ modules = [
 	{org = "wso2", packageName = "websubhub.consolidator", moduleName = "websubhub.consolidator.persistence"}
 ]
 
+[[package]]
+org = "xlibb"
+name = "solace"
+version = "0.2.0"
+dependencies = [
+	{org = "ballerina", name = "jballerina.java"}
+]
+
