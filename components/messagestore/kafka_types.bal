@@ -61,7 +61,7 @@ public type KafkaConsumerConfig record {|
     decimal gracefulClosePeriod = 5;
 |};
 
-// Intern record to data-bind the Kafka consumer record
+// Internal record to data-bind the Kafka consumer record
 type KafkaConsumerRecord record {|
     *kafka:AnydataConsumerRecord;
     byte[] value;
