@@ -15,12 +15,12 @@
 // under the License.
 
 # Represents a message published to a message store.
-public type Message record {|
+public type Message record {
     # The message payload
     byte[] payload;
     # The metadata associated with the message (e.g., Kafka message headers or JMS message properties)
     map<string|string[]> metadata?;
-|};
+};
 
 # Represents a producer client that can publish messages to the message store.
 public isolated client class Producer {
