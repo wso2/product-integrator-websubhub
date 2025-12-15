@@ -34,3 +34,11 @@ isolated function createKafkaConsumerForSubscriber(store:KafkaConfig config, web
             meta = subscription
     );
 }
+
+isolated function createSolaceConsumerForSubscriber(store:SolaceConfig config, websubhub:VerifiedSubscription subscription)
+    returns store:Consumer|error {
+
+    string timestamp = check value:ensureType(subscription[common:SUBSCRIPTION_TIMESTAMP]);
+    string defaultQueueName = string `${subscription.hubTopic}___${subscription.hubCallback}___${timestamp}`;
+    return store:createSolaceConsumer(config, defaultQueueName, false, subscription);
+}

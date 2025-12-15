@@ -94,18 +94,20 @@ public isolated client class Administrator {
     # Creates a new topic in the message store.
     #
     # + topic - Name of the topic to be created
+    # + meta - The meta data required to resolve the consumer configurations
     # + return - `TopicExists` if the topic already exists, `error?` for other errors,
     # or `()` on success
-    isolated remote function createTopic(string topic) returns TopicExists|error? {
+    isolated remote function createTopic(string topic, record {} meta = {}) returns TopicExists|error? {
         return;
     }
 
     # Deletes an existing topic from the message store.
     #
     # + topic - Name of the topic to be deleted
+    # + meta - The meta data required to resolve the consumer configurations
     # + return - `TopicNotFound` if the topic does not exist, `error?` for other errors,
     # or `()` on success
-    isolated remote function deleteTopic(string topic) returns TopicNotFound|error? {
+    isolated remote function deleteTopic(string topic, record {} meta = {}) returns TopicNotFound|error? {
         return;
     }
 
@@ -113,9 +115,10 @@ public isolated client class Administrator {
     #
     # + topic - The topic to subscribe to
     # + subscriberId - Unique identifier of the subscriber
+    # + meta - The meta data required to resolve the consumer configurations
     # + return - `SubscriptionExists` if the subscription already exists, `error?` for other
     # errors, or `()` on success
-    isolated remote function createSubscription(string topic, string subscriberId) returns SubscriptionExists|error? {
+    isolated remote function createSubscription(string topic, string subscriberId, record {} meta = {}) returns SubscriptionExists|error? {
         return;
     }
 
@@ -123,9 +126,10 @@ public isolated client class Administrator {
     #
     # + topic - The topic associated with the subscription
     # + subscriberId - Unique identifier of the subscriber
+    # + meta - The meta data required to resolve the consumer configurations
     # + return - `SubscriptionNotFound` if the subscription does not exist, `error?` for
     # other errors, or `()` on success
-    isolated remote function deleteSubscription(string topic, string subscriberId) returns SubscriptionNotFound|error? {
+    isolated remote function deleteSubscription(string topic, string subscriberId, record {} meta = {}) returns SubscriptionNotFound|error? {
         return;
     }
 

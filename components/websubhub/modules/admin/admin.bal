@@ -28,7 +28,7 @@ final store:Administrator administrator = check conn:createAdministrator();
 public isolated function createTopic(websubhub:TopicRegistration topicRegistration)
     returns websubhub:TopicRegistrationError|error? {
 
-    error? result = administrator->createTopic(topicRegistration.topic);
+    error? result = administrator->createTopic(topicRegistration.topic, topicRegistration);
     if result is store:TopicExists {
         string errorMessage = string `Topic ${topicRegistration.topic} already exists in the message store, deregister the topic first.`;
         return error websubhub:TopicRegistrationError(errorMessage, statusCode = http:STATUS_CONFLICT);
@@ -39,7 +39,7 @@ public isolated function createTopic(websubhub:TopicRegistration topicRegistrati
 public isolated function deleteTopic(websubhub:TopicDeregistration topicDeregistration)
     returns websubhub:TopicDeregistrationError|error? {
 
-    error? result = administrator->deleteTopic(topicDeregistration.topic);
+    error? result = administrator->deleteTopic(topicDeregistration.topic, topicDeregistration);
     if result is store:TopicNotFound {
         string errorMessage = string `Topic ${topicDeregistration.topic} could not be found in the message store.`;
         return error websubhub:TopicDeregistrationError(errorMessage, statusCode = http:STATUS_NOT_FOUND);
@@ -53,7 +53,7 @@ public isolated function createSubscription(websubhub:VerifiedSubscription subsc
     string topic = subscription.hubTopic;
     string timestamp = check value:ensureType(subscription[common:SUBSCRIPTION_TIMESTAMP]);
     string subscriberId = string `${subscription.hubTopic}___${subscription.hubCallback}___${timestamp}`;
-    error? result = administrator->createSubscription(topic, subscriberId);
+    error? result = administrator->createSubscription(topic, subscriberId, subscription);
     if result is store:SubscriptionExists {
         string errorMessage = string `Subscription for topic ${topic} and subscriber ${subscriberId} already exists in the message store.`;
         return error websubhub:InternalSubscriptionError(errorMessage, statusCode = http:STATUS_CONFLICT);
@@ -67,7 +67,7 @@ public isolated function deleteSubscription(websubhub:VerifiedUnsubscription uns
     string topic = unsubscription.hubTopic;
     string timestamp = check value:ensureType(unsubscription[common:SUBSCRIPTION_TIMESTAMP]);
     string subscriberId = string `${unsubscription.hubTopic}___${unsubscription.hubCallback}___${timestamp}`;
-    error? result = administrator->deleteSubscription(topic, subscriberId);
+    error? result = administrator->deleteSubscription(topic, subscriberId, unsubscription);
     if result is store:SubscriptionNotFound {
         string errorMessage = string `Subscription for topic ${topic} and subscriber ${subscriberId} can not be found in the message store.`;
         return error websubhub:InternalUnsubscriptionError(errorMessage, statusCode = http:STATUS_NOT_FOUND);

@@ -134,15 +134,15 @@ isolated client class SolaceAdministrator {
         self.messageVpn = config.messageVpn;
     }
 
-    isolated remote function createTopic(string topic) returns TopicExists|error? {
+    isolated remote function createTopic(string topic, record {} meta = {}) returns TopicExists|error? {
         return;
     }
 
-    isolated remote function deleteTopic(string topic) returns TopicNotFound|error? {
+    isolated remote function deleteTopic(string topic, record {} meta = {}) returns TopicNotFound|error? {
         return;
     }
 
-    isolated remote function createSubscription(string topic, string queueName) returns SubscriptionExists|error? {
+    isolated remote function createSubscription(string topic, string queueName, record {} meta = {}) returns SubscriptionExists|error? {
         semp:MsgVpnQueue|error queue = self.retrieveQueue(queueName);
         if queue is SolaceQueueNotFound {
             string dlqName = string `dlq-${queueName}`;
@@ -161,7 +161,7 @@ isolated client class SolaceAdministrator {
         _ = check self.addTopicSubscription(queueName, topic);
     }
 
-    isolated remote function deleteSubscription(string topic, string queueName) returns SubscriptionNotFound|error? {
+    isolated remote function deleteSubscription(string topic, string queueName, record {} meta = {}) returns SubscriptionNotFound|error? {
         semp:MsgVpnQueueSubscription[] subscriptions = check self.retrieveTopicSubscriptions(queueName);
         semp:MsgVpnQueueSubscription[] filteredSubscriptions = subscriptions.filter(a => a.subscriptionTopic === topic);
         if filteredSubscriptions.length() === 0 {
@@ -363,7 +363,7 @@ public isolated function createSolaceConsumer(SolaceConfig config, string queueN
 }
 
 # Initialize a administrator for Solace message store.
-# 
+#
 # + config - The Solace connection configurations
 # + return - A `store:Administrator` for Solace message store, or else return an `error` if the operation fails
 public isolated function createSolaceAdministrator(SolaceConfig config) returns Administrator|error {

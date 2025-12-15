@@ -24,15 +24,27 @@ import wso2/messagestore as store;
 final store:Producer statePersistProducer = check initStatePersistProducer();
 
 function initStatePersistProducer() returns store:Producer|error {
-    return store:createKafkaProducer(config:store.kafka, "state-persist");
+    var storeConfig = config:store;
+    if storeConfig is store:SolaceMessageStore {
+        return store:createSolaceProducer(storeConfig.solace, "state-persist");
+    }
+    return store:createKafkaProducer(storeConfig.kafka, "state-persist");
 }
 
 // Consumer which reads the persisted subscriber details
 public final store:Consumer websubEventsConsumer = check initWebSubEventsConsumer();
 
 function initWebSubEventsConsumer() returns store:Consumer|error {
+    var storeConfig = config:store;
+    if storeConfig is store:SolaceMessageStore {
+        return store:createSolaceConsumer(
+                storeConfig.solace,
+                config:state.events.consumerId,
+                false
+        );
+    }
     return store:createKafkaConsumer(
-            config:store.kafka,
+            storeConfig.kafka,
             config:state.events.consumerId,
             config:state.events.topic,
             autoCommit = false
@@ -44,13 +56,21 @@ function initWebSubEventsConsumer() returns store:Consumer|error {
 # + subscription - The WebSub subscriber details
 # + return - A `store:Consumer` for the message store, or else return an `error` if the operation fails
 public isolated function createConsumer(websubhub:VerifiedSubscription subscription) returns store:Consumer|error {
-    return createKafkaConsumerForSubscriber(config:store.kafka, subscription);
+    var storeConfig = config:store;
+    if storeConfig is store:SolaceMessageStore {
+        return createSolaceConsumerForSubscriber(storeConfig.solace, subscription);
+    }
+    return createKafkaConsumerForSubscriber(storeConfig.kafka, subscription);
 }
 
 # Initialize a `store:Administrator` for the websubhub server.
 #
 # + return - A `store:Administrator` for the message store, or else return an `error` if the operation fails
 public isolated function createAdministrator() returns store:Administrator|error {
+    var storeConfig = config:store;
+    if storeConfig is store:SolaceMessageStore {
+        return store:createSolaceAdministrator(storeConfig.solace);
+    }
     return new store:Administrator();
 }
 
