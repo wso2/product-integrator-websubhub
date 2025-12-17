@@ -14,6 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import websubhub.admin as _;
 import websubhub.config;
 
 import ballerina/websubhub;
@@ -61,17 +62,6 @@ public isolated function createConsumer(websubhub:VerifiedSubscription subscript
         return createSolaceConsumerForSubscriber(storeConfig.solace, subscription);
     }
     return createKafkaConsumerForSubscriber(storeConfig.kafka, subscription);
-}
-
-# Initialize a `store:Administrator` for the websubhub server.
-#
-# + return - A `store:Administrator` for the message store, or else return an `error` if the operation fails
-public isolated function createAdministrator() returns store:Administrator|error {
-    var storeConfig = config:store;
-    if storeConfig is store:SolaceMessageStore {
-        return store:createSolaceAdministrator(storeConfig.solace);
-    }
-    return new store:Administrator();
 }
 
 # Retrieves a message producer per topic.

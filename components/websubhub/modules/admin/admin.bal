@@ -15,15 +15,33 @@
 // under the License.
 
 import websubhub.common;
-import websubhub.connections as conn;
+import websubhub.config;
 
 import ballerina/http;
 import ballerina/lang.value;
+import ballerina/log;
 import ballerina/websubhub;
 
 import wso2/messagestore as store;
 
-final store:Administrator administrator = check conn:createAdministrator();
+final store:Administrator administrator = check createAdministrator();
+
+isolated function init() returns error? {
+    var {topic, consumerId} = config:state.events;
+    error? result = administrator->createSubscription(topic, consumerId);
+    if result is store:SubscriptionExists {
+        log:printWarn(string `Subscription for Topic [${topic}] and Subscriber [${consumerId}] exists`);
+    }
+    return result;
+}
+
+isolated function createAdministrator() returns store:Administrator|error {
+    var storeConfig = config:store;
+    if storeConfig is store:SolaceMessageStore {
+        return store:createSolaceAdministrator(storeConfig.solace);
+    }
+    return new store:Administrator();
+}
 
 public isolated function createTopic(websubhub:TopicRegistration topicRegistration)
     returns websubhub:TopicRegistrationError|error? {
