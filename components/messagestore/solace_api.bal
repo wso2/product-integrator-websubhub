@@ -174,7 +174,9 @@ isolated client class SolaceAdministrator {
         _ = check self.removeTopicSubscription(queueName, topic);
 
         if subscriptions.length() === 1 {
-            return self.deleteQueue(queueName);
+            string dlqName = string `dlq-${queueName}`;
+            check self.deleteQueue(queueName);
+            check self.deleteQueue(dlqName);
         }
     }
 
