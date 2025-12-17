@@ -18,6 +18,7 @@ import ballerina/http;
 
 import xlibb/solace;
 import xlibb/solace.semp;
+import ballerina/log;
 
 isolated client class SolaceProducer {
     *Producer;
@@ -39,9 +40,10 @@ isolated client class SolaceProducer {
     }
 
     isolated remote function send(string topic, Message message) returns error? {
+        // Setting properties will throw an error, hence ignoring setting properties for now
         check self.producer->send(
             {topicName: topic},
-            {payload: message.payload, properties: message.metadata}
+            {payload: message.payload}
         );
     }
 
@@ -135,7 +137,6 @@ isolated client class SolaceAdministrator {
     }
 
     isolated remote function createTopic(string topic, record {} meta = {}) returns TopicExists|error? {
-        self.addTopicSubscription()
         return;
     }
 
@@ -144,6 +145,7 @@ isolated client class SolaceAdministrator {
     }
 
     isolated remote function createSubscription(string topic, string queueName, record {} meta = {}) returns SubscriptionExists|error? {
+        log:printWarn("Creating topic subscription for ", topic = topic, queue = queueName, meta = meta);
         semp:MsgVpnQueue|error queue = self.retrieveQueue(queueName);
         if queue is SolaceQueueNotFound {
             string dlqName = string `dlq-${queueName}`;
@@ -195,10 +197,10 @@ isolated client class SolaceAdministrator {
                 return response;
             }
             record {semp:SempMeta meta;} payload = check errorDetails.body.cloneWithType();
-            if "NOT_FOUND" !== payload.meta.'error?.status {
-                return response;
+            if "NOT_FOUND" === payload.meta.'error?.status {
+                return error SolaceQueueNotFound(string `Could not find the queue [${queueName}] for vpn [${vpn}]`);
             }
-            return error SolaceQueueNotFound(string `Could not find the queue [${queueName}] for vpn [${vpn}]`);
+            return response;
         }
 
         return response;
