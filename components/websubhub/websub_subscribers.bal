@@ -26,6 +26,7 @@ import ballerina/mime;
 import ballerina/websubhub;
 
 import wso2/messagestore as store;
+import websubhub.admin;
 
 isolated map<websubhub:VerifiedSubscription> subscribersCache = {};
 
@@ -88,7 +89,6 @@ isolated function processUnsubscription(websubhub:VerifiedUnsubscription unsubsc
 }
 
 isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubscription subscription) returns error? {
-    log:printDebug("Started running the subscriber worker", sub = subscriberId);
     string topic = subscription.hubTopic;
     store:Consumer consumerEp = check conn:createConsumer(subscription);
     websubhub:HubClient clientEp = check new (subscription, {
@@ -98,7 +98,6 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
     });
     do {
         while true {
-            log:printDebug("Running the consumer for subscriber", sub = subscriberId);
             store:Message? message = check consumerEp->receive();
             if !isValidConsumer(subscription.hubTopic, subscriberId) {
                 fail error common:InvalidSubscriptionError(
@@ -126,6 +125,11 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
         if e is common:InvalidSubscriptionError {
             return;
         }
+        if !isValidConsumer(subscription.hubTopic, subscriberId) {
+            // In some cases a messaging consumer will be attached to an entity in the message store (queue or topic) and that
+            // entity will be removed when unsubscribing, hence it is appropriate to stop the consumer in those cases
+            return;
+        }
 
         // If subscription-deleted error received, remove the subscription
         if e is websubhub:SubscriptionDeletedError {
@@ -135,6 +139,13 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
                 hubCallback: subscription.hubCallback,
                 hubSecret: subscription.hubSecret
             };
+            
+            error? subscriptionDeletion = admin:deleteSubscription(subscription);
+            if subscriptionDeletion is error {
+                common:logRecoverableError(
+                        "Error occurred while removing the subscription", subscriptionDeletion, subscription = unsubscription);                
+            }
+
             error? persistResult = persist:removeSubscription(unsubscription);
             if persistResult is error {
                 common:logRecoverableError(
