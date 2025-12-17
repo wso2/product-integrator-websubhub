@@ -116,6 +116,9 @@ dependencies = [
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerina", name = "lang.value"}
 ]
+modules = [
+	{org = "ballerina", packageName = "io", moduleName = "io"}
+]
 
 [[package]]
 org = "ballerina"
@@ -159,6 +162,15 @@ dependencies = [
 org = "ballerina"
 name = "lang.decimal"
 version = "0.0.0"
+dependencies = [
+	{org = "ballerina", name = "jballerina.java"}
+]
+
+[[package]]
+org = "ballerina"
+name = "lang.error"
+version = "0.0.0"
+scope = "testOnly"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"}
 ]
@@ -284,6 +296,20 @@ dependencies = [
 
 [[package]]
 org = "ballerina"
+name = "test"
+version = "0.0.0"
+scope = "testOnly"
+dependencies = [
+	{org = "ballerina", name = "jballerina.java"},
+	{org = "ballerina", name = "lang.array"},
+	{org = "ballerina", name = "lang.error"}
+]
+modules = [
+	{org = "ballerina", packageName = "test", moduleName = "test"}
+]
+
+[[package]]
+org = "ballerina"
 name = "time"
 version = "2.8.0"
 dependencies = [
@@ -381,15 +407,18 @@ name = "websubhub.consolidator"
 version = "0.1.0-SNAPSHOT"
 dependencies = [
 	{org = "ballerina", name = "http"},
+	{org = "ballerina", name = "io"},
 	{org = "ballerina", name = "lang.runtime"},
 	{org = "ballerina", name = "lang.value"},
 	{org = "ballerina", name = "log"},
+	{org = "ballerina", name = "test"},
 	{org = "ballerina", name = "websubhub"},
 	{org = "ballerinai", name = "observe"},
 	{org = "wso2", name = "messagestore"}
 ]
 modules = [
 	{org = "wso2", packageName = "websubhub.consolidator", moduleName = "websubhub.consolidator"},
+	{org = "wso2", packageName = "websubhub.consolidator", moduleName = "websubhub.consolidator.admin"},
 	{org = "wso2", packageName = "websubhub.consolidator", moduleName = "websubhub.consolidator.common"},
 	{org = "wso2", packageName = "websubhub.consolidator", moduleName = "websubhub.consolidator.config"},
 	{org = "wso2", packageName = "websubhub.consolidator", moduleName = "websubhub.consolidator.connections"},
