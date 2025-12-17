@@ -40,7 +40,7 @@ isolated client class SolaceProducer {
     }
 
     isolated remote function send(string topic, Message message) returns error? {
-        // Setting properties will throw an error, hence ignoring setting properties for now
+        // todo: Setting properties will throw an error, hence ignoring setting properties for now
         check self.producer->send(
             {topicName: topic},
             {payload: message.payload}

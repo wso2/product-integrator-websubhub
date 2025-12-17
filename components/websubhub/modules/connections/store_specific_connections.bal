@@ -39,6 +39,15 @@ isolated function createSolaceConsumerForSubscriber(store:SolaceConfig config, w
     returns store:Consumer|error {
 
     string timestamp = check value:ensureType(subscription[common:SUBSCRIPTION_TIMESTAMP]);
-    string defaultQueueName = string `${subscription.hubTopic}___${subscription.hubCallback}___${timestamp}`;
+    string defaultQueueName = constructConsumerName(subscription.hubTopic, subscription.hubCallback, timestamp);
     return store:createSolaceConsumer(config, defaultQueueName, false, subscription);
+}
+
+isolated function constructConsumerName(string topic, string hubCallback, string timestamp) returns string {
+    string subscriberId = string `${topic}___${hubCallback}___${timestamp}`;
+    int constructedId = 0;
+    foreach var [idx, val] in subscriberId.toCodePointInts().enumerate() {
+        constructedId += idx * val;
+    }
+    return string `consumer-${constructedId}`;
 }

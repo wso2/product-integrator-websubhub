@@ -24,31 +24,29 @@ final store:Administrator administrator = check createAdministrator();
 
 isolated function init() returns error? {
     // Create topic and subscription for state snapshot consumer
-    var {topic, consumerId} = config:state.snapshot;
-    error? result = administrator->createTopic(topic);
-    if result is store:TopicExists {
-        log:printWarn(string `Topic [${topic}] already exists in the message store`);
-    }
-
-    result = administrator->createSubscription(topic, consumerId);
-    if result is store:SubscriptionExists {
-        log:printWarn(string `Subscription for Topic [${topic}] and Subscriber [${consumerId}] exists`);
-    } else if result is error {
-        return result;
-    }
-
+    check createStateSnapshotSubscription();
     // Create topic and subscription for state events consumer
-    {topic, consumerId} = config:state.events;
-    result = administrator->createTopic(topic);
-    if result is store:TopicExists {
-        log:printWarn(string `Topic [${topic}] already exists in the message store`);
-    }
-    
-    result = administrator->createSubscription(topic, consumerId);
+    check createStateEventsSubscription();
+}
+
+isolated function createStateSnapshotSubscription() returns error? {
+    var {topic, consumerId} = config:state.snapshot;
+    error? result = administrator->createSubscription(topic, consumerId);
     if result is store:SubscriptionExists {
         log:printWarn(string `Subscription for Topic [${topic}] and Subscriber [${consumerId}] exists`);
+        return;
     }
     return result;
+}
+
+isolated function createStateEventsSubscription() returns error? {
+    var {topic, consumerId} = config:state.events;
+    error? result = administrator->createSubscription(topic, consumerId);
+    if result is store:SubscriptionExists {
+        log:printWarn(string `Subscription for Topic [${topic}] and Subscriber [${consumerId}] exists`);
+        return;
+    }
+    return result;    
 }
 
 isolated function createAdministrator() returns store:Administrator|error {

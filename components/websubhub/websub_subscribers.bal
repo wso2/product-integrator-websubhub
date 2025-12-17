@@ -88,6 +88,7 @@ isolated function processUnsubscription(websubhub:VerifiedUnsubscription unsubsc
 }
 
 isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubscription subscription) returns error? {
+    log:printDebug("Started running the subscriber worker", sub = subscriberId);
     string topic = subscription.hubTopic;
     store:Consumer consumerEp = check conn:createConsumer(subscription);
     websubhub:HubClient clientEp = check new (subscription, {
@@ -97,6 +98,7 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
     });
     do {
         while true {
+            log:printDebug("Running the consumer for subscriber", sub = subscriberId);
             store:Message? message = check consumerEp->receive();
             if !isValidConsumer(subscription.hubTopic, subscriberId) {
                 fail error common:InvalidSubscriptionError(
