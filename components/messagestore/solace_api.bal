@@ -135,6 +135,7 @@ isolated client class SolaceAdministrator {
     }
 
     isolated remote function createTopic(string topic, record {} meta = {}) returns TopicExists|error? {
+        self.addTopicSubscription()
         return;
     }
 
@@ -148,14 +149,12 @@ isolated client class SolaceAdministrator {
             string dlqName = string `dlq-${queueName}`;
             semp:MsgVpnQueue|error dlq = self.retrieveQueue(dlqName);
             if dlq is SolaceQueueNotFound {
-                _ = check self.createQueue(self.messageVpn, dlqName);
+                _ = check self.createQueue(dlqName);
             } else if dlq is error {
                 return dlq;
             }
             _ = check self.createQueue(queueName, dlqName);
-        }
-
-        if queue is error {
+        } else if queue is error {
             return queue;
         }
         _ = check self.addTopicSubscription(queueName, topic);
@@ -207,11 +206,13 @@ isolated client class SolaceAdministrator {
 
     isolated function createQueue(string queueName, string? dlq = ()) returns semp:MsgVpnQueue|error {
         string vpn = self.messageVpn;
-        semp:MsgVpnQueueResponse|error response = self.administrator->createMsgVpnQueue(vpn, payload = {
+        semp:MsgVpnQueueResponse|error response = self.administrator->createMsgVpnQueue(msgVpnName = vpn, payload = {
             queueName,
             deadMsgQueue: dlq,
             accessType: "non-exclusive",
-            permission: "delete"
+            permission: "delete",
+            ingressEnabled: true,
+            egressEnabled: true
         });
         if response is semp:MsgVpnQueueResponse {
             if response.data is semp:MsgVpnQueue {
@@ -262,10 +263,10 @@ isolated client class SolaceAdministrator {
             if "NOT_FOUND" === payload.meta.'error?.status {
                 return error(string `Could not find either the queue [${queueName}] or the vpn [${vpn}]`);
             }
-            if "ALREADY_EXISTS" !== payload.meta.'error?.status {
-                return response;
+            if "ALREADY_EXISTS" === payload.meta.'error?.status {
+                return error SubscriptionExists(string `Topic subscription [${subscriptionTopic}] already existst for queue [${queueName}] in vpn [${vpn}]`);
             }
-            return error SubscriptionExists(string `Topic subscription [${subscriptionTopic}] already existst for queue [${queueName}] in vpn [${vpn}]`);
+            return response;
         }
         return response;
     }
