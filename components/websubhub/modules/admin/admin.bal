@@ -36,9 +36,9 @@ isolated function init() returns error? {
 }
 
 isolated function createAdministrator() returns store:Administrator|error {
-    var storeConfig = config:store;
-    if storeConfig is store:SolaceMessageStore {
-        return store:createSolaceAdministrator(storeConfig.solace);
+    var {kafka, solace} = config:store;
+    if solace is store:SolaceConfig {
+        return store:createSolaceAdministrator(solace);
     }
     return new store:Administrator();
 }

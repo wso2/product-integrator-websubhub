@@ -25,31 +25,37 @@ import wso2/messagestore as store;
 final store:Producer statePersistProducer = check initStatePersistProducer();
 
 function initStatePersistProducer() returns store:Producer|error {
-    var storeConfig = config:store;
-    if storeConfig is store:SolaceMessageStore {
-        return store:createSolaceProducer(storeConfig.solace, "state-persist");
+    var {kafka, solace} = config:store;
+    if solace is store:SolaceConfig {
+        return store:createSolaceProducer(solace, "state-persist");
     }
-    return store:createKafkaProducer(storeConfig.kafka, "state-persist");
+    if kafka is store:KafkaConfig {
+        return store:createKafkaProducer(kafka, "state-persist");
+    }
+    return error("Error occurred while reading the message store configurations when creating the store producer");
 }
 
 // Consumer which reads the persisted subscriber details
 public final store:Consumer websubEventsConsumer = check initWebSubEventsConsumer();
 
 function initWebSubEventsConsumer() returns store:Consumer|error {
-    var storeConfig = config:store;
-    if storeConfig is store:SolaceMessageStore {
+    var {kafka, solace} = config:store;
+    if solace is store:SolaceConfig {
         return store:createSolaceConsumer(
-                storeConfig.solace,
+                solace,
                 config:state.events.consumerId,
                 false
         );
     }
-    return store:createKafkaConsumer(
-            storeConfig.kafka,
-            config:state.events.consumerId,
-            config:state.events.topic,
-            autoCommit = false
-    );
+    if kafka is store:KafkaConfig {
+        return store:createKafkaConsumer(
+                kafka,
+                config:state.events.consumerId,
+                config:state.events.topic,
+                autoCommit = false
+        );
+    }
+    return error("Error occurred while reading the message store configurations when creating the store consumer");
 }
 
 # Initialize a `store:Consumer` for a WebSub subscriber.
@@ -57,11 +63,14 @@ function initWebSubEventsConsumer() returns store:Consumer|error {
 # + subscription - The WebSub subscriber details
 # + return - A `store:Consumer` for the message store, or else return an `error` if the operation fails
 public isolated function createConsumer(websubhub:VerifiedSubscription subscription) returns store:Consumer|error {
-    var storeConfig = config:store;
-    if storeConfig is store:SolaceMessageStore {
-        return createSolaceConsumerForSubscriber(storeConfig.solace, subscription);
+    var {kafka, solace} = config:store;
+    if solace is store:SolaceConfig {
+        return createSolaceConsumerForSubscriber(solace, subscription);
     }
-    return createKafkaConsumerForSubscriber(storeConfig.kafka, subscription);
+    if kafka is store:KafkaConfig {
+        return createKafkaConsumerForSubscriber(kafka, subscription);
+    }
+    return error("Error occurred while reading the message store configurations when creating the store consumer");
 }
 
 # Retrieves a message producer per topic.

@@ -25,14 +25,8 @@ public configurable common:ServerConfig server = ?;
 public configurable common:ServerStateConfig state = ?;
 
 # Messaging store connection related configurations
-public store:KafkaMessageStore|store:SolaceMessageStore store = {
-    kafka: {
-        consumer: {
-            maxPollRecords: 10
-        }, 
-        bootstrapServers: ""
-    }
-};
+// public configurable store:KafkaMessageStore|store:SolaceMessageStore store = ?;
+public configurable record {| store:KafkaConfig kafka?; store:SolaceConfig solace?; |} store = ?;
 
 # Message delivery related configurations
 public configurable common:HttpClientConfig delivery = ?;
