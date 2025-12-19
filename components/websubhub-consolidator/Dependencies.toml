@@ -356,7 +356,7 @@ dependencies = [
 [[package]]
 org = "ballerinax"
 name = "confluent.cregistry"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"}
 ]
@@ -378,7 +378,7 @@ dependencies = [
 [[package]]
 org = "wso2"
 name = "websubhub.consolidator"
-version = "0.1.0-SNAPSHOT"
+version = "1.0.0-m1-SNAPSHOT"
 dependencies = [
 	{org = "ballerina", name = "http"},
 	{org = "ballerina", name = "lang.runtime"},
