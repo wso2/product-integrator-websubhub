@@ -190,8 +190,8 @@ The distribution contains both WebSubHub and Consolidator services:
             |       Apache License 2.0 under which WSO2 Integrator: WebSubHub
             |       is distributed.
             |
-            |--- README.md
-            |       Product README with basic information.
+            |--- README.txt
+            |       Product README with installation and configuration guide.
             |
             |--- wso2websubhub-@version@
             |       WebSubHub service directory.
@@ -213,7 +213,7 @@ The distribution contains both WebSubHub and Consolidator services:
             |       |       |--- websubhub.jar
             |       |
             |       |--- LICENSE
-            |       |--- README.md
+            |       |--- README.txt
             |
             |--- wso2websubhub-consolidator-@version@
                     Consolidator service directory.
@@ -233,7 +233,7 @@ The distribution contains both WebSubHub and Consolidator services:
                     |       |--- websubhub.consolidator.jar
                     |
                     |--- LICENSE
-                    |--- README.md
+                    |--- README.txt
 
 
 Configuration
