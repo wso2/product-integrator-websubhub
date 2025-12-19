@@ -1,8 +1,8 @@
 ================================================================================
-                       WSO2 Integrator: WebSubHub 1.0.0-M1-RC1
+                       WSO2 Integrator: WebSubHub @version@
 ================================================================================
 
-Welcome to the WSO2 Integrator: WebSubHub 1.0.0-M1-RC1 release.
+Welcome to the WSO2 Integrator: WebSubHub @version@ release.
 
 WSO2 Integrator: WebSubHub is a WebSub compliant hub implementation built on the
 Ballerina programming language. It enables organizations to adopt event-driven
@@ -112,18 +112,18 @@ OR Solace PubSub+ (default: tcp://localhost:55554):
 
 Installation:
 -------------
-1. Extract the wso2websubhub-distribution-1.0.0-M1-RC1.zip file
+1. Extract the wso2websubhub-distribution-@version@.zip file
 
 2. The distribution contains both services:
-   - wso2websubhub-1.0.0-M1-RC1 (WebSubHub service)
-   - wso2websubhub-consolidator-1.0.0-M1-RC1 (Consolidator service)
+   - wso2websubhub-@version@ (WebSubHub service)
+   - wso2websubhub-consolidator-@version@ (Consolidator service)
 
 
 Starting the Consolidator Service:
 -----------------------------------
 The Consolidator service is required and must be started FIRST.
 
-1. Navigate to the wso2websubhub-consolidator-1.0.0-M1-RC1 directory
+1. Navigate to the wso2websubhub-consolidator-@version@ directory
 
 2. Configure Apache Kafka connection in conf/Config.toml:
    [websubhub.consolidator.config.kafka.connection]
@@ -140,7 +140,7 @@ Starting the WebSubHub Service:
 --------------------------------
 Start the WebSubHub service AFTER the Consolidator is running.
 
-1. Navigate to the wso2websubhub-1.0.0-M1-RC1 directory
+1. Navigate to the wso2websubhub-@version@ directory
 
 2. Configure Apache Kafka connection in conf/Config.toml:
    [websubhub.config.store.kafka]
@@ -190,10 +190,10 @@ The distribution contains both WebSubHub and Consolidator services:
             |       Apache License 2.0 under which WSO2 Integrator: WebSubHub
             |       is distributed.
             |
-            |--- README.md
-            |       Product README with basic information.
+            |--- README.txt
+            |       Product README with installation and configuration guide.
             |
-            |--- wso2websubhub-1.0.0-M1-RC1
+            |--- wso2websubhub-@version@
             |       WebSubHub service directory.
             |       |
             |       |--- bin
@@ -213,9 +213,9 @@ The distribution contains both WebSubHub and Consolidator services:
             |       |       |--- websubhub.jar
             |       |
             |       |--- LICENSE
-            |       |--- README.md
+            |       |--- README.txt
             |
-            |--- wso2websubhub-consolidator-1.0.0-M1-RC1
+            |--- wso2websubhub-consolidator-@version@
                     Consolidator service directory.
                     |
                     |--- bin
@@ -233,7 +233,7 @@ The distribution contains both WebSubHub and Consolidator services:
                     |       |--- websubhub.consolidator.jar
                     |
                     |--- LICENSE
-                    |--- README.md
+                    |--- README.txt
 
 
 Configuration
