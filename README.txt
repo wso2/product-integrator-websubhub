@@ -14,9 +14,9 @@ WSO2 Integrator: WebSubHub consists of two main components working
 together: the WebSubHub service which manages topics, processes subscriptions,
 and delivers updates to subscribers, and the Consolidator service which
 provides state snapshots and manages state synchronization. Both services are
-required for the system to function. The system uses Apache Kafka as a
-pluggable messaging backend for persistence, ensuring fault tolerance and
-scalability.
+required for the system to function. The system supports pluggable messaging
+backends (Apache Kafka or Solace PubSub+) for persistence, ensuring fault
+tolerance and scalability.
 
 WSO2 Integrator: WebSubHub is developed on top of the Ballerina
 programming language, a cloud-native platform designed for integration
@@ -42,12 +42,12 @@ Event Distribution & Delivery:
     - Topic-based content distribution and management
 
 Scalability & Architecture:
-    - Pluggable messaging backend with Apache Kafka support
+    - Pluggable messaging backend (Apache Kafka or Solace PubSub+)
     - Horizontal scalability with multiple hub instances
     - Distributed state synchronization via Consolidator service
-    - In-memory caching with Kafka persistence for optimal performance
+    - In-memory caching with message broker persistence
     - Efficient batch processing for high-throughput scenarios
-    - Configurable Kafka producer and consumer settings
+    - Configurable producer and consumer settings
     - State snapshot and recovery mechanisms
 
 Security & Management:
@@ -80,8 +80,9 @@ System Requirements
 3. Java SE Development Kit (JDK) version 21
    - Oracle JDK or OpenJDK (Adoptium recommended)
 
-4. Apache Kafka (required for message persistence)
-   - Recommended version: 3.x or higher
+4. Message Broker (required for message persistence)
+   - Apache Kafka (recommended version: 3.x or higher), OR
+   - Solace PubSub+ (tested with Solace broker)
    - Must be running and accessible before starting WebSubHub services
 
 5. External Identity Provider (optional, for JWT authentication)
@@ -98,10 +99,15 @@ Installation & Running
 
 Prerequisites:
 --------------
-Ensure Apache Kafka is running and accessible (default: localhost:9092).
+Ensure a message broker is running and accessible. You can use either:
 
-For quick setup with Docker:
+Apache Kafka (default: localhost:9092):
     docker run -d -p 9092:9092 apache/kafka:latest
+
+OR Solace PubSub+ (default: tcp://localhost:55554):
+    docker run -d -p 8080:8080 -p 55554:55555 \
+      --shm-size=1g --env username_admin_globalaccesslevel=admin \
+      --env username_admin_password=admin --name=solace solace/solace-pubsub-standard
 
 
 Installation:
@@ -244,15 +250,27 @@ Server Settings:
       port = 9000
       id = "websubhub-1"
 
-Message Persistence (Apache Kafka):
+Message Persistence (Apache Kafka or Solace):
+    Apache Kafka:
     - Bootstrap servers (comma-separated list for high availability)
     - Producer settings (acknowledgments, retry count)
     - Consumer settings (max poll records, polling interval, graceful close)
     - SSL/TLS support (truststore-based or certificate-based)
-    - Client authentication support for secure Kafka connections
     - Example:
       [websubhub.config.store.kafka]
       bootstrapServers = "localhost:9092"
+
+    Solace PubSub+:
+    - Broker URL and message VPN configuration
+    - Authentication credentials (username, password)
+    - Consumer timeout settings
+    - Admin API configuration for queue management
+    - Example:
+      [websubhub.config.store.solace]
+      url = "tcp://localhost:55554"
+      messageVpn = "default"
+      auth.username = "admin"
+      auth.password = "admin"
 
 State Management:
     - Consolidator URL for retrieving state snapshots
