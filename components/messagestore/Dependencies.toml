@@ -162,7 +162,7 @@ modules = [
 [[package]]
 org = "wso2"
 name = "messagestore"
-version = "0.1.0-SNAPSHOT"
+version = "1.0.0-RC-SNAPSHOT"
 dependencies = [
 	{org = "ballerina", name = "log"},
 	{org = "ballerinai", name = "observe"},
