@@ -54,6 +54,7 @@ distributions {
             
             from(projectDir) {
                 include "README.txt"
+                filter(org.apache.tools.ant.filters.ReplaceTokens, tokens: [version: project.version.toString().replace('-SNAPSHOT', '')])
                 into ""
             }
 
@@ -95,6 +96,7 @@ distributions {
             
             from(projectDir) {
                 include "README.txt"
+                filter(org.apache.tools.ant.filters.ReplaceTokens, tokens: [version: project.version.toString().replace('-SNAPSHOT', '')])
                 into ""
             }
 
@@ -118,6 +120,7 @@ distributions {
 
             from(projectDir) {
                 include "README.txt"
+                filter(org.apache.tools.ant.filters.ReplaceTokens, tokens: [version: project.version.toString().replace('-SNAPSHOT', '')])
                 into ""
             }
 
