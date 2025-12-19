@@ -52,8 +52,12 @@ distributions {
                 fileMode = 0755
             }
             
+            from(projectDir) {
+                include "README.txt"
+                into ""
+            }
+
             from(rootProject.projectDir) {
-                include "README.md"
                 include "LICENSE*"
                 into ""
             }
@@ -89,8 +93,12 @@ distributions {
                 fileMode = 0755
             }
             
+            from(projectDir) {
+                include "README.txt"
+                into ""
+            }
+
             from(rootProject.projectDir) {
-                include "README.md"
                 include "LICENSE*"
                 into ""
             }
@@ -108,8 +116,12 @@ distributions {
                 into ""
             }
 
+            from(projectDir) {
+                include "README.txt"
+                into ""
+            }
+
             from(rootProject.projectDir) {
-                include "README.md"
                 include "LICENSE*"
                 into ""
             }
