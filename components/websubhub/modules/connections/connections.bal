@@ -14,6 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import websubhub.admin as _;
 import websubhub.config;
 
 import ballerina/websubhub;
@@ -24,19 +25,37 @@ import wso2/messagestore as store;
 final store:Producer statePersistProducer = check initStatePersistProducer();
 
 function initStatePersistProducer() returns store:Producer|error {
-    return store:createKafkaProducer(config:store.kafka, "state-persist");
+    var {kafka, solace} = config:store;
+    if solace is store:SolaceConfig {
+        return store:createSolaceProducer(solace, "state-persist");
+    }
+    if kafka is store:KafkaConfig {
+        return store:createKafkaProducer(kafka, "state-persist");
+    }
+    return error("Error occurred while reading the message store configurations when creating the store producer");
 }
 
 // Consumer which reads the persisted subscriber details
 public final store:Consumer websubEventsConsumer = check initWebSubEventsConsumer();
 
 function initWebSubEventsConsumer() returns store:Consumer|error {
-    return store:createKafkaConsumer(
-            config:store.kafka,
-            config:state.events.consumerId,
-            config:state.events.topic,
-            autoCommit = false
-    );
+    var {kafka, solace} = config:store;
+    if solace is store:SolaceConfig {
+        return store:createSolaceConsumer(
+                solace,
+                config:state.events.consumerId,
+                false
+        );
+    }
+    if kafka is store:KafkaConfig {
+        return store:createKafkaConsumer(
+                kafka,
+                config:state.events.consumerId,
+                config:state.events.topic,
+                autoCommit = false
+        );
+    }
+    return error("Error occurred while reading the message store configurations when creating the store consumer");
 }
 
 # Initialize a `store:Consumer` for a WebSub subscriber.
@@ -44,14 +63,14 @@ function initWebSubEventsConsumer() returns store:Consumer|error {
 # + subscription - The WebSub subscriber details
 # + return - A `store:Consumer` for the message store, or else return an `error` if the operation fails
 public isolated function createConsumer(websubhub:VerifiedSubscription subscription) returns store:Consumer|error {
-    return createKafkaConsumerForSubscriber(subscription, config:store.kafka);
-}
-
-# Initialize a `store:Administrator` for the websubhub server.
-#
-# + return - A `store:Administrator` for the message store, or else return an `error` if the operation fails
-public isolated function createAdministrator() returns store:Administrator|error {
-    return new store:Administrator();
+    var {kafka, solace} = config:store;
+    if solace is store:SolaceConfig {
+        return createSolaceConsumerForSubscriber(solace, subscription);
+    }
+    if kafka is store:KafkaConfig {
+        return createKafkaConsumerForSubscriber(kafka, subscription);
+    }
+    return error("Error occurred while reading the message store configurations when creating the store consumer");
 }
 
 # Retrieves a message producer per topic.

@@ -26,6 +26,7 @@ import ballerina/mime;
 import ballerina/websubhub;
 
 import wso2/messagestore as store;
+import websubhub.admin;
 
 isolated map<websubhub:VerifiedSubscription> subscribersCache = {};
 
@@ -124,6 +125,11 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
         if e is common:InvalidSubscriptionError {
             return;
         }
+        if !isValidConsumer(subscription.hubTopic, subscriberId) {
+            // In some cases a messaging consumer will be attached to an entity in the message store (queue or topic) and that
+            // entity will be removed when unsubscribing, hence it is appropriate to stop the consumer in those cases
+            return;
+        }
 
         // If subscription-deleted error received, remove the subscription
         if e is websubhub:SubscriptionDeletedError {
@@ -133,6 +139,13 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
                 hubCallback: subscription.hubCallback,
                 hubSecret: subscription.hubSecret
             };
+            
+            error? subscriptionDeletion = admin:deleteSubscription(subscription);
+            if subscriptionDeletion is error {
+                common:logRecoverableError(
+                        "Error occurred while removing the subscription", subscriptionDeletion, subscription = unsubscription);                
+            }
+
             error? persistResult = persist:removeSubscription(unsubscription);
             if persistResult is error {
                 common:logRecoverableError(

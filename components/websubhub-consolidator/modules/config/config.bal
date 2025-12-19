@@ -25,4 +25,5 @@ public configurable common:ServerConfig server = ?;
 public configurable common:ServerStateConfig state = ?;
 
 # Messaging store connection related configurations
-public configurable store:KafkaMessageStore store = ?;
+// public configurable store:KafkaMessageStore|store:SolaceMessageStore store = ?;
+public configurable record {| store:KafkaConfig kafka?; store:SolaceConfig solace?; |} store = ?;

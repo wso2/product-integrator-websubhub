@@ -15,20 +15,39 @@
 // under the License.
 
 import websubhub.common;
-import websubhub.connections as conn;
+import websubhub.config;
 
 import ballerina/http;
 import ballerina/lang.value;
+import ballerina/log;
 import ballerina/websubhub;
 
 import wso2/messagestore as store;
 
-final store:Administrator administrator = check conn:createAdministrator();
+final store:Administrator administrator = check createAdministrator();
+
+isolated function init() returns error? {
+    var {topic, consumerId} = config:state.events;
+    error? result = administrator->createSubscription(topic, consumerId);
+    if result is store:SubscriptionExists {
+        log:printWarn(string `Subscription for Topic [${topic}] and Subscriber [${consumerId}] exists`);
+        return;
+    }
+    return result;
+}
+
+isolated function createAdministrator() returns store:Administrator|error {
+    var {kafka, solace} = config:store;
+    if solace is store:SolaceConfig {
+        return store:createSolaceAdministrator(solace);
+    }
+    return new store:Administrator();
+}
 
 public isolated function createTopic(websubhub:TopicRegistration topicRegistration)
     returns websubhub:TopicRegistrationError|error? {
 
-    error? result = administrator->createTopic(topicRegistration.topic);
+    error? result = administrator->createTopic(topicRegistration.topic, topicRegistration);
     if result is store:TopicExists {
         string errorMessage = string `Topic ${topicRegistration.topic} already exists in the message store, deregister the topic first.`;
         return error websubhub:TopicRegistrationError(errorMessage, statusCode = http:STATUS_CONFLICT);
@@ -39,7 +58,7 @@ public isolated function createTopic(websubhub:TopicRegistration topicRegistrati
 public isolated function deleteTopic(websubhub:TopicDeregistration topicDeregistration)
     returns websubhub:TopicDeregistrationError|error? {
 
-    error? result = administrator->deleteTopic(topicDeregistration.topic);
+    error? result = administrator->deleteTopic(topicDeregistration.topic, topicDeregistration);
     if result is store:TopicNotFound {
         string errorMessage = string `Topic ${topicDeregistration.topic} could not be found in the message store.`;
         return error websubhub:TopicDeregistrationError(errorMessage, statusCode = http:STATUS_NOT_FOUND);
@@ -52,10 +71,11 @@ public isolated function createSubscription(websubhub:VerifiedSubscription subsc
 
     string topic = subscription.hubTopic;
     string timestamp = check value:ensureType(subscription[common:SUBSCRIPTION_TIMESTAMP]);
-    string subscriberId = string `${subscription.hubTopic}___${subscription.hubCallback}___${timestamp}`;
-    error? result = administrator->createSubscription(topic, subscriberId);
+    string consumerName = constructConsumerName(topic, subscription.hubCallback, timestamp);
+    error? result = administrator->createSubscription(topic, consumerName, subscription);
     if result is store:SubscriptionExists {
-        string errorMessage = string `Subscription for topic ${topic} and subscriber ${subscriberId} already exists in the message store.`;
+        string errorMessage = string `
+            Subscription for topic ${topic} and callback ${subscription.hubCallback} with consumer-name ${consumerName} already exists in the message store.`;
         return error websubhub:InternalSubscriptionError(errorMessage, statusCode = http:STATUS_CONFLICT);
     }
     return result;
@@ -66,11 +86,21 @@ public isolated function deleteSubscription(websubhub:VerifiedUnsubscription uns
 
     string topic = unsubscription.hubTopic;
     string timestamp = check value:ensureType(unsubscription[common:SUBSCRIPTION_TIMESTAMP]);
-    string subscriberId = string `${unsubscription.hubTopic}___${unsubscription.hubCallback}___${timestamp}`;
-    error? result = administrator->deleteSubscription(topic, subscriberId);
+    string consumerName = constructConsumerName(topic, unsubscription.hubCallback, timestamp);
+    error? result = administrator->deleteSubscription(topic, consumerName, unsubscription);
     if result is store:SubscriptionNotFound {
-        string errorMessage = string `Subscription for topic ${topic} and subscriber ${subscriberId} can not be found in the message store.`;
+        string errorMessage = string `
+            Subscription for topic ${topic} and callback ${unsubscription.hubCallback} with consumer-name ${consumerName} can not be found in the message store.`;
         return error websubhub:InternalUnsubscriptionError(errorMessage, statusCode = http:STATUS_NOT_FOUND);
     }
     return result;
+}
+
+isolated function constructConsumerName(string topic, string hubCallback, string timestamp) returns string {
+    string subscriberId = string `${topic}___${hubCallback}___${timestamp}`;
+    int constructedId = 0;
+    foreach var [idx, val] in subscriberId.toCodePointInts().enumerate() {
+        constructedId += idx * val;
+    }
+    return string `consumer-${constructedId}`;
 }

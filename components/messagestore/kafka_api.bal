@@ -14,6 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import ballerina/lang.value;
 import ballerina/log;
 import ballerinax/kafka;
 
@@ -178,13 +179,37 @@ public isolated function createKafkaProducer(KafkaConfig config, string clientId
 # Initialize a consumer for Kafka message store.
 #
 # + config - The Kafka connection configurations
-# + groupId - The Kafka consumer group to which this consumer should belong to
+# + groupId - The default Kafka consumer group to which this consumer should belong to
 # + topic - The Kafka topic to which the consumer should received events for
 # + autoCommit - The flag to enable auto-commit offsets  
 # + offsetReset - The offset reset strategy if no initial offset
-# + partitions - The Kafka topic partitions
+# + meta - The meta data required to resolve the Kafka consumer group and topic partitions, 
+# if the user provided a `meta` information it would have a higher priority than the `groupId` provided. 
+# As of now only consumer-group and topic-partitions can be provided as `meta`
 # + return - A `store:Consumer` for Kafka message store, or else return an `error` if the operation fails
 public isolated function createKafkaConsumer(KafkaConfig config, string groupId, string topic, boolean autoCommit = true,
-        kafka:OffsetResetMethod? offsetReset = (), int[]? partitions = ()) returns Consumer|error {
-    return new KafkaConsumer(config, groupId, topic, autoCommit, offsetReset, partitions);
+        kafka:OffsetResetMethod? offsetReset = (), record {} meta = {}) returns Consumer|error {
+
+    string consumerGroup = check resolveConsumerGroup(groupId, meta);
+    int[]? topicPartitions = check resolveTopicPartitions(meta);
+    return new KafkaConsumer(config, consumerGroup, topic, autoCommit, offsetReset, topicPartitions);
+}
+
+const string CONSUMER_GROUP = "consumerGroup";
+const string CONSUMER_TOPIC_PARTITIONS = "topicPartitions";
+
+isolated function resolveConsumerGroup(string defaultGroupId, record {} meta) returns string|error {
+    if meta.hasKey(CONSUMER_GROUP) {
+        return value:ensureType(meta[CONSUMER_GROUP]);
+    }
+    return defaultGroupId;
+}
+
+isolated function resolveTopicPartitions(record {} meta) returns int[]|error? {
+    if !meta.hasKey(CONSUMER_TOPIC_PARTITIONS) {
+        return;
+    }
+    // Kafka topic partitions will be a string with comma separated integers eg: "1,2,3,4"
+    string partitionInfo = check value:ensureType(meta[CONSUMER_TOPIC_PARTITIONS]);
+    return re `,`.split(partitionInfo).'map(p => p.trim()).'map(p => check int:fromString(p));
 }
