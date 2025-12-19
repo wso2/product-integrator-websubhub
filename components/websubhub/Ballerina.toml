@@ -1,7 +1,7 @@
 [package]
 org = "wso2"
 name = "websubhub"
-version = "1.0.0-RC-SNAPSHOT"
+version = "1.0.0-RC1-SNAPSHOT"
 distribution = "2201.13.1"
 
 [build-options]
