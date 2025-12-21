@@ -133,7 +133,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [prepare, build]
+    needs: [trivy-scan, prepare, build]
       
     steps:
       - name: Checkout Repository
@@ -216,8 +216,15 @@ jobs:
         run: |
           gh release create v${{ needs.prepare.outputs.version }} \
             --title "WSO2 Integrator: WebSubHub v${{ needs.prepare.outputs.version }}" \
+            --notes "$(cat <<EOF
+          ## Downloads
+
+          📦 Download [wso2websubhub-distribution-${{ needs.prepare.outputs.version }}.zip](https://github.com/${{ github.repository }}/releases/download/v${{ needs.prepare.outputs.version }}/wso2websubhub-distribution-${{ needs.prepare.outputs.version }}.zip)
+          EOF
+          )" \
             --generate-notes \
-            --verify-tag
+            --verify-tag \
+            distribution/build/distributions/wso2websubhub-distribution-${{ needs.prepare.outputs.version }}.zip
 
       - name: Create Sync PR
         env:
