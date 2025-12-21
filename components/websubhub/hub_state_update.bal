@@ -38,7 +38,7 @@ function initializeHubState() returns error? {
         stateSnapshot = check new (config:state.snapshot.url);
     }
     do {
-        common:SystemStateSnapshot systemStateSnapshot = check stateSnapshot->/consolidator/state\-snapshot;
+        common:SystemStateSnapshot systemStateSnapshot = check stateSnapshot->/;
         check processWebsubTopicsSnapshotState(systemStateSnapshot.topics);
         check processWebsubSubscriptionsSnapshotState(systemStateSnapshot.subscriptions);
         // Start hub-state update worker
