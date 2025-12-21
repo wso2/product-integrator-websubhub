@@ -38,7 +38,7 @@ function initStatePersistProducer() returns store:Producer|error {
 // Consumer which reads the persisted subscriber details
 public final store:Consumer websubEventsConsumer = check initWebSubEventsConsumer();
 
-final string websubEventsConsumerId = string `${config:state.events.consumerIdPrefix}-${config:server.id}`;
+final string websubEventsConsumerId = string `${config:state.events.consumerIdPrefix}-${config:serverId}`;
 
 function initWebSubEventsConsumer() returns store:Consumer|error {
     check admin:createWebSubEventsSubscription(config:state.events.topic, websubEventsConsumerId);
