@@ -83,8 +83,10 @@ public type ServerStateConfig record {|
     record {|
         # The message store topic that stores WebSub events for this server
         string topic;
-        # The consumer Id used by the message store consumer for state update events
-        string consumerId;
+        # The prefix used for the message-store consumer ID when handling state update events.
+        # The full consumer ID is formed by concatenating `<consumerIdPrefix>` with `<server-id>`
+        # (for example, `websub-events-consumer-hub-1`).
+        string consumerIdPrefix;
     |} events;
 |};
 

@@ -38,19 +38,21 @@ function initStatePersistProducer() returns store:Producer|error {
 // Consumer which reads the persisted subscriber details
 public final store:Consumer websubEventsConsumer = check initWebSubEventsConsumer();
 
+final string websubEventsConsumerId = string `${config:state.events.consumerIdPrefix}-${config:server.id}`;
+
 function initWebSubEventsConsumer() returns store:Consumer|error {
     var {kafka, solace} = config:store;
     if solace is store:SolaceConfig {
         return store:createSolaceConsumer(
                 solace,
-                config:state.events.consumerId,
+                websubEventsConsumerId,
                 false
         );
     }
     if kafka is store:KafkaConfig {
         return store:createKafkaConsumer(
                 kafka,
-                config:state.events.consumerId,
+                websubEventsConsumerId,
                 config:state.events.topic,
                 autoCommit = false
         );
