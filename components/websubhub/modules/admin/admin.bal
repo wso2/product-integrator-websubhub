@@ -26,8 +26,7 @@ import wso2/messagestore as store;
 
 final store:Administrator administrator = check createAdministrator();
 
-isolated function init() returns error? {
-    var {topic, consumerId} = config:state.events;
+public isolated function createWebSubEventsSubscription(string topic, string consumerId) returns error? {
     error? result = administrator->createSubscription(topic, consumerId);
     if result is store:SubscriptionExists {
         log:printWarn(string `Subscription for Topic [${topic}] and Subscriber [${consumerId}] exists`);

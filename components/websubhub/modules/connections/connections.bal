@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import websubhub.admin as _;
+import websubhub.admin;
 import websubhub.config;
 
 import ballerina/websubhub;
@@ -41,6 +41,7 @@ public final store:Consumer websubEventsConsumer = check initWebSubEventsConsume
 final string websubEventsConsumerId = string `${config:state.events.consumerIdPrefix}-${config:server.id}`;
 
 function initWebSubEventsConsumer() returns store:Consumer|error {
+    check admin:createWebSubEventsSubscription(config:state.events.topic, websubEventsConsumerId);
     var {kafka, solace} = config:store;
     if solace is store:SolaceConfig {
         return store:createSolaceConsumer(
