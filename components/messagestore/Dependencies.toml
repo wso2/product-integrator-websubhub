@@ -357,7 +357,7 @@ modules = [
 [[package]]
 org = "wso2"
 name = "messagestore"
-version = "1.0.0-M1-RC3"
+version = "1.0.0-M1-RC4"
 dependencies = [
 	{org = "ballerina", name = "http"},
 	{org = "ballerina", name = "lang.value"},
