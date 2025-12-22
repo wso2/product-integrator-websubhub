@@ -176,6 +176,9 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USER }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         if: github.event.inputs.skip_latest_docker_tag == 'false'
         uses: docker/setup-buildx-action@v3
@@ -204,6 +207,7 @@ jobs:
                 --build-arg SERVER_DIST_PATH=distribution/build/distributions \
                 --cache-from type=gha \
                 --cache-to type=gha,mode=max \
+                --platform linux/amd64,linux/arm64 \
                 .
             else
               echo "No Dockerfile found for component: ${component}, skipping..."
