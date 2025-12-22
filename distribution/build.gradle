@@ -25,7 +25,6 @@ def componentsDir = project(':websubhub-workspace').projectDir
 distributions {
     hub {
         distributionBaseName = 'wso2websubhub'
-        // def hubDir = project(':websubhub').projectDir
         def scriptsDir = file('scripts/websubhub')
         def confDir = file('conf/websubhub')
         contents {
@@ -61,7 +60,6 @@ distributions {
 
     consolidator {
         distributionBaseName = 'wso2websubhub-consolidator'
-        // def consolidatorDir = project(':websubhub-consolidator').projectDir
         def scriptsDir = file('scripts/websubhub-consolidator')
         def confDir = file('conf/websubhub-consolidator')
         contents {
@@ -124,7 +122,7 @@ publishing {
     publications {
         maven(MavenPublication) {
             groupId = project.property('group')
-            artifactId = project.property('name')
+            artifactId = 'wso2websubhub-distribution'
             artifact(tasks.getByName("websubhubDistributionDistZip"))
         }
     }
