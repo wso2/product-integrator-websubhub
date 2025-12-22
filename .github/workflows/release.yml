@@ -198,7 +198,7 @@ jobs:
               docker buildx build \
                 --file docker/components/${component}/Dockerfile \
                 --push \
-                --tag ${{ secrets.DOCKER_HUB_USER }}/wso2${component}:latest \
+                --tag wso2/wso2${component}:latest \
                 --build-arg SERVER_NAME=wso2${component} \
                 --build-arg SERVER_VERSION=${{ needs.prepare.outputs.version }} \
                 --build-arg SERVER_DIST_PATH=distribution/build/distributions \
