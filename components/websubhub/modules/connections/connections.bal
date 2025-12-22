@@ -14,7 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import websubhub.admin as _;
+import websubhub.admin;
 import websubhub.config;
 
 import ballerina/websubhub;
@@ -38,19 +38,22 @@ function initStatePersistProducer() returns store:Producer|error {
 // Consumer which reads the persisted subscriber details
 public final store:Consumer websubEventsConsumer = check initWebSubEventsConsumer();
 
+final string websubEventsConsumerId = string `${config:state.events.consumerIdPrefix}-${config:serverId}`;
+
 function initWebSubEventsConsumer() returns store:Consumer|error {
+    check admin:createWebSubEventsSubscription(config:state.events.topic, websubEventsConsumerId);
     var {kafka, solace} = config:store;
     if solace is store:SolaceConfig {
         return store:createSolaceConsumer(
                 solace,
-                config:state.events.consumerId,
+                websubEventsConsumerId,
                 false
         );
     }
     if kafka is store:KafkaConfig {
         return store:createKafkaConsumer(
                 kafka,
-                config:state.events.consumerId,
+                websubEventsConsumerId,
                 config:state.events.topic,
                 autoCommit = false
         );

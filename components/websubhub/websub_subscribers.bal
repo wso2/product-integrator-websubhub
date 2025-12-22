@@ -69,7 +69,7 @@ isolated function processSubscription(websubhub:VerifiedSubscription subscriptio
     string serverId = check subscription[common:SUBSCRIPTION_SERVER_ID].ensureType();
     // if the subscription already exists in the `hub` instance, or the given subscription
     // does not belong to the `hub` instance do not start the consumer
-    if serverId != config:server.id {
+    if serverId != config:serverId {
         log:printDebug(
                 string `Subscriber ${subscriberId} does not belong to the current server, hence not starting the consumer`,
                 subscriberServerId = serverId

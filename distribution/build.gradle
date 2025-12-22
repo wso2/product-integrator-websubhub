@@ -31,6 +31,9 @@ distributions {
         contents {
             from("${componentsDir}/websubhub/target/bin") {
                 include "*.jar"
+                rename { fileName ->
+                    fileName.replace('.jar', "-${project.version}.jar")
+                }
                 into "lib"
             }
             
@@ -48,9 +51,8 @@ distributions {
                 into "bin"
                 fileMode = 0755
             }
-            
+
             from(rootProject.projectDir) {
-                include "README.md"
                 include "LICENSE*"
                 into ""
             }
@@ -65,6 +67,9 @@ distributions {
         contents {
             from("${componentsDir}/websubhub-consolidator/target/bin") {
                 include "*.jar"
+                rename { fileName ->
+                    fileName.replace('.jar', "-${project.version}.jar")
+                }
                 into "lib"
             }
             
@@ -82,9 +87,8 @@ distributions {
                 into "bin"
                 fileMode = 0755
             }
-            
+
             from(rootProject.projectDir) {
-                include "README.md"
                 include "LICENSE*"
                 into ""
             }
@@ -102,8 +106,13 @@ distributions {
                 into ""
             }
 
+            from(projectDir) {
+                include "README.txt"
+                filter(org.apache.tools.ant.filters.ReplaceTokens, tokens: [version: project.version.toString().replace('-SNAPSHOT', '')])
+                into ""
+            }
+
             from(rootProject.projectDir) {
-                include "README.md"
                 include "LICENSE*"
                 into ""
             }
