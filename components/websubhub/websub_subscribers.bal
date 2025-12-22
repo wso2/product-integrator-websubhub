@@ -14,6 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import websubhub.admin;
 import websubhub.common;
 import websubhub.config;
 import websubhub.connections as conn;
@@ -26,7 +27,6 @@ import ballerina/mime;
 import ballerina/websubhub;
 
 import wso2/messagestore as store;
-import websubhub.admin;
 
 isolated map<websubhub:VerifiedSubscription> subscribersCache = {};
 
@@ -139,11 +139,11 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
                 hubCallback: subscription.hubCallback,
                 hubSecret: subscription.hubSecret
             };
-            
+
             error? subscriptionDeletion = admin:deleteSubscription(subscription);
             if subscriptionDeletion is error {
                 common:logRecoverableError(
-                        "Error occurred while removing the subscription", subscriptionDeletion, subscription = unsubscription);                
+                        "Error occurred while removing the subscription", subscriptionDeletion, subscription = unsubscription);
             }
 
             error? persistResult = persist:removeSubscription(unsubscription);
