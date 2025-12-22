@@ -71,9 +71,9 @@ jobs:
           context: .
           file: docker/components/${{ github.event.inputs.component_name }}/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_HUB_USER }}/${{ github.event.inputs.component_name }}:${{ github.event.inputs.release_version }}
+          tags: ${{ secrets.DOCKER_HUB_USER }}/wso2${{ github.event.inputs.component_name }}:${{ github.event.inputs.release_version }}
           build-args: |
-            SERVER_NAME=${{ github.event.inputs.component_name }}
+            SERVER_NAME=wso2${{ github.event.inputs.component_name }}
             SERVER_VERSION=${{ github.event.inputs.release_version }}
             SERVER_DIST_PATH=distribution/build/distributions
             BALLERINA_VERSION=${{ env.BAL_VERSION }}

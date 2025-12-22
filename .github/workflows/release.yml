@@ -261,7 +261,7 @@ jobs:
           for component in ${COMPONENTS}; do
             if [ -f "docker/components/${component}/Dockerfile" ]; then
               echo "Triggering Docker build for component: ${component}"
-              gh workflow run docker-build.yml \
+              gh workflow run docker-publish.yml \
                 -f release_version="${{ needs.prepare.outputs.version }}" \
                 -f component_name="wso2${component}"
             else
