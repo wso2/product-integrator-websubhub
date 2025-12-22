@@ -181,7 +181,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             return updatedSubscription;
         }
         message[common:SUBSCRIPTION_TIMESTAMP] = time:monotonicNow().toBalString();
-        message[common:SUBSCRIPTION_SERVER_ID] = config:server.id;
+        message[common:SUBSCRIPTION_SERVER_ID] = config:serverId;
         return message;
     }
 

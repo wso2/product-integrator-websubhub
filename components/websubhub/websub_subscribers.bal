@@ -14,6 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import websubhub.admin;
 import websubhub.common;
 import websubhub.config;
 import websubhub.connections as conn;
@@ -26,7 +27,6 @@ import ballerina/mime;
 import ballerina/websubhub;
 
 import wso2/messagestore as store;
-import websubhub.admin;
 
 isolated map<websubhub:VerifiedSubscription> subscribersCache = {};
 
@@ -69,7 +69,7 @@ isolated function processSubscription(websubhub:VerifiedSubscription subscriptio
     string serverId = check subscription[common:SUBSCRIPTION_SERVER_ID].ensureType();
     // if the subscription already exists in the `hub` instance, or the given subscription
     // does not belong to the `hub` instance do not start the consumer
-    if serverId != config:server.id {
+    if serverId != config:serverId {
         log:printDebug(
                 string `Subscriber ${subscriberId} does not belong to the current server, hence not starting the consumer`,
                 subscriberServerId = serverId
@@ -139,11 +139,11 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
                 hubCallback: subscription.hubCallback,
                 hubSecret: subscription.hubSecret
             };
-            
+
             error? subscriptionDeletion = admin:deleteSubscription(subscription);
             if subscriptionDeletion is error {
                 common:logRecoverableError(
-                        "Error occurred while removing the subscription", subscriptionDeletion, subscription = unsubscription);                
+                        "Error occurred while removing the subscription", subscriptionDeletion, subscription = unsubscription);
             }
 
             error? persistResult = persist:removeSubscription(unsubscription);

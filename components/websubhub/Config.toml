@@ -7,11 +7,11 @@ key.path = "resources/wso2websubhub.jks"
 key.password = "password"
 
 [websubhub.config.state.snapshot]
-url = "http://localhost:10001"
+url = "http://localhost:10001/consolidator/state-snapshot"
 
 [websubhub.config.state.events]
 topic = "websub-events"
-consumerId = "websub-events-consumer"
+consumerIdPrefix = "websub-events-consumer"
 
 [websubhub.config.store.kafka]
 bootstrapServers = "localhost:9092"

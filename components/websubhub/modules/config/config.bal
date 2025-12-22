@@ -16,17 +16,21 @@
 
 import websubhub.common;
 
+import ballerina/os;
+
 import wso2/messagestore as store;
 
 # Common configurations used to configure the websubhub server
 public configurable common:ServerConfig server = ?;
+
+public final string serverId = os:getEnv(common:SERVER_ID) === "" ? server.id : os:getEnv(common:SERVER_ID);
 
 # Configurations related to websubhub server state
 public configurable common:ServerStateConfig state = ?;
 
 # Messaging store connection related configurations
 // public configurable store:KafkaMessageStore|store:SolaceMessageStore store = ?;
-public configurable record {| store:KafkaConfig kafka?; store:SolaceConfig solace?; |} store = ?;
+public configurable record {|store:KafkaConfig kafka?; store:SolaceConfig solace?;|} store = ?;
 
 # Message delivery related configurations
 public configurable common:HttpClientConfig delivery = ?;
