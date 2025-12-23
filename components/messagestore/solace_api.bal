@@ -15,10 +15,10 @@
 // under the License.
 
 import ballerina/http;
+import ballerina/log;
 
 import xlibb/solace;
 import xlibb/solace.semp;
-import ballerina/log;
 
 isolated client class SolaceProducer {
     *Producer;

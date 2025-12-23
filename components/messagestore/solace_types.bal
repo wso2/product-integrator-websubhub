@@ -14,8 +14,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import xlibb/solace;
 import ballerina/http;
+import ballerina/os;
+
+import xlibb/solace;
 
 # Defines the Solace message store configurations
 public type SolaceMessageStore record {|
@@ -33,7 +35,7 @@ public type SolaceConfig record {|
 # Defines the configurations for establishing a connection to a Solace event broker.
 public type SolaceConnectionConfig record {|
     # The broker URL with format: [protocol:]host[:port]
-    string url;
+    string url = os:getEnv("SOLACE_BROKER_URL");
     # The message VPN to connect to
     string messageVpn;
     # The maximum time in seconds for a connection attempt
@@ -43,7 +45,10 @@ public type SolaceConnectionConfig record {|
     # The SSL/TLS configuration for secure connections
     solace:SecureSocket secureSocket?;
     # The authentication configuration (basic, Kerberos, or OAuth2)
-    solace:BasicAuthConfig|solace:KerberosConfig|solace:OAuth2Config auth?;
+    solace:BasicAuthConfig|solace:KerberosConfig|solace:OAuth2Config? auth = {
+        username: os:getEnv("SOLACE_USERNAME"),
+        password: os:getEnv("SOLACE_USER_PASSWORD")
+    };
     # Retry configuration for connection attempts
     solace:RetryConfig retryConfig = {
         connectRetries: 3,
@@ -62,13 +67,16 @@ public type SolaceConsumerConfig record {|
 # Defines configurations for the Solace administrator.
 public type SolaceAdminConfig record {|
     # The Solace Admin API URL
-    string url;
+    string url = os:getEnv("SOLACE_SEMP_URL");
     # The maximum time to wait (in seconds) for a response before closing the connection
     decimal timeout = 30;
     # The SSL/TLS configuration for secure connections
     http:ClientSecureSocket secureSocket?;
     # The authentication configuration
-    http:CredentialsConfig auth;
+    http:CredentialsConfig auth = {
+        username: os:getEnv("SOLACE_SEMP_USERNAME"),
+        password: os:getEnv("SOLACE_SEMP_USER_PASSWORD")
+    };
     # Retry configuration
     http:RetryConfig retryConfig?;
 |};
