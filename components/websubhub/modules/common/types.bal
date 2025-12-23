@@ -16,6 +16,7 @@
 
 import ballerina/http;
 import ballerina/jwt;
+import ballerina/os;
 import ballerina/websubhub;
 
 # Represents a snapshot of the WebSubHub's state, containing all topics and subscriptions.
@@ -75,7 +76,7 @@ public type ServerStateConfig record {|
     # Configurations for retrieving the initial state snapshot from a consolidator service.
     record {|
         # The HTTP endpoint URL of the consolidator to get the state snapshot
-        string url;
+        string url = os:getEnv("WEBSUBHUB_CONSOLIDATOR_URL");
         # Client configurations for the HTTP call to the consolidator
         HttpClientConfig config?;
     |} snapshot;

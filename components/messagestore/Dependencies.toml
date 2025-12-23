@@ -49,7 +49,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "crypto"
-version = "2.10.0"
+version = "2.10.1"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerina", name = "time"}
@@ -268,6 +268,9 @@ dependencies = [
 	{org = "ballerina", name = "io"},
 	{org = "ballerina", name = "jballerina.java"}
 ]
+modules = [
+	{org = "ballerina", packageName = "os", moduleName = "os"}
+]
 
 [[package]]
 org = "ballerina"
@@ -357,11 +360,12 @@ modules = [
 [[package]]
 org = "wso2"
 name = "messagestore"
-version = "1.0.0-M1-RC4"
+version = "1.0.0-M1-RC5-SNAPSHOT"
 dependencies = [
 	{org = "ballerina", name = "http"},
 	{org = "ballerina", name = "lang.value"},
 	{org = "ballerina", name = "log"},
+	{org = "ballerina", name = "os"},
 	{org = "ballerinai", name = "observe"},
 	{org = "ballerinax", name = "kafka"},
 	{org = "xlibb", name = "solace"},
