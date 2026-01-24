@@ -14,8 +14,7 @@ below is and where the actual text of the license can be found.
 
 Name                                                                                                Type           License
 _________________________________________________________________________________________________________________________________________________
-websubhub-1.0.0-M1-RC1.jar                                                                             jar            apache2
-websubhub-consolidator-1.0.0-M1-RC1.jar                                                                jar            apache2
+websubhub-@version@.jar                                                                             jar            apache2
 
 The license types used by the above libraries and their information is given below:
 

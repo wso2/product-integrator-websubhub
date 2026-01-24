@@ -138,8 +138,9 @@ distributions {
                 fileMode = 0755
             }
 
-            from(rootProject.projectDir) {
+            from("${projectDir}/license/websubhub") {
                 include "LICENSE*"
+                filter(org.apache.tools.ant.filters.ReplaceTokens, tokens: [version: project.version])
                 into ""
             }
 
@@ -177,8 +178,9 @@ distributions {
                 fileMode = 0755
             }
 
-            from(rootProject.projectDir) {
+            from("${projectDir}/license/websubhub-consolidator") {
                 include "LICENSE*"
+                filter(org.apache.tools.ant.filters.ReplaceTokens, tokens: [version: project.version])
                 into ""
             }
 
@@ -202,11 +204,6 @@ distributions {
             from(projectDir) {
                 include "README.txt"
                 filter(org.apache.tools.ant.filters.ReplaceTokens, tokens: [version: project.version.toString().replace('-SNAPSHOT', '')])
-                into ""
-            }
-
-            from(rootProject.projectDir) {
-                include "LICENSE*"
                 into ""
             }
         }
