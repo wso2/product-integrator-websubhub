@@ -108,7 +108,15 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
             if message is () {
                 continue;
             }
-            error? result = notifySubscriber(message, clientEp);
+
+            websubhub:ContentDistributionMessage|error notification = constructContentDistMsg(message);
+            if notification is error {
+                log:printWarn("Error occurred while deserializing the message, hence pushing the message to DLQ", 'error = notification);
+                check consumerEp->deadLetter(message);
+                continue;
+            }
+
+            websubhub:ContentDistributionSuccess|error result = check clientEp->notifyContentDistribution(notification);
             if result is error {
                 check consumerEp->nack(message);
                 check result;
@@ -195,11 +203,6 @@ isolated function getSubscription(string subscriberId) returns websubhub:Verifie
     lock {
         return subscribersCache[subscriberId].cloneReadOnly();
     }
-}
-
-isolated function notifySubscriber(store:Message message, websubhub:HubClient clientEp) returns error? {
-    websubhub:ContentDistributionMessage notification = check constructContentDistMsg(message);
-    _ = check clientEp->notifyContentDistribution(notification);
 }
 
 isolated function constructContentDistMsg(store:Message message) returns websubhub:ContentDistributionMessage|error {
