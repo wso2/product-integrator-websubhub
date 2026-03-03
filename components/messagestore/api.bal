@@ -14,6 +14,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import ballerina/lang.value;
+import ballerina/log;
+
 # Represents a message published to a message store.
 public type Message record {
     # The message payload
@@ -74,6 +77,16 @@ public isolated client class Consumer {
     # + message - The message to negatively acknowledge.
     # + return - An `error?` value if the nack operation fails, otherwise `()`.
     isolated remote function nack(Message message) returns error? {
+        return error("Calling an abstract API");
+    }
+
+    # Moves a failed message to the dead-letter queue (DLQ), preventing it from blocking further message processing.
+    # This is typically used when a message cannot be processed due to unrecoverable errors such as
+    # deserialization failures.
+    #
+    # + message - The message to be moved to the dead-letter queue.
+    # + return - An `error?` value if the dead-letter operation fails, otherwise `()`.
+    isolated remote function deadLetter(Message message) returns error? {
         return error("Calling an abstract API");
     }
 
@@ -150,4 +163,39 @@ public isolated client class Administrator {
     isolated remote function close() returns error? {
         return;
     }
+}
+
+# The field name that can be found in the meta-information provided during consumer creation for deal-letter configurations.
+const string DLQ_TOPIC = "dlqTopic";
+
+# Dead Letter Queue message publisher commonly used for all the message store types
+isolated Producer? dlqProducer = ();
+
+# Common messagestore utility to publish messages to a DLQ
+#
+# + dlq - The dead-letter destination
+# + message - The message to be pushed to the DLQ
+# + return - An `error` if the operation fails
+isolated function publishToDlq(string? dlq, Message message) returns error? {
+    if dlq is () {
+        log:printWarn("Dead-Letter configurations are disabled, hence ignoring the message and continue");
+        return;
+    }
+    Producer? _dlqProducer;
+    lock {
+        _dlqProducer = dlqProducer;
+    }
+    if _dlqProducer is () {
+        log:printWarn("Could not find the DLQ producer, hence ignoring the message and continue");
+        return;
+    }
+    check _dlqProducer->send(dlq, message);
+}
+
+isolated function resolveDeadLetterTopic(string? systemDlqTopic, record {} meta) returns string|error? {
+    // Subscriber-level DLQ topic takes priority over the system-level configuration
+    if meta.hasKey(DLQ_TOPIC) {
+        return value:ensureType(meta[DLQ_TOPIC]);
+    }
+    return systemDlqTopic;
 }
