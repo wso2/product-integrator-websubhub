@@ -79,9 +79,12 @@ function refreshStaleSubscribers() returns error? {
     }
 }
 
-// todo: implement this properly
+// todo: implement this properly by improving the `websubhub:HubClient`
 isolated function pingSubscriber(websubhub:VerifiedSubscription subscriber) returns http:Response|error {
-    return error("Not implemented yet");
+    http:Client subscriberEp = check new(
+        subscriber.hubCallback, secureSocket = config:delivery.secureSocket, timeout = config:delivery.timeout
+    );
+    return subscriberEp->/;
 }
 
 isolated function removeSubscriptionPermanently(websubhub:VerifiedSubscription subcription) {
