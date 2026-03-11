@@ -104,6 +104,13 @@ isolated client class SolaceConsumer {
         }
     }
 
+    isolated remote function deadLetter(Message message) returns error? {
+        if message.hasKey(ORIGINAL_SOLACE_MSG) {
+            solace:Message original = check message.get(ORIGINAL_SOLACE_MSG).ensureType();
+            return self.consumer->nack(original, false);
+        }
+    }
+
     isolated remote function close(ClosureIntent intent = TEMPORARY) returns error? {
         return self.consumer->close();
     }

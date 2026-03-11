@@ -32,4 +32,7 @@ public type JmsConfig record {|
 public type JmsConsumerConfig record {|
     # The timeout to wait for one receive call to the JMS message store
     decimal receiveTimeout = 10;
+    # The dead-letter topic to which unprocessable messages should be forwarded.
+    # If not configured, dead-lettering is disabled for this consumer.
+    string deadLetterTopic?;
 |};

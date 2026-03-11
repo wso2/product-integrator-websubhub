@@ -49,11 +49,12 @@ isolated client class KafkaConsumer {
 
     private final kafka:Consumer consumer;
     private final readonly & KafkaConsumerConfig config;
+    private final string? dlqTopic;
 
     private KafkaConsumerRecord[] messageBatch = [];
 
     isolated function init(KafkaConfig config, string groupId, string topic, boolean autoCommit = true,
-            kafka:OffsetResetMethod? offsetReset = (), int[]? partitions = ()) returns error? {
+            kafka:OffsetResetMethod? offsetReset = (), int[]? partitions = (), string? dlqTopic = ()) returns error? {
 
         kafka:ConsumerConfiguration consumerConfig = {
             groupId,
@@ -64,6 +65,7 @@ isolated client class KafkaConsumer {
             securityProtocol: config.securityProtocol
         };
         self.config = config.consumer.cloneReadOnly();
+        self.dlqTopic = dlqTopic;
 
         if partitions is () {
             // Kafka consumer topic subscription should only be used when manual partition assignment is not used
@@ -162,8 +164,26 @@ isolated client class KafkaConsumer {
         // As Kafka does not have a `nack` functionality no need to implement this API
     }
 
+    isolated remote function deadLetter(Message message) returns error? {
+        check publishToDlq(self.dlqTopic, message);
+        if self.isCurrentBatchEmpty() {
+            check self.consumer->'commit();
+        }
+    }
+
     isolated remote function close(ClosureIntent intent = TEMPORARY) returns error? {
         return self.consumer->close(self.config.gracefulClosePeriod);
+    }
+}
+
+isolated function initKafkaDlqProducer(KafkaConfig config) returns error? {
+    lock {
+        if dlqProducer is Producer {
+            return;
+        }
+    }
+    lock {
+        dlqProducer = check createKafkaProducer(config.cloneReadOnly(), "dlq-message-producer");
     }
 }
 
@@ -192,7 +212,11 @@ public isolated function createKafkaConsumer(KafkaConfig config, string groupId,
 
     string consumerGroup = check resolveConsumerGroup(groupId, meta);
     int[]? topicPartitions = check resolveTopicPartitions(meta);
-    return new KafkaConsumer(config, consumerGroup, topic, autoCommit, offsetReset, topicPartitions);
+    string? dlqTopic = check resolveDeadLetterTopic(config.consumer.deadLetterTopic, meta);
+    if dlqTopic is string {
+        check initKafkaDlqProducer(config);
+    }
+    return new KafkaConsumer(config, consumerGroup, topic, autoCommit, offsetReset, topicPartitions, dlqTopic);
 }
 
 const string CONSUMER_GROUP = "consumerGroup";
