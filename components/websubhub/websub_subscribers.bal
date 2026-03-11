@@ -14,7 +14,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import websubhub.admin;
 import websubhub.common;
 import websubhub.config;
 import websubhub.connections as conn;
@@ -63,6 +62,7 @@ isolated function processSubscription(websubhub:VerifiedSubscription subscriptio
     }
     if isMarkingSubscriptionAsStale {
         log:printDebug(string `Subscriber ${subscriberId} has been marked as stale, hence not starting the consumer`);
+        addStaleSubscription(check subscription.ensureType());
         return;
     }
 
@@ -143,25 +143,7 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
             if result is error {
                 common:logRecoverableError("Error occurred while gracefully closing message store consumer", result);
             }
-
-            websubhub:VerifiedUnsubscription unsubscription = {
-                hubMode: "unsubscribe",
-                hubTopic: subscription.hubTopic,
-                hubCallback: subscription.hubCallback,
-                hubSecret: subscription.hubSecret
-            };
-
-            error? subscriptionDeletion = admin:deleteSubscription(subscription);
-            if subscriptionDeletion is error {
-                common:logRecoverableError(
-                        "Error occurred while removing the subscription", subscriptionDeletion, subscription = unsubscription);
-            }
-
-            error? persistResult = persist:removeSubscription(unsubscription);
-            if persistResult is error {
-                common:logRecoverableError(
-                        "Error occurred while removing the subscription", persistResult, subscription = unsubscription);
-            }
+            removeSubscriptionPermanently(subscription);
             return;
         }
 

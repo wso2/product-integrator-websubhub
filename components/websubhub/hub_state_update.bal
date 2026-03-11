@@ -43,6 +43,8 @@ function initializeHubState() returns error? {
         check processWebsubSubscriptionsSnapshotState(systemStateSnapshot.subscriptions);
         // Start hub-state update worker
         _ = start updateHubState();
+        // Start the stale-subscriber refresh worker
+        _ = start refreshStaleSubscribers();
     } on fail error httpError {
         common:logFatalError("Error occurred while initializing the hub-state using the latest state-snapshot", httpError);
         return httpError;

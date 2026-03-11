@@ -45,6 +45,8 @@ public type ServerConfig record {|
     int port;
     # A unique identifier for this WebSubHub server instance
     string id = "websubhub-1";
+    # Interval in seconds at which the WebSubHub refreshes stale subscriptions
+    decimal staleSubscriptionRefreshInterval = 300.0;
     # Authentication configurations for securing the hub's endpoints
     JwtValidatorConfig auth?;
     # SSL/TLS configurations for the service endpoint
