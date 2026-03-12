@@ -94,7 +94,7 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
     websubhub:HubClient clientEp = check new (subscription, {
         httpVersion: http:HTTP_2_0,
         secureSocket: config:delivery.secureSocket,
-        retryConfig: config:delivery.'retry,
+        retryConfig: common:constructHttpRetryConfig(config:delivery.'retry),
         timeout: config:delivery.timeout
     });
     do {

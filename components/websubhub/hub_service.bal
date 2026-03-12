@@ -37,7 +37,7 @@ http:Service healthCheckService = service object {
 websubhub:Service hubService = @websubhub:ServiceConfig {
     webHookConfig: {
         secureSocket: config:delivery.secureSocket,
-        retryConfig: config:delivery.'retry
+        retryConfig: common:constructHttpRetryConfig(config:delivery.'retry)
     }
 } service object {
 
