@@ -49,8 +49,9 @@ isolated client class JmsConsumer {
     private final jms:Session session;
     private final string subscriberName;
     private final int readTimeout;
+    private final string? dlqTopic;
 
-    isolated function init(jms:Session session, JmsConsumerConfig config, string topic, string subscriberName) returns error? {
+    isolated function init(jms:Session session, JmsConsumerConfig config, string topic, string subscriberName, string? dlqTopic = ()) returns error? {
 
         self.session = session;
         self.consumer = check session.createConsumer({
@@ -63,6 +64,7 @@ isolated client class JmsConsumer {
         });
         self.subscriberName = subscriberName;
         self.readTimeout = <int>(config.receiveTimeout * 1000);
+        self.dlqTopic = dlqTopic;
     }
 
     isolated remote function receive() returns Message|error? {
@@ -84,12 +86,28 @@ isolated client class JmsConsumer {
         return self.session->'rollback();
     }
 
+    isolated remote function deadLetter(Message message) returns error? {
+        check publishToDlq(self.dlqTopic, message);
+        return self.session->'commit();
+    }
+
     isolated remote function close(ClosureIntent intent = TEMPORARY) returns error? {
         check self.consumer->close();
         if intent is PERMANENT {
             check self.session->unsubscribe(self.subscriberName);
         }
         return self.session->close();
+    }
+}
+
+isolated function initJmsDlqProducer(JmsConfig config) returns error? {
+    lock {
+        if dlqProducer is Producer {
+            return;
+        }
+    }
+    lock {
+        dlqProducer = check createJmsProducer(config.cloneReadOnly(), "dlq-message-producer");
     }
 }
 
@@ -130,5 +148,9 @@ public isolated function createJmsConsumer(JmsConfig config, string topic, strin
     };
     jms:Connection connection = check new (connectionConfig);
     jms:Session session = check connection->createSession(jms:SESSION_TRANSACTED);
+    string? dlqTopic = check resolveDeadLetterTopic(config.consumer.deadLetterTopic, meta);
+    if dlqTopic is string {
+        check initJmsDlqProducer(config);
+    }
     return new JmsConsumer(session, config.consumer, topic, subscriberName);
 }

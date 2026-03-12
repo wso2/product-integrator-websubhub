@@ -59,6 +59,9 @@ public type KafkaConsumerConfig record {|
     decimal pollingInterval = 10;
     # The timeout duration (in seconds) for a graceful shutdown of the consumer
     decimal gracefulClosePeriod = 5;
+    # The dead-letter topic to which unprocessable messages should be forwarded.
+    # If not configured, dead-lettering is disabled for this consumer.
+    string deadLetterTopic?;
 |};
 
 // Internal record to data-bind the Kafka consumer record
