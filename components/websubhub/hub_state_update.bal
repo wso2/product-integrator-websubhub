@@ -30,7 +30,7 @@ function initializeHubState() returns error? {
     if config is common:HttpClientConfig {
         http:ClientConfiguration clientConfig = {
             timeout: config.timeout,
-            retryConfig: common:constructHttpRetryConfig(config:delivery.'retry),
+            retryConfig: common:extractHttpRetryConfig(config:delivery.'retry),
             secureSocket: config.secureSocket
         };
         stateSnapshot = check new (config:state.snapshot.url, clientConfig);

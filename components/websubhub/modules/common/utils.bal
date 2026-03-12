@@ -46,20 +46,15 @@ public isolated function logRecoverableError(string msg, error? 'error = (), *lo
     log:printError(msg, 'error, keyValues = keyValues);
 }
 
-# Constructs an `http:RetryConfig` instance from the provided `RetryConfig`.
+# Extracts `http:RetryConfig` from the provided `RetryConfig`.
 #
 # + config - Optional retry configuration used to construct the `http:RetryConfig`
 # + return - The constructed `http:RetryConfig` if a configuration is provided,
 # otherwise `()`
-public isolated function constructHttpRetryConfig(RetryConfig? config) returns http:RetryConfig? {
-    if config is () {
-        return;
+public isolated function extractHttpRetryConfig(RetryConfig? config) returns http:RetryConfig? {
+    if config is RetryConfig {
+        var {resetOnExhaust, ...httpRetryConfig} = config;
+        return httpRetryConfig;
     }
-    return {
-        count: config.count,
-        interval: config.interval,
-        backOffFactor: config.backOffFactor,
-        maxWaitInterval: config.maxWaitInterval,
-        statusCodes: config.statusCodes
-    };
+    return;
 }
