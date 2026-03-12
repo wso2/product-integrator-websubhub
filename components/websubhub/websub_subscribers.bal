@@ -116,7 +116,7 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
                 continue;
             }
 
-            websubhub:ContentDistributionSuccess|error result = check clientEp->notifyContentDistribution(notification);
+            error? result = check deliverWithRetryReset(clientEp, notification);
             if result is error {
                 check consumerEp->nack(message);
                 check result;
@@ -185,6 +185,27 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
         if persistResult is error {
             common:logRecoverableError(
                     "Error occurred while persisting the stale subscription", persistResult, subscription = staleSubscription);
+        }
+    }
+}
+
+isolated function deliverWithRetryReset(websubhub:HubClient clientEp, websubhub:ContentDistributionMessage notification) returns error? {
+    common:RetryConfig? 'retry = config:delivery.'retry;
+    if 'retry is () || !'retry.resetOnExhaust {
+        _ = check clientEp->notifyContentDistribution(notification);
+        return;
+    }
+
+    while true {
+        websubhub:ContentDistributionSuccess|websubhub:Error result = clientEp->notifyContentDistribution(notification);
+        if result is websubhub:ContentDistributionSuccess {
+            return;
+        }
+
+        // Check whether the returned status code is a retryable status-code, if not return the error
+        int statusCode = result.detail().statusCode;
+        if 'retry.statusCodes.indexOf(statusCode) is () {
+            return result;
         }
     }
 }
