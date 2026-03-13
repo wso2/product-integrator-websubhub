@@ -16,6 +16,7 @@
 
 import ballerina/http;
 import ballerina/log;
+import ballerina/os;
 
 # Generates a unique Id for a subscriber.
 #
@@ -57,4 +58,56 @@ public isolated function extractHttpRetryConfig(RetryConfig? config) returns htt
         return httpRetryConfig;
     }
     return;
+}
+
+public isolated function extractListenerSecureSocketConfig(http:ListenerSecureSocket? config) returns http:ListenerSecureSocket? {
+    string keystore = os:getEnv("WEBSUBHUB_KEYSTORE_PATH");
+    string keystorePassword = os:getEnv("WEBSUBHUB_KEYSTORE_PASSWORD");
+    if config is http:ListenerSecureSocket {
+        var {'key, ...conf} = config;
+        if keystore != "" && keystorePassword != "" {
+            return {
+                'key: {
+                    path: keystore,
+                    password: keystorePassword
+                },
+                ...conf
+            };
+        }
+        return config;
+    }
+    if keystore != "" && keystorePassword != "" {
+        return {
+            'key: {
+                path: keystore,
+                password: keystorePassword
+            }
+        };
+    }
+}
+
+public isolated function extractClientSecureSocketConfig(http:ClientSecureSocket? config) returns http:ClientSecureSocket? {
+    string truststore = os:getEnv("WEBSUBHUB_TRUSTSTORE_PATH");
+    string truststorePassword = os:getEnv("WEBSUBHUB_TRUSTSTORE_PASSWORD");
+    if config is http:ClientSecureSocket {
+        var {cert, ...conf} = config;
+        if truststore != "" && truststorePassword != "" {
+            return {
+                cert: {
+                    path: truststore,
+                    password: truststorePassword
+                },
+                ...conf
+            };
+        }
+        return config;
+    }
+    if truststore != "" && truststorePassword != "" {
+        return {
+            cert: {
+                path: truststore,
+                password: truststorePassword
+            }
+        };
+    }
 }

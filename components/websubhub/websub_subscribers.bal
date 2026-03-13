@@ -93,7 +93,7 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
     store:Consumer consumerEp = check conn:createConsumer(subscription);
     websubhub:HubClient clientEp = check new (subscription, {
         httpVersion: http:HTTP_2_0,
-        secureSocket: config:delivery.secureSocket,
+        secureSocket: common:extractClientSecureSocketConfig(config:delivery.secureSocket),
         retryConfig: common:extractHttpRetryConfig(config:delivery.'retry),
         timeout: config:delivery.timeout
     });

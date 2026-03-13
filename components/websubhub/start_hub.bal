@@ -20,11 +20,12 @@ import ballerina/http;
 import ballerina/lang.runtime;
 import ballerina/log;
 import ballerina/websubhub;
+import websubhub.common;
 
 public function main() returns error? {
     // Starting the health-check service
     http:Listener httpListener = check new (config:server.port,
-        secureSocket = config:server.secureSocket
+        secureSocket = common:extractListenerSecureSocketConfig(config:server.secureSocket)
     );
     check httpListener.attach(healthCheckService, "/health");
 
