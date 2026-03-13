@@ -37,7 +37,7 @@ http:Service healthCheckService = service object {
 websubhub:Service hubService = @websubhub:ServiceConfig {
     webHookConfig: {
         secureSocket: config:delivery.secureSocket,
-        retryConfig: config:delivery.'retry
+        retryConfig: common:extractHttpRetryConfig(config:delivery.'retry)
     }
 } service object {
 
@@ -161,7 +161,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     isolated remote function onSubscriptionIntentVerified(websubhub:VerifiedSubscription message) returns error? {
         websubhub:VerifiedSubscription subscription = self.prepareSubscriptionToBePersisted(message);
         do {
-            check admin:createSubscription(message);
+            check admin:createSubscription(subscription);
             check persist:addSubscription(subscription);
         } on fail error subscriptionErr {
             string errorMessage = string

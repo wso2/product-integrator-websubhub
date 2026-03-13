@@ -96,7 +96,14 @@ public type HttpClientConfig record {|
     # The maximum time (in seconds) to wait for a response before the request times out
     decimal timeout = 60;
     # Automatic retry settings for failed HTTP requests
-    http:RetryConfig 'retry?;
+    RetryConfig 'retry?;
     # SSL/TLS configurations for the HTTP client
     http:ClientSecureSocket secureSocket?;
+|};
+
+# Provides configurations for controlling the retrying behavior in failure scenarios.
+public type RetryConfig record {|
+    *http:RetryConfig;
+    # When set to `true`, the internal retry counter is reset to zero after the count attempts are exhausted
+    boolean resetOnExhaust = false;
 |};

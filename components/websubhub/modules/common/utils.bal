@@ -14,6 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import ballerina/http;
 import ballerina/log;
 
 # Generates a unique Id for a subscriber.
@@ -43,4 +44,17 @@ public isolated function logFatalError(string msg, error? 'error = (), *log:KeyV
 public isolated function logRecoverableError(string msg, error? 'error = (), *log:KeyValues keyValues) {
     keyValues["severity"] = "RECOVERABLE";
     log:printError(msg, 'error, keyValues = keyValues);
+}
+
+# Extracts `http:RetryConfig` from the provided `RetryConfig`.
+#
+# + config - Optional retry configuration used to construct the `http:RetryConfig`
+# + return - The constructed `http:RetryConfig` if a configuration is provided,
+# otherwise `()`
+public isolated function extractHttpRetryConfig(RetryConfig? config) returns http:RetryConfig? {
+    if config is RetryConfig {
+        var {resetOnExhaust, ...httpRetryConfig} = config;
+        return httpRetryConfig;
+    }
+    return;
 }

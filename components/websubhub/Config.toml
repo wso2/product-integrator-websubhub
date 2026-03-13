@@ -49,6 +49,7 @@ interval = 3.0
 backOffFactor = 2.0
 maxWaitInterval = 20.0
 statusCodes = [500, 502, 503]
+resetOnExhaust = false
 
 [ballerina.log]
 level = "INFO"
