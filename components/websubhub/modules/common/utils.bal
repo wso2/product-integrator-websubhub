@@ -63,6 +63,10 @@ public isolated function extractHttpRetryConfig(RetryConfig? config) returns htt
 public isolated function extractListenerSecureSocketConfig(http:ListenerSecureSocket? config) returns http:ListenerSecureSocket? {
     string keystore = os:getEnv("WEBSUBHUB_KEYSTORE_PATH");
     string keystorePassword = os:getEnv("WEBSUBHUB_KEYSTORE_PASSWORD");
+    if (keystore == "" && keystorePassword != "") || (keystore != "" && keystorePassword == "") {
+        log:printWarn("Ignoring keystore env override: both WEBSUBHUB_KEYSTORE_PATH and WEBSUBHUB_KEYSTORE_PASSWORD must be set");
+    }
+    
     if config is http:ListenerSecureSocket {
         var {'key, ...conf} = config;
         if keystore != "" && keystorePassword != "" {
@@ -84,11 +88,16 @@ public isolated function extractListenerSecureSocketConfig(http:ListenerSecureSo
             }
         };
     }
+    return;
 }
 
 public isolated function extractClientSecureSocketConfig(http:ClientSecureSocket? config) returns http:ClientSecureSocket? {
     string truststore = os:getEnv("WEBSUBHUB_TRUSTSTORE_PATH");
     string truststorePassword = os:getEnv("WEBSUBHUB_TRUSTSTORE_PASSWORD");
+    if (truststore == "" && truststorePassword != "") || (truststore != "" && truststorePassword == "") {
+        log:printWarn("Ignoring truststore env override: both WEBSUBHUB_TRUSTSTORE_PATH and WEBSUBHUB_TRUSTSTORE_PASSWORD must be set");
+    }
+
     if config is http:ClientSecureSocket {
         var {cert, ...conf} = config;
         if truststore != "" && truststorePassword != "" {
@@ -110,4 +119,5 @@ public isolated function extractClientSecureSocketConfig(http:ClientSecureSocket
             }
         };
     }
+    return;
 }
