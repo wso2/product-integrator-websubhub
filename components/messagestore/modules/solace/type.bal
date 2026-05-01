@@ -64,6 +64,13 @@ public type SolaceConsumerConfig record {|
 public type SolaceQueueConfig record {|
     # Prefix used when generating the Solace queue name for consumer queues.
     string queueNamePrefix?;
+    # DLQ additional configurations
+    record {|
+        # Prefix used when generating the Solace DLQ name.
+        string prefix = "dlq-";
+        # Delete the custom DLQ on unsubscription request. 
+        boolean deleteCustomOnUbsubscription = true;
+    |} dlq?;
     # Maximum message spool quota for the queue in MB.
     int messageQueueQuota = 5000;
     # Client username that owns the queue.
