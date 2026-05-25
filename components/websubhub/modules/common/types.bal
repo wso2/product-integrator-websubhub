@@ -91,19 +91,53 @@ public type ServerStateConfig record {|
     |} events;
 |};
 
+# Delivery mode — controls whether WSH or the broker owns the retry loop.
+# WSH_RETRY: WSH applies its own HTTP retry loop (original behaviour, default).
+# BROKER_RETRY: WSH delivers once per broker redelivery, then ACK/NACK/REJECTED signals the broker.
+public enum DeliveryMode {
+    WSH_RETRY,
+    BROKER_RETRY
+}
+
 # Defines configurations for an HTTP client.
 public type HttpClientConfig record {|
     # The maximum time (in seconds) to wait for a response before the request times out
     decimal timeout = 60;
-    # Automatic retry settings for failed HTTP requests
+    # Delivery mode: WSH_RETRY (default) keeps WSH HTTP retry loops; BROKER_RETRY delegates retry ownership to the broker
+    DeliveryMode deliveryMode = WSH_RETRY;
+    # Automatic HTTP retry settings used in WSH_RETRY mode
     RetryConfig 'retry?;
+    # Broker signal and classification settings used in BROKER_RETRY mode
+    BrokerRetryConfig brokerRetry?;
     # SSL/TLS configurations for the HTTP client
     http:ClientSecureSocket secureSocket?;
 |};
 
-# Provides configurations for controlling the retrying behavior in failure scenarios.
+# Automatic HTTP retry configuration for WSH_RETRY mode.
 public type RetryConfig record {|
     *http:RetryConfig;
-    # When set to `true`, the internal retry counter is reset to zero after the count attempts are exhausted
+    # If true, the retry loop restarts indefinitely instead of stopping after `count` retries
     boolean resetOnExhaust = false;
+|};
+
+# Failure classification behavior — controls how WSH signals the broker in BROKER_RETRY mode.
+public type FailureBehavior "recoverable"|"nonRecoverable";
+
+# Controls how WSH classifies HTTP responses and signals the Solace broker in BROKER_RETRY mode.
+# The broker owns max-redelivery counts, DMQ routing, and TTL.
+public type BrokerRetryConfig record {|
+    # HTTP status codes treated as successful delivery → broker ACK (message removed from queue)
+    int[] ackStatusCodes = [200, 201, 202, 204];
+    # HTTP status codes treated as temporary failures → broker NACK/FAILED (broker retries)
+    int[] recoverableStatusCodes = [500, 502, 503, 504];
+    # HTTP status codes treated as permanent failures → broker NACK/REJECTED (routed to DMQ)
+    int[] nonRecoverableStatusCodes = [400, 401, 403, 404, 410];
+    # Behavior when the status code is not in any of the above lists
+    FailureBehavior unknownStatusCodes = "recoverable";
+    # Behavior on request timeout (no HTTP response received)
+    FailureBehavior timeoutError = "recoverable";
+    # Behavior on network/connection-level errors (e.g. connection refused)
+    FailureBehavior networkError = "recoverable";
+    # Delay in seconds before NACKing to broker — controls redelivery rate (Solace redelivery is otherwise immediate)
+    decimal interval = 3.0;
 |};
