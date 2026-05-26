@@ -52,9 +52,10 @@ public isolated function logRecoverableError(string msg, error? 'error = (), *lo
 # + topic - Topic associated with the content delivery
 # + callback - Callback endpoint to which the content is delivered
 # + msgId - Optional message identifier for tracking the delivery
-public isolated function logContentDelivery(string topic, string callback, string? msgId) {
+public isolated function logContentDelivery(string topic, string callback, string? msgId, int attempt = 1) {
     string constructedMsgId = msgId ?: "[No Message Id]";
-    log:printDebug("Message delivered", topic = topic, callback = callback, messageId = constructedMsgId);
+    log:printDebug("Message delivered", topic = topic, callback = callback,
+                   messageId = constructedMsgId, attempt = attempt);
 }
 
 # Extracts `http:RetryConfig` from the provided `RetryConfig`.

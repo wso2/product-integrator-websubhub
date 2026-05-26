@@ -262,12 +262,15 @@ isolated function deliverAndAcknowledge(
         string topic,
         string callbackUrl) returns error? {
     common:BrokerRetryConfig? retryConfig = config:delivery.brokerRetry;
+    // deliveryCount is 1-based (1 = first attempt). Default to 1 if broker does not populate it.
+    int attempt = message.deliveryCount ?: 1;
+    string messageId = message.id ?: "(none)";
 
     websubhub:ContentDistributionSuccess|websubhub:Error deliveryResult =
             clientEp->notifyContentDistribution(notification);
 
     if deliveryResult is websubhub:ContentDistributionSuccess {
-        common:logContentDelivery(topic, callbackUrl, message.id);
+        common:logContentDelivery(topic, callbackUrl, message.id, attempt);
         return consumerEp->ack(message);
     }
 
@@ -278,8 +281,9 @@ isolated function deliverAndAcknowledge(
         int statusCode = deliveryResult.detail().statusCode;
         if retryConfig.ackStatusCodes.indexOf(statusCode) !is () {
             log:printDebug("Delivery error carries an ack-listed status code — treating as success",
-                    statusCode = statusCode);
-            common:logContentDelivery(topic, callbackUrl, message.id);
+                    topic = topic, callback = callbackUrl, messageId = messageId,
+                    attempt = attempt, statusCode = statusCode);
+            common:logContentDelivery(topic, callbackUrl, message.id, attempt);
             return consumerEp->ack(message);
         }
     }
@@ -288,7 +292,9 @@ isolated function deliverAndAcknowledge(
 
     if behavior == "nonRecoverable" {
         log:printWarn("Non-recoverable delivery failure — routing message to DMQ",
-                statusCode = deliveryResult.detail().statusCode, 'error = deliveryResult);
+                topic = topic, callback = callbackUrl, messageId = messageId,
+                attempt = attempt, statusCode = deliveryResult.detail().statusCode,
+                'error = deliveryResult);
         return consumerEp->deadLetter(message);
     }
 
@@ -297,7 +303,9 @@ isolated function deliverAndAcknowledge(
         runtime:sleep(retryConfig.interval);
     }
     log:printWarn("Recoverable delivery failure — signalling broker to retry",
-            statusCode = deliveryResult.detail().statusCode, 'error = deliveryResult);
+            topic = topic, callback = callbackUrl, messageId = messageId,
+            attempt = attempt, statusCode = deliveryResult.detail().statusCode,
+            'error = deliveryResult);
     return consumerEp->nack(message);
 }
 
