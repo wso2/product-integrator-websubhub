@@ -110,7 +110,7 @@ public isolated client class Administrator {
         if subscriptions.length() === 1 {
             check self.deleteQueue(effectiveQueueName);
             if !systemSubscriber && meta.hasKey(META_DLQ_NAME) {
-                boolean? dlqDeleteEnabled = self.queueConfig?.dlq?.deleteCustomOnUbsubscription;
+                boolean? dlqDeleteEnabled = self.queueConfig?.dlq?.deleteCustomOnUnsubscription;
                 if dlqDeleteEnabled is () || !dlqDeleteEnabled {
                     return;
                 }

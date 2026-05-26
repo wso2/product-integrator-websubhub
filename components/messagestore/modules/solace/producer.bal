@@ -16,6 +16,8 @@
 
 import messagestore.api;
 
+import ballerina/log;
+
 import xlibb/solace;
 
 public isolated client class Producer {
@@ -38,6 +40,7 @@ public isolated client class Producer {
     }
 
     isolated remote function send(string topic, api:Message message) returns error? {
+        log:printDebug("Sending message to topic", topic = topic, messageId = message.id);
         check self.producer->send(
             {topicName: topic},
             {

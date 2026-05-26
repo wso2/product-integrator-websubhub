@@ -43,7 +43,7 @@ auth.password = "admin"
 [websubhub.config.store.solace.queue]
 queueNamePrefix = "consumer-"
 dlq.prefix = "dlq-"
-dlq.deleteCustomOnUbsubscription = false
+dlq.deleteCustomOnUnsubscription = false
 messageQueueQuota = 5000
 queueOwner = "default"
 nonOwnerPermission = "no-access"

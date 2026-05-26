@@ -69,7 +69,7 @@ public type SolaceQueueConfig record {|
         # Prefix used when generating the Solace DLQ name.
         string prefix = "dlq-";
         # Delete the custom DLQ on unsubscription request. 
-        boolean deleteCustomOnUbsubscription = true;
+        boolean deleteCustomOnUnsubscription = true;
     |} dlq?;
     # Maximum message spool quota for the queue in MB.
     int messageQueueQuota = 5000;

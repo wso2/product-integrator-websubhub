@@ -21,10 +21,10 @@ import websubhub.connections as conn;
 import websubhub.persistence as persist;
 
 import ballerina/http;
+import ballerina/lang.'runtime as runtime;
 import ballerina/lang.value;
 import ballerina/log;
 import ballerina/mime;
-import ballerina/lang.'runtime as runtime;
 import ballerina/websubhub;
 
 import wso2/messagestore.api as storeapi;
@@ -95,6 +95,7 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
     storeapi:Consumer consumerEp = check conn:createConsumer(subscription);
     common:DeliveryMode deliveryMode = config:delivery.deliveryMode;
 
+    log:printDebug("Starting subscriber polling strand", subscriberId = subscriberId, topic = topic, deliveryMode = deliveryMode);
     // In WSH_RETRY mode the HubClient carries the HTTP retry config so the Ballerina WebSub library
     // handles transparent HTTP-level retries. In BROKER_RETRY mode no HTTP retry is set — WSH delivers
     // once per broker redelivery and then signals the outcome via ACK / NACK / REJECTED.
