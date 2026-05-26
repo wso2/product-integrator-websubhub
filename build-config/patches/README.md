@@ -8,7 +8,7 @@ and overlays each patch onto the corresponding bala in `~/.ballerina/`.
 
 ## Structure
 
-```
+```text
 patches/
 └── <org>-<package>/
     └── <version>/          ← mirrors the bala's java21/ subdirectory

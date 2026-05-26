@@ -16,6 +16,7 @@
 * under the License.
 */
 
+import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.file.DuplicatesStrategy
@@ -68,11 +69,26 @@ class BallerinaPlugin implements Plugin<Project> {
                         def cacheBase = "${balHome}/repositories/central.ballerina.io/cache-${ballerinaVersion}/${org}/${pkg}/${version}"
 
                         // Pre-pull the package so the bala exists in cache before we overwrite files.
-                        // Ignore exit value — the package may already be cached.
+                        // ignoreExitValue is intentional: `bal pull` may return non-zero when the
+                        // package is already cached. We check the target directory below to decide
+                        // whether the bala is actually present before attempting the overlay.
                         println "Pulling ${org}/${pkg}:${version} from Ballerina Central..."
-                        project.exec {
+                        def pullResult = project.exec {
                             commandLine BalUtils.executeBalCommand("pull ${org}/${pkg}:${version}")
                             ignoreExitValue true
+                        }
+
+                        def balaTargetDir = new File(balaTarget)
+                        if (!balaTargetDir.exists()) {
+                            throw new GradleException(
+                                "Cannot apply patch for ${org}/${pkg}:${version}: " +
+                                "'bal pull' failed (exit code ${pullResult.exitValue}) " +
+                                "and no cached bala was found at ${balaTarget}. " +
+                                "Ensure network access or pre-cache the package."
+                            )
+                        }
+                        if (pullResult.exitValue != 0) {
+                            println "Pull returned exit code ${pullResult.exitValue} — using existing cached bala."
                         }
 
                         println "Overlaying patch files for ${org}/${pkg}:${version}..."
