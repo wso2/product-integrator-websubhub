@@ -34,6 +34,74 @@ class BallerinaPlugin implements Plugin<Project> {
             commandLine BalUtils.executeBalCommand('clean')
         }
 
+        // Applies vendored patches to third-party Ballerina packages that have not yet
+        // shipped the required fixes upstream.  Each patch lives under:
+        //   build-config/patches/<org>-<package>/<version>/
+        // and is overlaid onto the corresponding bala in ~/.ballerina/ before the build.
+        //
+        // Current patches:
+        //   xlibb-solace/0.4.1 — adds `dmqEligible` field to the Message record and sets
+        //       jcsmpMessage.setDMQEligible() in the native JAR.
+        //       Remove once xlibb/solace 0.4.2+ (or equivalent) is published to central.
+        project.tasks.register('applyThirdPartyPatches') {
+            def patchesRoot = new File("${project.rootDir}/build-config/patches")
+
+            onlyIf { patchesRoot.exists() && patchesRoot.listFiles()?.any { it.isDirectory() } }
+
+            doLast {
+                def balHome = "${System.getProperty('user.home')}/.ballerina"
+                def ballerinaVersion = project.ballerinaDistributionVersion
+
+                patchesRoot.listFiles()?.findAll { it.isDirectory() }?.each { patchPkg ->
+                    // patchPkg.name format: "<org>-<package>" e.g. "xlibb-solace"
+                    def parts = patchPkg.name.split('-', 2)
+                    if (parts.length != 2) {
+                        println "Skipping patch directory with unexpected name: ${patchPkg.name}"
+                        return
+                    }
+                    def org = parts[0]
+                    def pkg = parts[1]
+
+                    patchPkg.listFiles()?.findAll { it.isDirectory() }?.each { versionDir ->
+                        def version = versionDir.name
+                        def balaTarget = "${balHome}/repositories/central.ballerina.io/bala/${org}/${pkg}/${version}/java21"
+                        def cacheBase = "${balHome}/repositories/central.ballerina.io/cache-${ballerinaVersion}/${org}/${pkg}/${version}"
+
+                        // Pre-pull the package so the bala exists in cache before we overwrite files.
+                        // Ignore exit value — the package may already be cached.
+                        println "Pulling ${org}/${pkg}:${version} from Ballerina Central..."
+                        project.exec {
+                            commandLine BalUtils.executeBalCommand("pull ${org}/${pkg}:${version}")
+                            ignoreExitValue true
+                        }
+
+                        println "Overlaying patch files for ${org}/${pkg}:${version}..."
+                        project.copy {
+                            from versionDir
+                            into balaTarget
+                            duplicatesStrategy = DuplicatesStrategy.INCLUDE
+                        }
+
+                        // Clear compiled caches so Ballerina picks up the patched sources/JAR.
+                        [
+                            new File("${cacheBase}/bir/solace.bir"),
+                            new File("${cacheBase}/java21/xlibb-solace-${version}.jar")
+                        ].each { f ->
+                            if (f.exists()) {
+                                f.delete()
+                                println "Cleared cache: ${f}"
+                            }
+                        }
+                        println "Patch applied: ${org}/${pkg}:${version}"
+                    }
+                }
+            }
+        }
+
+        project.tasks.named('balBuild') {
+            dependsOn project.tasks.named('applyThirdPartyPatches')
+        }
+
         project.tasks.register('updateTomlFiles') {
             def projectVersion = project.version
             def ballerinaVersion = project.ballerinaDistributionVersion
