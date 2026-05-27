@@ -14,6 +14,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import websubhub.common;
+
 import ballerina/websubhub;
 
 isolated map<websubhub:TopicRegistration> registeredTopicsCache = {};
@@ -33,5 +35,33 @@ public isolated function addTopic(websubhub:TopicRegistration topicReg) {
 public isolated function removeTopic(websubhub:TopicDeregistration topicDereg) {
     lock {
         _ = registeredTopicsCache.removeIfHasKey(topicDereg.topic);
+    }
+}
+
+isolated map<websubhub:VerifiedSubscription> subscribersCache = {};
+
+public isolated function isSubscriptionAvailable(string subscriberId) returns boolean {
+    lock {
+        return subscribersCache.hasKey(subscriberId);
+    }
+}
+
+public isolated function getSubscription(string subscriberId) returns websubhub:VerifiedSubscription? {
+    lock {
+        return subscribersCache[subscriberId].cloneReadOnly();
+    }
+}
+
+public isolated function addSubscription(websubhub:VerifiedSubscription subscription) {
+    string subscriberId = common:generateSubscriberId(subscription.hubTopic, subscription.hubCallback);
+    lock {
+        subscribersCache[subscriberId] = subscription.cloneReadOnly();
+    }
+}
+
+public isolated function removeSubscription(websubhub:VerifiedUnsubscription unsubscription) {
+    string subscriberId = common:generateSubscriberId(unsubscription.hubTopic, unsubscription.hubCallback);
+    lock {
+        _ = subscribersCache.removeIfHasKey(subscriberId);
     }
 }

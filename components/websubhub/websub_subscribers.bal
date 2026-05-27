@@ -19,6 +19,7 @@ import websubhub.common;
 import websubhub.config;
 import websubhub.connections as conn;
 import websubhub.persistence as persist;
+import websubhub.state;
 
 import ballerina/http;
 import ballerina/lang.value;
@@ -27,9 +28,6 @@ import ballerina/mime;
 import ballerina/websubhub;
 
 import wso2/messagestore.api as storeapi;
-import websubhub.state;
-
-isolated map<websubhub:VerifiedSubscription> subscribersCache = {};
 
 const SUBSCRIPTION_STALE_STATE = "stale";
 
@@ -43,19 +41,17 @@ isolated function processWebsubSubscriptionsSnapshotState(websubhub:VerifiedSubs
 isolated function processSubscription(websubhub:VerifiedSubscription subscription) returns error? {
     log:printDebug("Subscription event received", topic = subscription.hubTopic, callback = subscription.hubCallback);
     string subscriberId = common:generateSubscriberId(subscription.hubTopic, subscription.hubCallback);
-    websubhub:VerifiedSubscription? existingSubscription = getSubscription(subscriberId);
+    websubhub:VerifiedSubscription? existingSubscription = state:getSubscription(subscriberId);
     boolean isFreshSubscription = existingSubscription is ();
     boolean isRenewingStaleSubscription = false;
     if existingSubscription is websubhub:VerifiedSubscription {
         isRenewingStaleSubscription = existingSubscription.hasKey(common:SUBSCRIPTION_STATUS) && existingSubscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTION_STALE_STATE;
     }
+    
     boolean isMarkingSubscriptionAsStale = subscription.hasKey(common:SUBSCRIPTION_STATUS) && subscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTION_STALE_STATE;
-
-    lock {
-        // add the subscriber if subscription event received for a new subscription or a stale subscription, when renewing a stale subscription
-        if isFreshSubscription || isRenewingStaleSubscription || isMarkingSubscriptionAsStale {
-            subscribersCache[subscriberId] = subscription.cloneReadOnly();
-        }
+    // add the subscriber if subscription event received for a new subscription or a stale subscription, when renewing a stale subscription
+    if isFreshSubscription || isRenewingStaleSubscription || isMarkingSubscriptionAsStale {
+        state:addSubscription(subscription);
     }
 
     if !isFreshSubscription && !isRenewingStaleSubscription {
@@ -84,10 +80,7 @@ isolated function processSubscription(websubhub:VerifiedSubscription subscriptio
 isolated function processUnsubscription(websubhub:VerifiedUnsubscription unsubscription) returns error? {
     log:printDebug("Unsubscription event received, hence removing the subscriber from the internal state",
             topic = unsubscription.hubTopic, callback = unsubscription.hubCallback);
-    string subscriberId = common:generateSubscriberId(unsubscription.hubTopic, unsubscription.hubCallback);
-    lock {
-        _ = subscribersCache.removeIfHasKey(subscriberId);
-    }
+    state:removeSubscription(unsubscription);
 }
 
 isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubscription subscription) returns error? {
@@ -214,19 +207,7 @@ isolated function deliverWithRetryReset(websubhub:HubClient clientEp, websubhub:
 }
 
 isolated function isValidConsumer(string topicName, string subscriberId) returns boolean {
-    return state:isTopicAvailable(topicName) && isValidSubscription(subscriberId);
-}
-
-isolated function isValidSubscription(string subscriberId) returns boolean {
-    lock {
-        return subscribersCache.hasKey(subscriberId);
-    }
-}
-
-isolated function getSubscription(string subscriberId) returns websubhub:VerifiedSubscription? {
-    lock {
-        return subscribersCache[subscriberId].cloneReadOnly();
-    }
+    return state:isTopicAvailable(topicName) && state:isSubscriptionAvailable(subscriberId);
 }
 
 isolated function constructContentDistMsg(storeapi:Message message) returns websubhub:ContentDistributionMessage|error {

@@ -19,12 +19,12 @@ import websubhub.common;
 import websubhub.config;
 import websubhub.persistence as persist;
 import websubhub.security;
+import websubhub.state;
 
 import ballerina/http;
 import ballerina/log;
 import ballerina/time;
 import ballerina/websubhub;
-import websubhub.state;
 
 const MESSAGE_ID_HEADER = "x-hub-messageId";
 
@@ -144,14 +144,14 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
                 "Topic [" + message.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
         } else {
             string subscriberId = common:generateSubscriberId(message.hubTopic, message.hubCallback);
-            websubhub:VerifiedSubscription? subscription = getSubscription(subscriberId);
+            websubhub:VerifiedSubscription? subscription = state:getSubscription(subscriberId);
             if subscription is () {
                 return;
             }
             if subscription.hasKey(common:SUBSCRIPTION_STATUS) && subscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTION_STALE_STATE {
                 return;
             }
-            if isValidSubscription(subscriberId) {
+            if state:isSubscriptionAvailable(subscriberId) {
                 return error websubhub:SubscriptionDeniedError(
                     "Subscriber has already registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
             }
@@ -177,7 +177,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
 
     isolated function prepareSubscriptionToBePersisted(websubhub:VerifiedSubscription message) returns websubhub:VerifiedSubscription {
         string subscriberId = common:generateSubscriberId(message.hubTopic, message.hubCallback);
-        websubhub:VerifiedSubscription? subscription = getSubscription(subscriberId);
+        websubhub:VerifiedSubscription? subscription = state:getSubscription(subscriberId);
         // if we have a stale subscription, remove the `status` flag from the subscription and persist it again
         if subscription is websubhub:VerifiedSubscription {
             websubhub:VerifiedSubscription updatedSubscription = {
@@ -216,7 +216,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
                 "Topic [" + message.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
         } else {
             string subscriberId = common:generateSubscriberId(message.hubTopic, message.hubCallback);
-            if !isValidSubscription(subscriberId) {
+            if !state:isSubscriptionAvailable(subscriberId) {
                 return error websubhub:UnsubscriptionDeniedError("Could not find a valid subscriber for Topic ["
                                 + message.hubTopic + "] and Callback [" + message.hubCallback + "]", statusCode = http:STATUS_NOT_ACCEPTABLE);
             }
@@ -229,7 +229,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     # + return - `error` if there is any unexpected error else `()`
     isolated remote function onUnsubscriptionIntentVerified(websubhub:VerifiedUnsubscription message) returns error? {
         string subscriberId = common:generateSubscriberId(message.hubTopic, message.hubCallback);
-        websubhub:VerifiedSubscription? subscription = getSubscription(subscriberId);
+        websubhub:VerifiedSubscription? subscription = state:getSubscription(subscriberId);
         if subscription is () {
             return;
         }
