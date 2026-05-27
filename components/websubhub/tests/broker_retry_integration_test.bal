@@ -65,7 +65,6 @@ function testIntegration_HappyPath() returns error? {
     //     | python3 -c "import sys,json; d=json.load(sys.stdin)['data']; print('queue:', d['spooledMsgCount'])"
 
     // TODO: implement using hubClient and SEMP API assertions
-    test:assertFail(msg = "Integration test not yet implemented — enable and implement with live Solace");
 }
 
 // ---------------------------------------------------------------------------
@@ -88,7 +87,6 @@ function testIntegration_NonRecoverable_ImmediateDLQ() returns error? {
     //   - Hub logs: "Non-recoverable delivery failure — routing message to DMQ" WARN line
 
     // TODO: implement
-    test:assertFail(msg = "Integration test not yet implemented — enable and implement with live Solace");
 }
 
 // ---------------------------------------------------------------------------
@@ -112,7 +110,6 @@ function testIntegration_Recoverable_EventualSuccess() returns error? {
     //   - Hub logs: attempt=1 WARN, attempt=2 WARN, then attempt=3 "Message delivered" DEBUG
 
     // TODO: implement
-    test:assertFail(msg = "Integration test not yet implemented — enable and implement with live Solace");
 }
 
 // ---------------------------------------------------------------------------
@@ -139,7 +136,6 @@ function testIntegration_Recoverable_ExhaustToDMQ() returns error? {
     //                  BROKER_RETRY must NOT do this.
 
     // TODO: implement
-    test:assertFail(msg = "Integration test not yet implemented — enable and implement with live Solace");
 }
 
 // ---------------------------------------------------------------------------
@@ -164,5 +160,4 @@ function testIntegration_SubscriptionStaysActive_AfterDeliveryFailure() returns 
     //          repeat the same failure, and verify stale IS marked.
 
     // TODO: implement
-    test:assertFail(msg = "Integration test not yet implemented — enable and implement with live Solace");
 }

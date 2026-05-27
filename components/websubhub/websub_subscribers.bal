@@ -275,18 +275,26 @@ isolated function deliverAndAcknowledge(
         return consumerEp->ack(message);
     }
 
+    // Guard: BROKER_RETRY mode requires a present BrokerRetryConfig.
+    // Nil config is a misconfiguration — route to DMQ rather than nacking indefinitely.
+    if retryConfig is () {
+        log:printError("BROKER_RETRY mode is active but [delivery.brokerRetry] config is absent — routing message to DMQ",
+                topic = topic, callback = callbackUrl, messageId = messageId, attempt = attempt,
+                statusCode = deliveryResult.detail().statusCode);
+        return consumerEp->deadLetter(message);
+    }
+
+    int statusCode = deliveryResult.detail().statusCode;
+
     // Concern A: the websubhub library can raise websubhub:Error even when the subscriber
     // responded with a 2xx status code (e.g. 202 Accepted treated as error by library internals).
     // Check ackStatusCodes before classifying — treat matched codes as delivery success.
-    if retryConfig is common:BrokerRetryConfig {
-        int statusCode = deliveryResult.detail().statusCode;
-        if retryConfig.ackStatusCodes.indexOf(statusCode) !is () {
-            log:printDebug("Delivery error carries an ack-listed status code — treating as success",
-                    topic = topic, callback = callbackUrl, messageId = messageId,
-                    attempt = attempt, statusCode = statusCode);
-            common:logContentDelivery(topic, callbackUrl, message.id, attempt);
-            return consumerEp->ack(message);
-        }
+    if retryConfig.ackStatusCodes.indexOf(statusCode) !is () {
+        log:printDebug("Delivery error carries an ack-listed status code — treating as success",
+                topic = topic, callback = callbackUrl, messageId = messageId,
+                attempt = attempt, statusCode = statusCode);
+        common:logContentDelivery(topic, callbackUrl, message.id, attempt);
+        return consumerEp->ack(message);
     }
 
     common:FailureBehavior behavior = classifyDeliveryError(deliveryResult, retryConfig);
@@ -294,18 +302,18 @@ isolated function deliverAndAcknowledge(
     if behavior == "nonRecoverable" {
         log:printWarn("Non-recoverable delivery failure — routing message to DMQ",
                 topic = topic, callback = callbackUrl, messageId = messageId,
-                attempt = attempt, statusCode = deliveryResult.detail().statusCode,
+                attempt = attempt, statusCode = statusCode,
                 'error = deliveryResult);
         return consumerEp->deadLetter(message);
     }
 
     // Apply delay before NACKing — Solace redelivery is immediate without this
-    if retryConfig is common:BrokerRetryConfig && retryConfig.interval > 0d {
+    if retryConfig.interval > 0d {
         runtime:sleep(retryConfig.interval);
     }
     log:printWarn("Recoverable delivery failure — signalling broker to retry",
             topic = topic, callback = callbackUrl, messageId = messageId,
-            attempt = attempt, statusCode = deliveryResult.detail().statusCode,
+            attempt = attempt, statusCode = statusCode,
             'error = deliveryResult);
     return consumerEp->nack(message);
 }
