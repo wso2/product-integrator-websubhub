@@ -47,7 +47,7 @@ isolated function processSubscription(websubhub:VerifiedSubscription subscriptio
     if existingSubscription is websubhub:VerifiedSubscription {
         isRenewingStaleSubscription = existingSubscription.hasKey(common:SUBSCRIPTION_STATUS) && existingSubscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTION_STALE_STATE;
     }
-    
+
     boolean isMarkingSubscriptionAsStale = subscription.hasKey(common:SUBSCRIPTION_STATUS) && subscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTION_STALE_STATE;
     // add the subscriber if subscription event received for a new subscription or a stale subscription, when renewing a stale subscription
     if isFreshSubscription || isRenewingStaleSubscription || isMarkingSubscriptionAsStale {
