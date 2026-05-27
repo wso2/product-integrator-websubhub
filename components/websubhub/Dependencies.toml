@@ -49,7 +49,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "crypto"
-version = "2.12.0"
+version = "2.12.1"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerina", name = "time"}
@@ -451,7 +451,8 @@ modules = [
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.config"},
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.connections"},
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.persistence"},
-	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.security"}
+	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.security"},
+	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.state"}
 ]
 
 [[package]]
