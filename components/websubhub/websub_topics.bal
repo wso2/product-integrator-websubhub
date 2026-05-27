@@ -14,30 +14,29 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import websubhub.state;
+
 import ballerina/log;
 import ballerina/websubhub;
 
 import xlibb/pipe;
 
-isolated map<websubhub:TopicRegistration> registeredTopicsCache = {};
 final pipe:Pipe stateSync = new (5);
 
-isolated function processWebsubTopicsSnapshotState(websubhub:TopicRegistration[] topics) returns error? {
+isolated function processWebsubTopicsSnapshotState(websubhub:TopicRegistration[] topics) {
     log:printDebug("Received latest state-snapshot for websub topics", newState = topics);
     foreach websubhub:TopicRegistration topicReg in topics {
-        check processTopicRegistration(topicReg);
+        processTopicRegistration(topicReg);
     }
 }
 
-isolated function processTopicRegistration(websubhub:TopicRegistration topicRegistration) returns error? {
+isolated function processTopicRegistration(websubhub:TopicRegistration topicRegistration) {
     log:printDebug(string `Topic registration event received for topic ${topicRegistration.topic}, hence adding the topic to the internal state`);
     boolean topicAvailable = true;
-    lock {
-        // add the topic if topic-registration event received
-        if !registeredTopicsCache.hasKey(topicRegistration.topic) {
-            topicAvailable = false;
-            registeredTopicsCache[topicRegistration.topic] = topicRegistration.cloneReadOnly();
-        }
+    // add the topic if topic-registration event received
+    if !state:isTopicAvailable(topicRegistration.topic) {
+        topicAvailable = false;
+        state:addTopic(topicRegistration);
     }
     if !topicAvailable {
         error? result = stateSync.produce(topicRegistration.cloneReadOnly(), 5);
@@ -47,15 +46,7 @@ isolated function processTopicRegistration(websubhub:TopicRegistration topicRegi
     }
 }
 
-isolated function processTopicDeregistration(websubhub:TopicDeregistration topicDeregistration) returns error? {
+isolated function processTopicDeregistration(websubhub:TopicDeregistration topicDeregistration) {
     log:printDebug(string `Topic deregistration event received for topic ${topicDeregistration.topic}, hence removing the topic from the internal state`);
-    lock {
-        _ = registeredTopicsCache.removeIfHasKey(topicDeregistration.topic);
-    }
-}
-
-isolated function isValidTopic(string topicName) returns boolean {
-    lock {
-        return registeredTopicsCache.hasKey(topicName);
-    }
+    state:removeTopic(topicDeregistration);
 }

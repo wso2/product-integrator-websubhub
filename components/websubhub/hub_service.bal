@@ -24,6 +24,7 @@ import ballerina/http;
 import ballerina/log;
 import ballerina/time;
 import ballerina/websubhub;
+import websubhub.state;
 
 const MESSAGE_ID_HEADER = "x-hub-messageId";
 
@@ -61,7 +62,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
 
     isolated function registerTopic(websubhub:TopicRegistration message) returns websubhub:TopicRegistrationError? {
         lock {
-            if registeredTopicsCache.hasKey(message.topic) {
+            if state:isTopicAvailable(message.topic) {
                 return error websubhub:TopicRegistrationError(
                     "Topic has already registered with the Hub", statusCode = http:STATUS_CONFLICT);
             }
@@ -96,7 +97,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
 
     isolated function deregisterTopic(websubhub:TopicRegistration message) returns websubhub:TopicDeregistrationError? {
         lock {
-            if !registeredTopicsCache.hasKey(message.topic) {
+            if !state:isTopicAvailable(message.topic) {
                 return error websubhub:TopicDeregistrationError(
                     "Topic has not been registered in the Hub", statusCode = http:STATUS_NOT_FOUND);
             }
@@ -138,11 +139,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
         if result is error {
             log:printDebug("Consuming messages from state-sync timed-out", 'error = result);
         }
-        boolean topicAvailable = false;
-        lock {
-            topicAvailable = registeredTopicsCache.hasKey(message.hubTopic);
-        }
-        if !topicAvailable {
+        if !state:isTopicAvailable(message.hubTopic) {
             return error websubhub:SubscriptionDeniedError(
                 "Topic [" + message.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
         } else {
@@ -214,11 +211,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     # + return - `websubhub:UnsubscriptionDeniedError` if the unsubscription is denied by the hub or else `()`
     isolated remote function onUnsubscriptionValidation(websubhub:Unsubscription message)
                 returns websubhub:UnsubscriptionDeniedError? {
-        boolean topicAvailable = false;
-        lock {
-            topicAvailable = registeredTopicsCache.hasKey(message.hubTopic);
-        }
-        if !topicAvailable {
+        if !state:isTopicAvailable(message.hubTopic) {
             return error websubhub:UnsubscriptionDeniedError(
                 "Topic [" + message.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
         } else {
@@ -268,11 +261,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     }
 
     isolated function updateMessage(websubhub:UpdateMessage msg, http:Headers headers) returns websubhub:UpdateMessageError? {
-        boolean topicAvailable = false;
-        lock {
-            topicAvailable = registeredTopicsCache.hasKey(msg.hubTopic);
-        }
-        if topicAvailable {
+        if state:isTopicAvailable(msg.hubTopic) {
             string? messageId = getMessageId(headers);
             map<string[]> metadata = getMetadata(headers);
             error? errorResponse = persist:addUpdateMessage(msg.hubTopic, msg, metadata, messageId);

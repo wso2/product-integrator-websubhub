@@ -27,6 +27,7 @@ import ballerina/mime;
 import ballerina/websubhub;
 
 import wso2/messagestore.api as storeapi;
+import websubhub.state;
 
 isolated map<websubhub:VerifiedSubscription> subscribersCache = {};
 
@@ -213,7 +214,7 @@ isolated function deliverWithRetryReset(websubhub:HubClient clientEp, websubhub:
 }
 
 isolated function isValidConsumer(string topicName, string subscriberId) returns boolean {
-    return isValidTopic(topicName) && isValidSubscription(subscriberId);
+    return state:isTopicAvailable(topicName) && isValidSubscription(subscriberId);
 }
 
 isolated function isValidSubscription(string subscriberId) returns boolean {
