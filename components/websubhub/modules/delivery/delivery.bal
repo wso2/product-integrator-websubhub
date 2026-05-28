@@ -27,7 +27,14 @@ import ballerina/websubhub;
 
 import wso2/messagestore.api as storeapi;
 
-public isolated function deliverContentNotification(websubhub:VerifiedSubscription subscription) returns error? {
+# Distributes a content notification to the specified subscriber using an async worker.
+# This function delivers the published content update associated with the
+# subscription to the subscriber endpoint using the configured content
+# delivery mechanism.
+#
+# + subscription - Verified subscription details
+# + return - An error if the content notification distribution fails
+public isolated function distributeContentNotification(websubhub:VerifiedSubscription subscription) returns error? {
     string subscriberId = common:generateSubscriberId(subscription.hubTopic, subscription.hubCallback);
     string topic = subscription.hubTopic;
     storeapi:Consumer consumerEp = check conn:createConsumer(subscription);

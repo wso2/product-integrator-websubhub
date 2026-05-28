@@ -14,21 +14,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// import websubhub.admin;
 import websubhub.common;
 import websubhub.config;
-// import websubhub.connections as conn;
-// import websubhub.persistence as persist;
+import websubhub.delivery;
 import websubhub.state;
 
-// import ballerina/http;
-// import ballerina/lang.value;
 import ballerina/log;
-// import ballerina/mime;
 import ballerina/websubhub;
-
-// import wso2/messagestore.api as storeapi;
-import websubhub.delivery;
 
 const SUBSCRIPTION_STALE_STATE = "stale";
 
@@ -75,7 +67,7 @@ isolated function processSubscription(websubhub:VerifiedSubscription subscriptio
         return;
     }
 
-    _ = start delivery:deliverContentNotification(subscription.cloneReadOnly());
+    _ = start delivery:distributeContentNotification(subscription.cloneReadOnly());
 }
 
 isolated function processUnsubscription(websubhub:VerifiedUnsubscription unsubscription) returns error? {
@@ -83,157 +75,3 @@ isolated function processUnsubscription(websubhub:VerifiedUnsubscription unsubsc
             topic = unsubscription.hubTopic, callback = unsubscription.hubCallback);
     state:removeSubscription(unsubscription);
 }
-
-// isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubscription subscription) returns error? {
-//     string topic = subscription.hubTopic;
-//     storeapi:Consumer consumerEp = check conn:createConsumer(subscription);
-//     websubhub:HubClient clientEp = check new (subscription, {
-//         httpVersion: http:HTTP_2_0,
-//         secureSocket: common:extractClientSecureSocketConfig(config:delivery.secureSocket),
-//         retryConfig: common:extractHttpRetryConfig(config:delivery.'retry),
-//         timeout: config:delivery.timeout
-//     });
-//     do {
-//         while true {
-//             storeapi:Message? message = check consumerEp->receive();
-//             if !isValidConsumer(subscription.hubTopic, subscriberId) {
-//                 fail error common:InvalidSubscriptionError(
-//                     string `Subscription or the topic is invalid`, topic = topic, subscriberId = subscriberId
-//                 );
-//             }
-//             if message is () {
-//                 continue;
-//             }
-
-//             websubhub:ContentDistributionMessage|error notification = constructContentDistMsg(message);
-//             if notification is error {
-//                 log:printWarn("Error occurred while deserializing the message, hence pushing the message to DLQ", 'error = notification);
-//                 check consumerEp->deadLetter(message);
-//                 continue;
-//             }
-
-//             error? result = check deliverWithRetryReset(clientEp, notification);
-//             if result is error {
-//                 check consumerEp->nack(message);
-//                 check result;
-//             } else {
-//                 common:logContentDelivery(topic, subscription.hubCallback, message.id);
-//                 check consumerEp->ack(message);
-//             }
-//         }
-//     } on fail var e {
-//         common:logRecoverableError("Error occurred while sending notification to subscriber", e);
-
-//         if e is common:InvalidSubscriptionError {
-//             error? result = consumerEp->close(storeapi:PERMANENT);
-//             if result is error {
-//                 common:logRecoverableError("Error occurred while gracefully closing message store consumer", result);
-//             }
-//             return;
-//         }
-
-//         if !isValidConsumer(subscription.hubTopic, subscriberId) {
-//             // In some cases a messaging consumer will be attached to an entity in the message store (queue or topic) and that
-//             // entity will be removed when unsubscribing, hence it is appropriate to stop the consumer in those cases
-//             error? result = consumerEp->close(storeapi:PERMANENT);
-//             if result is error {
-//                 common:logRecoverableError("Error occurred while gracefully closing message store consumer", result);
-//             }
-//             return;
-//         }
-
-//         // If subscription-deleted error received, remove the subscription
-//         if e is websubhub:SubscriptionDeletedError {
-//             error? result = consumerEp->close(storeapi:PERMANENT);
-//             if result is error {
-//                 common:logRecoverableError("Error occurred while gracefully closing message store consumer", result);
-//             }
-
-//             websubhub:VerifiedUnsubscription unsubscription = {
-//                 hubMode: "unsubscribe",
-//                 hubTopic: subscription.hubTopic,
-//                 hubCallback: subscription.hubCallback,
-//                 hubSecret: subscription.hubSecret
-//             };
-
-//             error? subscriptionDeletion = admin:deleteSubscription(subscription);
-//             if subscriptionDeletion is error {
-//                 common:logRecoverableError(
-//                         "Error occurred while removing the subscription", subscriptionDeletion, subscription = unsubscription);
-//             }
-
-//             error? persistResult = persist:removeSubscription(unsubscription);
-//             if persistResult is error {
-//                 common:logRecoverableError(
-//                         "Error occurred while removing the subscription", persistResult, subscription = unsubscription);
-//             }
-//             return;
-//         }
-
-//         error? result = consumerEp->close(storeapi:TEMPORARY);
-//         if result is error {
-//             common:logRecoverableError("Error occurred while gracefully closing message store consumer", result);
-//         }
-//         // Persist the subscription as a `stale` subscription whenever the content delivery fails
-//         common:StaleSubscription staleSubscription = {
-//             ...subscription
-//         };
-//         error? persistResult = persist:addStaleSubscription(staleSubscription);
-//         if persistResult is error {
-//             common:logRecoverableError(
-//                     "Error occurred while persisting the stale subscription", persistResult, subscription = staleSubscription);
-//         }
-//     }
-// }
-
-// isolated function deliverWithRetryReset(websubhub:HubClient clientEp, websubhub:ContentDistributionMessage notification) returns error? {
-//     common:RetryConfig? 'retry = config:delivery.'retry;
-//     if 'retry is () || !'retry.resetOnExhaust {
-//         _ = check clientEp->notifyContentDistribution(notification);
-//         return;
-//     }
-
-//     while true {
-//         websubhub:ContentDistributionSuccess|websubhub:Error result = clientEp->notifyContentDistribution(notification);
-//         if result is websubhub:ContentDistributionSuccess {
-//             return;
-//         }
-
-//         // Check whether the returned status code is a retryable status-code, if not return the error
-//         int statusCode = result.detail().statusCode;
-//         if 'retry.statusCodes.indexOf(statusCode) is () {
-//             return result;
-//         }
-//     }
-// }
-
-// isolated function isValidConsumer(string topicName, string subscriberId) returns boolean {
-//     return state:isTopicAvailable(topicName) && state:isSubscriptionAvailable(subscriberId);
-// }
-
-// isolated function constructContentDistMsg(storeapi:Message message) returns websubhub:ContentDistributionMessage|error {
-//     string payloadString = check string:fromBytes(message.payload);
-//     json payload = check value:fromJsonString(payloadString);
-//     websubhub:ContentDistributionMessage distributionMsg = {
-//         content: payload,
-//         contentType: mime:APPLICATION_JSON,
-//         headers: constructDeliveryHeaders(message)
-//     };
-//     return distributionMsg;
-// }
-
-// isolated function constructDeliveryHeaders(storeapi:Message message) returns map<string|string[]>? {
-//     string? messageId = message.id;
-//     if messageId is () {
-//         return message.metadata;
-//     }
-
-//     map<string|string[]>? metadata = message.metadata;
-//     if metadata is () {
-//         return {
-//             "x-hub-messageId": messageId
-//         };
-//     }
-//     metadata["x-hub-messageId"] = messageId;
-//     return metadata;
-// }
