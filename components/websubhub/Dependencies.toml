@@ -450,6 +450,7 @@ modules = [
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.common"},
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.config"},
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.connections"},
+	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.delivery"},
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.persistence"},
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.security"},
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.state"}
