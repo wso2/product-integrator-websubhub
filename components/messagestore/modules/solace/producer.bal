@@ -41,6 +41,21 @@ public isolated client class Producer {
 
     isolated remote function send(string topic, api:Message message) returns error? {
         log:printDebug("Sending message to topic", topic = topic, messageId = message.id);
+
+        // Convert string|string[] metadata values to anydata for the Solace SDTMap (user properties).
+        // Only the first value is stored when a header has multiple values — Solace user properties
+        // are key→scalar, not key→list.  This is acceptable for hub metadata (content-type, message-id)
+        // which are always single-valued.
+        map<anydata>? properties = ();
+        map<string|string[]>? metadata = message.metadata;
+        if metadata is map<string|string[]> {
+            map<anydata> props = {};
+            foreach [string, string|string[]] [k, v] in metadata.entries() {
+                props[k] = v is string[] ? v[0] : v;
+            }
+            properties = props;
+        }
+
         check self.producer->send(
             {topicName: topic},
             {
@@ -50,7 +65,8 @@ public isolated client class Producer {
                 // dmqEligible=true is required for the broker to route the message to the Dead Message Queue
                 // when max-redelivery is exceeded (FAILED nack) or on REJECTED nack (deadLetter()).
                 deliveryMode: solace:PERSISTENT,
-                dmqEligible: true
+                dmqEligible: true,
+                properties
             }
         );
     }

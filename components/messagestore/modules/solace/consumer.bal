@@ -49,10 +49,25 @@ isolated client class Consumer {
         if receivedMsg is () {
             return;
         }
+
+        // Promote Solace user properties (SDTMap) into api:Message.metadata so that
+        // hub-side metadata (e.g. x-hub-contentType) survives the broker round-trip.
+        map<string|string[]>? metadata = ();
+        map<anydata>? props = receivedMsg.properties;
+        if props is map<anydata> && props.length() > 0 {
+            map<string|string[]> m = {};
+            foreach [string, anydata] [k, v] in props.entries() {
+                // User properties set by the producer are always strings; convert defensively.
+                m[k] = v.toString();
+            }
+            metadata = m;
+        }
+
         api:Message message = {
             id: receivedMsg.applicationMessageId,
             payload: receivedMsg.payload,
-            deliveryCount: receivedMsg.deliveryCount
+            deliveryCount: receivedMsg.deliveryCount,
+            metadata
         };
         message[ORIGINAL_SOLACE_MSG] = receivedMsg;
         return message;

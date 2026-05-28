@@ -18,3 +18,9 @@ public const SUBSCRIPTION_TIMESTAMP = "timestamp";
 public const SUBSCRIPTION_STATUS = "status";
 public const SUBSCRIPTION_SERVER_ID = "serverId";
 
+// Metadata key used to carry the original publisher Content-Type through the message store.
+// Written by persistence:addUpdateMessage and read by websub_subscribers:constructContentDistMsg.
+// Absence of the key at delivery time is treated as "application/json" for backward compatibility
+// with messages already in-flight at deploy time.
+public const CONTENT_TYPE_METADATA_KEY = "x-hub-contentType";
+
