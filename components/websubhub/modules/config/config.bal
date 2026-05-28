@@ -32,7 +32,7 @@ public configurable common:ServerStateConfig state = ?;
 public configurable store:Config store = ?;
 
 # Message delivery related configurations
-public configurable common:HttpClientConfig delivery = ?;
+public configurable common:ContentDeliveryClientConfig delivery = ?;
 
 # Flag indicating whether security is enable or not. 
 # This is derived by checking whether server authentication configuration is available or not

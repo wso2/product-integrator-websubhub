@@ -186,8 +186,11 @@ isolated function pollForNewUpdates(string subscriberId, websubhub:VerifiedSubsc
 }
 
 isolated function deliverWithRetryReset(websubhub:HubClient clientEp, websubhub:ContentDistributionMessage notification) returns error? {
-    common:RetryConfig? 'retry = config:delivery.'retry;
-    if 'retry is () || !'retry.resetOnExhaust {
+    anydata 'retry = config:delivery.'retry;
+    if 'retry !is common:HttpRetryConfig {
+        return;
+    }
+    if !'retry.resetOnExhaust {
         _ = check clientEp->notifyContentDistribution(notification);
         return;
     }
