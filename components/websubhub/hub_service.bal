@@ -19,6 +19,7 @@ import websubhub.common;
 import websubhub.config;
 import websubhub.persistence as persist;
 import websubhub.security;
+import websubhub.state;
 
 import ballerina/http;
 import ballerina/log;
@@ -61,7 +62,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
 
     isolated function registerTopic(websubhub:TopicRegistration message) returns websubhub:TopicRegistrationError? {
         lock {
-            if registeredTopicsCache.hasKey(message.topic) {
+            if state:isTopicAvailable(message.topic) {
                 return error websubhub:TopicRegistrationError(
                     "Topic has already registered with the Hub", statusCode = http:STATUS_CONFLICT);
             }
@@ -96,7 +97,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
 
     isolated function deregisterTopic(websubhub:TopicRegistration message) returns websubhub:TopicDeregistrationError? {
         lock {
-            if !registeredTopicsCache.hasKey(message.topic) {
+            if !state:isTopicAvailable(message.topic) {
                 return error websubhub:TopicDeregistrationError(
                     "Topic has not been registered in the Hub", statusCode = http:STATUS_NOT_FOUND);
             }
@@ -138,23 +139,19 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
         if result is error {
             log:printDebug("Consuming messages from state-sync timed-out", 'error = result);
         }
-        boolean topicAvailable = false;
-        lock {
-            topicAvailable = registeredTopicsCache.hasKey(message.hubTopic);
-        }
-        if !topicAvailable {
+        if !state:isTopicAvailable(message.hubTopic) {
             return error websubhub:SubscriptionDeniedError(
                 "Topic [" + message.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
         } else {
             string subscriberId = common:generateSubscriberId(message.hubTopic, message.hubCallback);
-            websubhub:VerifiedSubscription? subscription = getSubscription(subscriberId);
+            websubhub:VerifiedSubscription? subscription = state:getSubscription(subscriberId);
             if subscription is () {
                 return;
             }
             if subscription.hasKey(common:SUBSCRIPTION_STATUS) && subscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTION_STALE_STATE {
                 return;
             }
-            if isValidSubscription(subscriberId) {
+            if state:isSubscriptionAvailable(subscriberId) {
                 return error websubhub:SubscriptionDeniedError(
                     "Subscriber has already registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
             }
@@ -180,7 +177,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
 
     isolated function prepareSubscriptionToBePersisted(websubhub:VerifiedSubscription message) returns websubhub:VerifiedSubscription {
         string subscriberId = common:generateSubscriberId(message.hubTopic, message.hubCallback);
-        websubhub:VerifiedSubscription? subscription = getSubscription(subscriberId);
+        websubhub:VerifiedSubscription? subscription = state:getSubscription(subscriberId);
         // if we have a stale subscription, remove the `status` flag from the subscription and persist it again
         if subscription is websubhub:VerifiedSubscription {
             websubhub:VerifiedSubscription updatedSubscription = {
@@ -214,16 +211,12 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     # + return - `websubhub:UnsubscriptionDeniedError` if the unsubscription is denied by the hub or else `()`
     isolated remote function onUnsubscriptionValidation(websubhub:Unsubscription message)
                 returns websubhub:UnsubscriptionDeniedError? {
-        boolean topicAvailable = false;
-        lock {
-            topicAvailable = registeredTopicsCache.hasKey(message.hubTopic);
-        }
-        if !topicAvailable {
+        if !state:isTopicAvailable(message.hubTopic) {
             return error websubhub:UnsubscriptionDeniedError(
                 "Topic [" + message.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
         } else {
             string subscriberId = common:generateSubscriberId(message.hubTopic, message.hubCallback);
-            if !isValidSubscription(subscriberId) {
+            if !state:isSubscriptionAvailable(subscriberId) {
                 return error websubhub:UnsubscriptionDeniedError("Could not find a valid subscriber for Topic ["
                                 + message.hubTopic + "] and Callback [" + message.hubCallback + "]", statusCode = http:STATUS_NOT_ACCEPTABLE);
             }
@@ -236,7 +229,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     # + return - `error` if there is any unexpected error else `()`
     isolated remote function onUnsubscriptionIntentVerified(websubhub:VerifiedUnsubscription message) returns error? {
         string subscriberId = common:generateSubscriberId(message.hubTopic, message.hubCallback);
-        websubhub:VerifiedSubscription? subscription = getSubscription(subscriberId);
+        websubhub:VerifiedSubscription? subscription = state:getSubscription(subscriberId);
         if subscription is () {
             return;
         }
@@ -268,11 +261,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     }
 
     isolated function updateMessage(websubhub:UpdateMessage msg, http:Headers headers) returns websubhub:UpdateMessageError? {
-        boolean topicAvailable = false;
-        lock {
-            topicAvailable = registeredTopicsCache.hasKey(msg.hubTopic);
-        }
-        if topicAvailable {
+        if state:isTopicAvailable(msg.hubTopic) {
             string? messageId = getMessageId(headers);
             map<string[]> metadata = getMetadata(headers);
             error? errorResponse = persist:addUpdateMessage(msg.hubTopic, msg, metadata, messageId);
