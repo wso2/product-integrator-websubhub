@@ -108,7 +108,7 @@ public type ContentDeliveryClientConfig record {|
     # Automatic retry settings for failed content delivery requests
     MessageStoreRetryConfig|HttpRetryConfig 'retry?;
     # SSL/TLS configurations for the HTTP client
-    http:ClientSecureSocket secureSocket?;  
+    http:ClientSecureSocket secureSocket?;
 |};
 
 # Provides configurations for controlling the retrying behavior in failure scenarios.
