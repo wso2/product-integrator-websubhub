@@ -42,7 +42,7 @@ isolated client class HttpRetryBasedDispatcher {
         self.dispatcherClient = check new (subscription, {
             httpVersion: http:HTTP_2_0,
             secureSocket: common:extractClientSecureSocketConfig(config:delivery.secureSocket),
-            retryConfig: common:extractHttpRetryConfig(config:delivery.'retry),
+            retryConfig: common:extractHttpRetryConfig(retryConfig),
             timeout: config:delivery.timeout
         });
         self.consumer = consumer;
