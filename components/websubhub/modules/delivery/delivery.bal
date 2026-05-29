@@ -16,16 +16,15 @@
 
 import websubhub.admin;
 import websubhub.common;
-import websubhub.config;
 import websubhub.connections as conn;
 import websubhub.persistence as persist;
 import websubhub.state;
 
-import ballerina/http;
-import ballerina/log;
 import ballerina/websubhub;
 
 import wso2/messagestore.api as storeapi;
+
+const NUMBER_OF_DEFAULT_ASYNC_WORKERS = 1;
 
 # Distributes a content notification to the specified subscriber using an async worker.
 # This function delivers the published content update associated with the
@@ -34,16 +33,17 @@ import wso2/messagestore.api as storeapi;
 #
 # + subscription - Verified subscription details
 # + return - An error if the content notification distribution fails
-public isolated function distributeContentNotification(websubhub:VerifiedSubscription subscription) returns error? {
+public isolated function distributeContentNotification(readonly & websubhub:VerifiedSubscription subscription) returns error? {
+    foreach int i in 0 ..< NUMBER_OF_DEFAULT_ASYNC_WORKERS {
+        _ = start startDispatchTask(subscription);
+    }
+}
+
+isolated function startDispatchTask(websubhub:VerifiedSubscription subscription) returns error? {
     string subscriberId = common:generateSubscriberId(subscription.hubTopic, subscription.hubCallback);
     string topic = subscription.hubTopic;
     storeapi:Consumer consumerEp = check conn:createConsumer(subscription);
-    websubhub:HubClient clientEp = check new (subscription, {
-        httpVersion: http:HTTP_2_0,
-        secureSocket: common:extractClientSecureSocketConfig(config:delivery.secureSocket),
-        retryConfig: common:extractHttpRetryConfig(config:delivery.'retry),
-        timeout: config:delivery.timeout
-    });
+    Dispatcher contentDispatcher = check new HttpRetryBasedDispatcher(subscription, consumerEp);
     do {
         while true {
             storeapi:Message? message = check consumerEp->receive();
@@ -56,21 +56,7 @@ public isolated function distributeContentNotification(websubhub:VerifiedSubscri
                 continue;
             }
 
-            websubhub:ContentDistributionMessage|error notification = constructContentDistMsg(message);
-            if notification is error {
-                log:printWarn("Error occurred while deserializing the message, hence pushing the message to DLQ", 'error = notification);
-                check consumerEp->deadLetter(message);
-                continue;
-            }
-
-            error? result = check deliverWithRetryReset(clientEp, notification);
-            if result is error {
-                check consumerEp->nack(message);
-                check result;
-            } else {
-                common:logContentDelivery(topic, subscription.hubCallback, message.id);
-                check consumerEp->ack(message);
-            }
+            check contentDispatcher->notifyContentDistribution(message);
         }
     } on fail var e {
         common:logRecoverableError("Error occurred while sending notification to subscriber", e);
@@ -133,27 +119,6 @@ public isolated function distributeContentNotification(websubhub:VerifiedSubscri
         if persistResult is error {
             common:logRecoverableError(
                     "Error occurred while persisting the stale subscription", persistResult, subscription = staleSubscription);
-        }
-    }
-}
-
-isolated function deliverWithRetryReset(websubhub:HubClient clientEp, websubhub:ContentDistributionMessage notification) returns error? {
-    common:RetryConfig? 'retry = config:delivery.'retry;
-    if 'retry is () || !'retry.resetOnExhaust {
-        _ = check clientEp->notifyContentDistribution(notification);
-        return;
-    }
-
-    while true {
-        websubhub:ContentDistributionSuccess|websubhub:Error result = clientEp->notifyContentDistribution(notification);
-        if result is websubhub:ContentDistributionSuccess {
-            return;
-        }
-
-        // Check whether the returned status code is a retryable status-code, if not return the error
-        int statusCode = result.detail().statusCode;
-        if 'retry.statusCodes.indexOf(statusCode) is () {
-            return result;
         }
     }
 }

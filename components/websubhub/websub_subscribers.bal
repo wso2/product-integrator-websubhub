@@ -67,7 +67,10 @@ isolated function processSubscription(websubhub:VerifiedSubscription subscriptio
         return;
     }
 
-    _ = start delivery:distributeContentNotification(subscription.cloneReadOnly());
+    error? result = delivery:distributeContentNotification(subscription.cloneReadOnly());
+    if result is error {
+        common:logRecoverableError("Error occurred while starting the async dispatcher for subscription", result, topic = subscription.hubTopic, callback = subscription.hubCallback);
+    }
 }
 
 isolated function processUnsubscription(websubhub:VerifiedUnsubscription unsubscription) returns error? {
