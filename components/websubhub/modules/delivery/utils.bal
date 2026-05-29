@@ -16,7 +16,9 @@
 
 import websubhub.common;
 import websubhub.config;
+
 import ballerina/websubhub;
+
 import wso2/messagestore.api as storeapi;
 
 isolated function validateRetryConfig() returns error? {
@@ -102,7 +104,7 @@ isolated function getRetryConfig() returns common:HttpRetryConfig|common:Message
 isolated function createDispatcher(websubhub:VerifiedSubscription subscription, storeapi:Consumer consumer) returns Dispatcher|error {
     common:HttpRetryConfig|common:MessageStoreRetryConfig? config = getRetryConfig();
     if config is common:MessageStoreRetryConfig {
-        return error("Not implemented");
+        return new MessageBrokerRetryBasedDispatcher(subscription, consumer, config.cloneReadOnly());
     }
     return new HttpRetryBasedDispatcher(subscription, consumer, config.cloneReadOnly());
 }

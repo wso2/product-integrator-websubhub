@@ -130,7 +130,9 @@ public type MessageStoreRetryConfig record {|
     # HTTP status for that should route the message to the DLQ
     int[] deadLetter?;
     # Action to take when the derived response does not match any entry in `redeliver` or `deadLetter`
-    "redeliver"|"deadLetter"|"fail" defaultAction = "fail";
+    RetryAction defaultAction = "fail";
     # Action to take when delivery fails due to a network-level failure
-    "redeliver"|"deadLetter"|"fail" networkFailureAction = "fail";
+    RetryAction networkFailureAction = "fail";
 |};
+
+public type RetryAction "redeliver"|"deadLetter"|"fail";
