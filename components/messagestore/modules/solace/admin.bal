@@ -299,6 +299,7 @@ isolated function resolveQueueName(SolaceQueueConfig? queueConfig, string queueI
         return val;
     }
     string postfix = queueConfig?.queueNamePostfix ?: "";
+    log:printDebug(string `Resolving queue name for queue: ${queueId}, postfix: ${postfix}`);
     string? queueNamePrefix = queueConfig?.queueNamePrefix;
     if queueNamePrefix is string {
         return string `${queueNamePrefix}${queueId}${postfix}`;
@@ -312,7 +313,9 @@ isolated function resolveDlqName(SolaceQueueConfig? queueConfig, string queueNam
         return val;
     }
     string dlqPostfix = queueConfig?.dlq?.postfix ?: "";
+    log:printDebug(string `Resolving DLQ name for queue: ${queueName}, dlqPostfix: ${dlqPostfix}`);
     string? dlqPrefix = queueConfig?.dlq?.prefix;
+    log:printDebug(string `Resolving DLQ name for queue: ${queueName}, dlqPrefix: ${dlqPrefix ?: "default"}`);
     if dlqPrefix is string {
         return string `${dlqPrefix}${queueName}${dlqPostfix}`;
     }
