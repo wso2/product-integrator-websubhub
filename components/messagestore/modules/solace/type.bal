@@ -64,8 +64,6 @@ public type SolaceConsumerConfig record {|
 public type SolaceQueueConfig record {|
     # Prefix used when generating the Solace queue name for consumer queues.
     string queueNamePrefix?;
-    # Postfix used when generating the Solace queue name for consumer queues.
-    string queueNamePostfix?;
     # DLQ additional configurations
     record {|
         # Prefix used when generating the Solace DLQ name.

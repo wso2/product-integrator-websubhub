@@ -298,13 +298,11 @@ isolated function resolveQueueName(SolaceQueueConfig? queueConfig, string queueI
     if val is string {
         return val;
     }
-    string postfix = queueConfig?.queueNamePostfix ?: "";
-    log:printDebug(string `Resolving queue name for queue: ${queueId}, postfix: ${postfix}`);
     string? queueNamePrefix = queueConfig?.queueNamePrefix;
     if queueNamePrefix is string {
-        return string `${queueNamePrefix}${queueId}${postfix}`;
+        return string `${queueNamePrefix}${queueId}`;
     }
-    return string `consumer-${queueId}${postfix}`;
+    return string `consumer-${queueId}`;
 }
 
 isolated function resolveDlqName(SolaceQueueConfig? queueConfig, string queueName, record {} meta) returns string {

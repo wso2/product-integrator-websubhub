@@ -38,8 +38,7 @@ public final storeapi:Consumer websubEventsConsumer = check initWebSubEventsCons
 
 function initWebSubEventsConsumer() returns storeapi:Consumer|error {
     log:printInfo("Initializing WebSub events consumer");
-    string consumerIdPostfix = config:state.events.consumerIdPostfix ?: "";
-    string websubEventsConsumerId = string `${config:state.events.consumerIdPrefix}-${config:serverId}${consumerIdPostfix}`;
+    string websubEventsConsumerId = string `${config:state.events.consumerIdPrefix}-${config:serverId}`;
     check admin:createWebSubEventsSubscription(config:state.events.topic, websubEventsConsumerId);
     log:printDebug("Created WebSub events subscription", consumerId = websubEventsConsumerId);
     return store:createConsumer(config:state.events.topic, websubEventsConsumerId, config:store, true);
