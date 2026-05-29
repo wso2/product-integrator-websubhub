@@ -96,7 +96,7 @@ public type HttpClientConfig record {|
     # The maximum time (in seconds) to wait for a response before the request times out
     decimal timeout = 60;
     # Automatic retry settings for failed HTTP requests
-    HttpRetryConfig 'retry?;
+    http:RetryConfig 'retry?;
     # SSL/TLS configurations for the HTTP client
     http:ClientSecureSocket secureSocket?;
 |};
