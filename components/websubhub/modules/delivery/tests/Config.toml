@@ -1,0 +1,54 @@
+# Test-only configuration for bal test.
+# Uses stub values for server/state/store so no real infrastructure is needed.
+# Key override: delivery.brokerRetry.interval = 0.0 so runtime:sleep() is a no-op.
+
+[websubhub.config.server]
+port = 9000
+id = "test-server"
+
+[websubhub.config.state.snapshot]
+url = "http://localhost:10001/consolidator/state-snapshot"
+
+[websubhub.config.state.events]
+topic = "websub-events-test"
+consumerIdPrefix = "test-events-consumer"
+
+[websubhub.config.store.solace]
+url = "tcp://localhost:55554"
+messageVpn = "default"
+auth.username = "admin"
+auth.password = "admin"
+
+[websubhub.config.store.solace.consumer]
+receiveTimeout = 1.0
+
+[websubhub.config.store.solace.admin]
+url = "http://localhost:8085/SEMP/v2/config"
+timeout = 5.0
+auth.username = "admin"
+auth.password = "admin"
+
+[websubhub.config.store.solace.queue]
+queueNamePrefix = "test-consumer-"
+dlq.prefix = "test-dlq-"
+dlq.deleteCustomOnUnsubscription = false
+messageQueueQuota = 100
+queueOwner = "default"
+nonOwnerPermission = "no-access"
+deliveryCountEnabled = true
+respectTtl = false
+maxTtl = 0
+redeliver.maxCount = 2
+
+[websubhub.config.delivery]
+deliveryMode = "BROKER_RETRY"
+timeout = 5.0
+
+[websubhub.config.delivery.brokerRetry]
+ackStatusCodes            = [200, 201, 202, 204]
+recoverableStatusCodes    = [500, 502, 503, 504]
+nonRecoverableStatusCodes = [400, 401, 403, 404, 410]
+unknownStatusCodes        = "recoverable"
+timeoutError              = "recoverable"
+networkError              = "recoverable"
+interval                  = 0.0    # zero → runtime:sleep() is a no-op in unit tests

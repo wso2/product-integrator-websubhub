@@ -13,67 +13,71 @@ url = "http://localhost:10001/consolidator/state-snapshot"
 topic = "websub-events"
 consumerIdPrefix = "websub-events-consumer"
 
-[websubhub.config.store.kafka]
-bootstrapServers = "localhost:9092"
+# [websubhub.config.store.kafka]
+# bootstrapServers = "localhost:9092"
 
-[websubhub.config.store.kafka.producer]
-acks = "all"
-retryCount = 3
+# [websubhub.config.store.kafka.producer]
+# acks = "all"
+# retryCount = 3
 
-[websubhub.config.store.kafka.consumer]
-maxPollRecords = 50
-pollingInterval = 10.0
-gracefulClosePeriod = 5.0
+# [websubhub.config.store.kafka.consumer]
+# maxPollRecords = 50
+# pollingInterval = 10.0
+# gracefulClosePeriod = 5.0
 
-# [websubhub.config.store.solace]
-# url = "tcp://localhost:55554"
-# messageVpn = "default"
-# auth.username = "admin"
-# auth.password = "admin"
+[websubhub.config.store.solace]
+url = "tcp://localhost:55554"
+messageVpn = "default"
+auth.username = "admin"
+auth.password = "admin"
 
-# [websubhub.config.store.solace.consumer]
-# receiveTimeout = 10.0
+[websubhub.config.store.solace.consumer]
+receiveTimeout = 10.0
 
-# [websubhub.config.store.solace.admin]
-# url = "http://localhost:8085/SEMP/v2/config"
-# timeout = 30.0
-# auth.username = "admin"
-# auth.password = "admin"
+[websubhub.config.store.solace.admin]
+url = "http://localhost:8085/SEMP/v2/config"
+timeout = 30.0
+auth.username = "admin"
+auth.password = "admin"
 
-# [websubhub.config.store.solace.queue]
-# queueNamePrefix = "consumer-"
-# dlq.prefix = "dlq-"
-# dlq.deleteCustomOnUbsubscription = false
-# messageQueueQuota = 5000
-# queueOwner = "default"
-# nonOwnerPermission = "no-access"
-# deliveryCountEnabled = true
-# respectTtl = false
-# maxTtl = 0
-# redeliver.maxCount = 10
+[websubhub.config.store.solace.queue]
+queueNamePrefix = "consumer-"
+dlq.prefix = "dlq-"
+dlq.deleteCustomOnUnsubscription = false
+messageQueueQuota = 5000
+queueOwner = "default"
+nonOwnerPermission = "no-access"
+deliveryCountEnabled = true
+respectTtl = false
+maxTtl = 0
+redeliver.maxCount = 10
 
 [websubhub.config.delivery]
+# deliveryMode = "WSH_RETRY"    # default — WSH owns HTTP retry loop, marks subscription stale on exhaustion
+deliveryMode = "BROKER_RETRY"   # opt-in — WSH delivers once, broker owns retry count / DMQ routing
 timeout = 60.0
 
-[websubhub.config.delivery.retry]
-count = 3
+# WSH_RETRY retry settings (used when deliveryMode = "WSH_RETRY")
+# [websubhub.config.delivery.retry]
+# count = 3
+# interval = 3.0
+# backOffFactor = 2.0
+# maxWaitInterval = 30.0
+# statusCodes = [500, 502, 503, 504]
+# resetOnExhaust = false
+
+# BROKER_RETRY classification settings (used when deliveryMode = "BROKER_RETRY")
+[websubhub.config.delivery.brokerRetry]
+ackStatusCodes = [200, 201, 202, 204]
+recoverableStatusCodes = [500, 502, 503, 504]
+nonRecoverableStatusCodes = [400, 401, 403, 404, 410]
+unknownStatusCodes = "recoverable"
+timeoutError = "recoverable"
+networkError = "recoverable"
 interval = 3.0
-backOffFactor = 2.0
-maxWaitInterval = 20.0
-statusCodes = [500, 502, 503]
-resetOnExhaust = false
 
 [ballerina.log]
 level = "DEBUG"
 
 [ballerina.observe]
-tracingEnabled=true
-tracingProvider="jaeger"
-
-[ballerinax.jaeger]
-agentHostname="localhost"
-agentPort=4317
-samplerType="const"
-samplerParam=1.0
-reporterFlushInterval=2000
-reporterBufferSize=1000
+tracingEnabled=false
