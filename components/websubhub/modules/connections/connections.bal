@@ -19,6 +19,7 @@ import websubhub.common;
 import websubhub.config;
 
 import ballerina/lang.value;
+import ballerina/log;
 import ballerina/websubhub;
 
 import wso2/messagestore as store;
@@ -36,8 +37,11 @@ function initStatePersistProducer() returns storeapi:Producer|error {
 public final storeapi:Consumer websubEventsConsumer = check initWebSubEventsConsumer();
 
 function initWebSubEventsConsumer() returns storeapi:Consumer|error {
-    string websubEventsConsumerId = string `${config:state.events.consumerIdPrefix}-${config:serverId}`;
+    log:printInfo("Initializing WebSub events consumer");
+    string consumerIdPostfix = config:state.events.consumerIdPostfix ?: "";
+    string websubEventsConsumerId = string `${config:state.events.consumerIdPrefix}-${config:serverId}${consumerIdPostfix}`;
     check admin:createWebSubEventsSubscription(config:state.events.topic, websubEventsConsumerId);
+    log:printDebug("Created WebSub events subscription", consumerId = websubEventsConsumerId);
     return store:createConsumer(config:state.events.topic, websubEventsConsumerId, config:store, true);
 }
 

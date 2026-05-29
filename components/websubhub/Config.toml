@@ -12,45 +12,43 @@ url = "http://localhost:10001/consolidator/state-snapshot"
 [websubhub.config.state.events]
 topic = "websub-events"
 consumerIdPrefix = "websub-events-consumer"
+# consumerIdPostfix = "-prod"
 
-[websubhub.config.store.kafka]
-bootstrapServers = "localhost:9092"
+# [websubhub.config.store.kafka]
+# bootstrapServers = "localhost:9092"
 
-[websubhub.config.store.kafka.producer]
-acks = "all"
-retryCount = 3
+# [websubhub.config.store.kafka.producer]
+# acks = "all"
+# retryCount = 3
 
-[websubhub.config.store.kafka.consumer]
-maxPollRecords = 50
-pollingInterval = 10.0
-gracefulClosePeriod = 5.0
+# [websubhub.config.store.kafka.consumer]
+# maxPollRecords = 50
+# pollingInterval = 10.0
+# gracefulClosePeriod = 5.0
 
-# [websubhub.config.store.solace]
-# url = "tcp://localhost:55554"
-# messageVpn = "default"
-# auth.username = "admin"
-# auth.password = "admin"
+[websubhub.config.store.solace]
+url = "tcp://localhost:55554"
+messageVpn = "default"
+auth.username = "admin"
+auth.password = "admin"
 
-# [websubhub.config.store.solace.consumer]
-# receiveTimeout = 10.0
+[websubhub.config.store.solace.consumer]
+receiveTimeout = 10.0
 
-# [websubhub.config.store.solace.admin]
-# url = "http://localhost:8085/SEMP/v2/config"
-# timeout = 30.0
-# auth.username = "admin"
-# auth.password = "admin"
+[websubhub.config.store.solace.admin]
+url = "http://localhost:8085/SEMP/v2/config"
+timeout = 30.0
+auth.username = "admin"
+auth.password = "admin"
 
-# [websubhub.config.store.solace.queue]
-# queueNamePrefix = "consumer-"
-# dlq.prefix = "dlq-"
-# dlq.deleteCustomOnUbsubscription = false
-# messageQueueQuota = 5000
-# queueOwner = "default"
-# nonOwnerPermission = "no-access"
-# deliveryCountEnabled = true
-# respectTtl = false
-# maxTtl = 0
-# redeliver.maxCount = 10
+[websubhub.config.store.solace.queue]
+queueNamePrefix = "consumer-"
+# queueNamePostfix = "-consumer"
+dlq.prefix = "dlq-"
+# dlq.postfix = "-dlq"
+queueOwner = "default"
+deliveryCountEnabled = true
+redeliver.maxCount = 2
 
 [websubhub.config.delivery]
 timeout = 60.0

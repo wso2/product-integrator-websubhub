@@ -86,8 +86,10 @@ public type ServerStateConfig record {|
         string topic;
         # The prefix used for the message-store consumer ID when handling state update events.
         # The full consumer ID is formed by concatenating `<consumerIdPrefix>` with `<server-id>`
-        # (for example, `websub-events-consumer-hub-1`).
+        # and optionally `<consumerIdPostfix>` (for example, `websub-events-consumer-hub-1-prod`).
         string consumerIdPrefix;
+        # The optional postfix appended to the message-store consumer ID after the server-id.
+        string consumerIdPostfix?;
     |} events;
 |};
 

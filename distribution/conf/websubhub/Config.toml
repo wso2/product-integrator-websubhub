@@ -12,6 +12,7 @@ url = "http://localhost:10001/consolidator/state-snapshot"
 [websubhub.config.state.events]
 topic = "websub-events"
 consumerIdPrefix = "websub-events-consumer"
+# consumerIdPostfix = "-prod"
 
 [websubhub.config.store.kafka]
 bootstrapServers = "localhost:9092"
@@ -42,7 +43,9 @@ gracefulClosePeriod = 5.0
 
 # [websubhub.config.store.solace.queue]
 # queueNamePrefix = "consumer-"
+# queueNamePostfix = "-consumer"
 # dlq.prefix = "dlq-"
+# dlq.postfix = "-dlq"
 # dlq.deleteCustomOnUbsubscription = false
 # messageQueueQuota = 5000
 # queueOwner = "default"

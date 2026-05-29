@@ -298,11 +298,13 @@ isolated function resolveQueueName(SolaceQueueConfig? queueConfig, string queueI
     if val is string {
         return val;
     }
+    string postfix = queueConfig?.queueNamePostfix ?: "";
+    log:printDebug(string `Resolving queue name for queue: ${queueId}, postfix: ${postfix}`);
     string? queueNamePrefix = queueConfig?.queueNamePrefix;
     if queueNamePrefix is string {
-        return string `${queueNamePrefix}${queueId}`;
+        return string `${queueNamePrefix}${queueId}${postfix}`;
     }
-    return string `consumer-${queueId}`;
+    return string `consumer-${queueId}${postfix}`;
 }
 
 isolated function resolveDlqName(SolaceQueueConfig? queueConfig, string queueName, record {} meta) returns string {
@@ -310,11 +312,14 @@ isolated function resolveDlqName(SolaceQueueConfig? queueConfig, string queueNam
     if val is string {
         return val;
     }
+    string dlqPostfix = queueConfig?.dlq?.postfix ?: "";
+    log:printDebug(string `Resolving DLQ name for queue: ${queueName}, dlqPostfix: ${dlqPostfix}`);
     string? dlqPrefix = queueConfig?.dlq?.prefix;
+    log:printDebug(string `Resolving DLQ name for queue: ${queueName}, dlqPrefix: ${dlqPrefix ?: "default"}`);
     if dlqPrefix is string {
-        return string `${dlqPrefix}${queueName}`;
+        return string `${dlqPrefix}${queueName}${dlqPostfix}`;
     }
-    return string `dlq-${queueName}`;
+    return string `dlq-${queueName}${dlqPostfix}`;
 }
 
 isolated function buildQueuePayload(string queueName, string? dlqName, SolaceQueueConfig? queueConfig, record {} meta) returns semp:MsgVpnQueue|error {
