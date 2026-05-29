@@ -16,7 +16,6 @@
 
 import websubhub.admin;
 import websubhub.common;
-import websubhub.config;
 import websubhub.connections as conn;
 import websubhub.persistence as persist;
 import websubhub.state;
@@ -27,6 +26,8 @@ import ballerina/log;
 import ballerina/websubhub;
 
 import wso2/messagestore.api as storeapi;
+
+const NUMBER_OF_DEFAULT_ASYNC_WORKERS = 1;
 
 # Distributes a content notification to the specified subscriber using an async worker.
 # This function delivers the published content update associated with the
@@ -41,7 +42,13 @@ import wso2/messagestore.api as storeapi;
 #
 # + subscription - Verified subscription details
 # + return - An error if the content notification distribution fails
-public isolated function distributeContentNotification(websubhub:VerifiedSubscription subscription) returns error? {
+public isolated function distributeContentNotification(readonly & websubhub:VerifiedSubscription subscription) returns error? {
+    foreach int i in 0 ..< NUMBER_OF_DEFAULT_ASYNC_WORKERS {
+        _ = start startDispatchTask(subscription);
+    }
+}
+
+isolated function startDispatchTask(websubhub:VerifiedSubscription subscription) returns error? {
     string subscriberId = common:generateSubscriberId(subscription.hubTopic, subscription.hubCallback);
     string topic = subscription.hubTopic;
     storeapi:Consumer consumerEp = check conn:createConsumer(subscription);
@@ -67,6 +74,7 @@ public isolated function distributeContentNotification(websubhub:VerifiedSubscri
         });
     }
 
+    Dispatcher contentDispatcher = check new HttpRetryBasedDispatcher(subscription, consumerEp);
     do {
         while true {
             storeapi:Message? message = check consumerEp->receive();
@@ -98,6 +106,7 @@ public isolated function distributeContentNotification(websubhub:VerifiedSubscri
                     check consumerEp->ack(message);
                 }
             }
+            check contentDispatcher->notifyContentDistribution(message);
         }
     } on fail var e {
         common:logRecoverableError("Error occurred while sending notification to subscriber", e);
