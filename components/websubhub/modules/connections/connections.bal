@@ -36,7 +36,8 @@ function initStatePersistProducer() returns storeapi:Producer|error {
 public final storeapi:Consumer websubEventsConsumer = check initWebSubEventsConsumer();
 
 function initWebSubEventsConsumer() returns storeapi:Consumer|error {
-    string websubEventsConsumerId = string `${config:state.events.consumerIdPrefix}-${config:serverId}`;
+    string consumerIdPostfix = config:state.events.consumerIdPostfix ?: "";
+    string websubEventsConsumerId = string `${config:state.events.consumerIdPrefix}-${config:serverId}${consumerIdPostfix}`;
     check admin:createWebSubEventsSubscription(config:state.events.topic, websubEventsConsumerId);
     return store:createConsumer(config:state.events.topic, websubEventsConsumerId, config:store, true);
 }
