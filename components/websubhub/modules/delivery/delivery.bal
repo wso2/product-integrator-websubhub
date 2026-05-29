@@ -43,7 +43,7 @@ isolated function startDispatchTask(websubhub:VerifiedSubscription subscription)
     string subscriberId = common:generateSubscriberId(subscription.hubTopic, subscription.hubCallback);
     string topic = subscription.hubTopic;
     storeapi:Consumer consumerEp = check conn:createConsumer(subscription);
-    Dispatcher contentDispatcher = check new HttpRetryBasedDispatcher(subscription, consumerEp);
+    Dispatcher contentDispatcher = check createDispatcher(subscription, consumerEp);
     do {
         while true {
             storeapi:Message? message = check consumerEp->receive();

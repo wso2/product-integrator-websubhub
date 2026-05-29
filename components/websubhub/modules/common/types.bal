@@ -106,7 +106,10 @@ public type ContentDeliveryClientConfig record {|
     # The maximum time (in seconds) to wait for a response before the request times out
     decimal timeout = 60;
     # Automatic retry settings for failed content delivery requests
-    MessageStoreRetryConfig|HttpRetryConfig 'retry?;
+    record {|
+        *MessageStoreRetryConfig;
+        *HttpRetryConfig;
+    |} 'retry?;
     # SSL/TLS configurations for the HTTP client
     http:ClientSecureSocket secureSocket?;
 |};

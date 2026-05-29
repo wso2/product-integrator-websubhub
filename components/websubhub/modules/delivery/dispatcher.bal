@@ -38,7 +38,7 @@ isolated client class HttpRetryBasedDispatcher {
     private final string callback;
     private final common:HttpRetryConfig? & readonly 'retry;
 
-    isolated function init(websubhub:VerifiedSubscription subscription, storeapi:Consumer consumer) returns error? {
+    isolated function init(websubhub:VerifiedSubscription subscription, storeapi:Consumer consumer, readonly & common:HttpRetryConfig? retryConfig) returns error? {
         self.dispatcherClient = check new (subscription, {
             httpVersion: http:HTTP_2_0,
             secureSocket: common:extractClientSecureSocketConfig(config:delivery.secureSocket),
@@ -48,8 +48,7 @@ isolated client class HttpRetryBasedDispatcher {
         self.consumer = consumer;
         self.topic = subscription.hubTopic;
         self.callback = subscription.hubCallback;
-        var 'retry = config:delivery.'retry;
-        self.'retry = 'retry is common:HttpRetryConfig ? 'retry : ();
+        self.'retry = retryConfig;
     }
 
     isolated remote function notifyContentDistribution(storeapi:Message message) returns error? {
