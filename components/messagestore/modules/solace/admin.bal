@@ -314,6 +314,10 @@ isolated function resolveDlqName(SolaceQueueConfig? queueConfig, string queueNam
     if dlqPrefix is string {
         return string `${dlqPrefix}${queueName}`;
     }
+    string? dlqPostfix = queueConfig?.dlq?.postfix;
+    if dlqPostfix is string {
+        return string `${queueName}${dlqPostfix}`;
+    }
     return string `dlq-${queueName}`;
 }
 

@@ -67,7 +67,9 @@ public type SolaceQueueConfig record {|
     # DLQ additional configurations
     record {|
         # Prefix used when generating the Solace DLQ name.
-        string prefix = "dlq-";
+        string prefix?;
+        # Postfix used when generating the Solace DLQ name.
+        string postfix?;
         # Delete the custom DLQ on unsubscription request. 
         boolean deleteCustomOnUbsubscription = true;
     |} dlq?;
