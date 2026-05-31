@@ -18,6 +18,7 @@ import websubhub.common;
 import websubhub.config;
 
 import ballerina/http;
+import ballerina/lang.runtime;
 import ballerina/log;
 import ballerina/websubhub;
 
@@ -36,17 +37,19 @@ isolated client class HttpRetryBasedDispatcher {
     private final storeapi:Consumer consumer;
     private final string topic;
     private final string callback;
+    private final common:HttpRetryConfig? & readonly 'retry;
 
-    isolated function init(websubhub:VerifiedSubscription subscription, storeapi:Consumer consumer) returns error? {
+    isolated function init(websubhub:VerifiedSubscription subscription, storeapi:Consumer consumer, readonly & common:HttpRetryConfig? retryConfig) returns error? {
         self.dispatcherClient = check new (subscription, {
             httpVersion: http:HTTP_2_0,
             secureSocket: common:extractClientSecureSocketConfig(config:delivery.secureSocket),
-            retryConfig: common:extractHttpRetryConfig(config:delivery.'retry),
+            retryConfig: common:extractHttpRetryConfig(retryConfig),
             timeout: config:delivery.timeout
         });
         self.consumer = consumer;
         self.topic = subscription.hubTopic;
         self.callback = subscription.hubCallback;
+        self.'retry = retryConfig;
     }
 
     isolated remote function notifyContentDistribution(storeapi:Message message) returns error? {
@@ -68,7 +71,7 @@ isolated client class HttpRetryBasedDispatcher {
     }
 
     isolated function deliverWithRetryReset(websubhub:ContentDistributionMessage notification) returns error? {
-        common:RetryConfig? 'retry = config:delivery.'retry;
+        var 'retry = self.'retry;
         if 'retry is () || !'retry.resetOnExhaust {
             _ = check self.dispatcherClient->notifyContentDistribution(notification);
             return;
@@ -86,5 +89,77 @@ isolated client class HttpRetryBasedDispatcher {
                 return result;
             }
         }
+    }
+}
+
+isolated client class MessageBrokerRetryBasedDispatcher {
+    *Dispatcher;
+
+    private final websubhub:HubClient dispatcherClient;
+    private final storeapi:Consumer consumer;
+    private final string topic;
+    private final string callback;
+    private final common:MessageStoreRetryConfig & readonly 'retry;
+
+    isolated function init(websubhub:VerifiedSubscription subscription, storeapi:Consumer consumer, readonly & common:MessageStoreRetryConfig retryConfig) returns error? {
+        self.dispatcherClient = check new (subscription, {
+            httpVersion: http:HTTP_2_0,
+            secureSocket: common:extractClientSecureSocketConfig(config:delivery.secureSocket),
+            timeout: config:delivery.timeout
+        });
+        self.consumer = consumer;
+        self.topic = subscription.hubTopic;
+        self.callback = subscription.hubCallback;
+        self.'retry = retryConfig;
+    }
+
+    isolated remote function notifyContentDistribution(storeapi:Message message) returns error? {
+        websubhub:ContentDistributionMessage|error notification = constructContentDistMsg(message);
+        if notification is error {
+            log:printWarn("Error occurred while deserializing the message, hence pushing the message to DLQ", 'error = notification);
+            check self.consumer->deadLetter(message);
+            return;
+        }
+
+        websubhub:ContentDistributionSuccess|websubhub:Error result = self.dispatcherClient->notifyContentDistribution(notification);
+        if result is websubhub:ContentDistributionSuccess {
+            common:logContentDelivery(self.topic, self.callback, message.id);
+            check self.consumer->ack(message);
+            return;
+        }
+
+        int statusCode = result.detail().statusCode;
+        common:RetryAction action = self.resolveRetryAction(statusCode);
+        log:printDebug("Received errror response for content-delivery from the subscriber", messageId = message.id ?: "[No Message Id]", status = statusCode, action = action);
+
+        if action === "redeliver" {
+            check self.consumer->nack(message);
+            runtime:sleep(self.'retry.delay);
+            return;
+        }
+
+        if action === "deadLetter" {
+            check self.consumer->deadLetter(message);
+            return;
+        }
+
+        if action === "fail" {
+            return result;
+        }
+    }
+
+    isolated function resolveRetryAction(int responseStatusCode) returns common:RetryAction {
+        int[]? redeliver = self.'retry.redeliver;
+        if redeliver !is () && redeliver.indexOf(responseStatusCode) is int {
+            return "redeliver";
+        }
+        int[]? deadLetter = self.'retry.deadLetter;
+        if deadLetter !is () && deadLetter.indexOf(responseStatusCode) is int {
+            return "deadLetter";
+        }
+        if responseStatusCode >= 400 && responseStatusCode < 600 {
+            return self.'retry.defaultAction;
+        }
+        return self.'retry.networkFailureAction;
     }
 }

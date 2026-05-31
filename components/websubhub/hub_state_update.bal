@@ -30,7 +30,7 @@ function initializeHubState() returns error? {
     if config is common:HttpClientConfig {
         http:ClientConfiguration clientConfig = {
             timeout: config.timeout,
-            retryConfig: common:extractHttpRetryConfig(config:delivery.'retry),
+            retryConfig: config?.'retry,
             secureSocket: config.secureSocket
         };
         stateSnapshot = check new (config:state.snapshot.url, clientConfig);
@@ -39,7 +39,7 @@ function initializeHubState() returns error? {
     }
     do {
         common:SystemStateSnapshot systemStateSnapshot = check stateSnapshot->/;
-        check processWebsubTopicsSnapshotState(systemStateSnapshot.topics);
+        processWebsubTopicsSnapshotState(systemStateSnapshot.topics);
         check processWebsubSubscriptionsSnapshotState(systemStateSnapshot.subscriptions);
         // Start hub-state update worker
         _ = start updateHubState();
@@ -79,11 +79,11 @@ function processStateUpdateEvent(string persistedData) returns error? {
     match event.hubMode {
         "register" => {
             websubhub:TopicRegistration topicRegistration = check event.fromJsonWithType();
-            check processTopicRegistration(topicRegistration);
+            processTopicRegistration(topicRegistration);
         }
         "deregister" => {
             websubhub:TopicDeregistration topicDeregistration = check event.fromJsonWithType();
-            check processTopicDeregistration(topicDeregistration);
+            processTopicDeregistration(topicDeregistration);
         }
         "subscribe" => {
             websubhub:VerifiedSubscription subscription = check event.fromJsonWithType();

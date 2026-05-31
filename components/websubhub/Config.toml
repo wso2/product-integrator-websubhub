@@ -63,6 +63,13 @@ maxWaitInterval = 20.0
 statusCodes = [500, 502, 503]
 resetOnExhaust = false
 
+# [websubhub.config.delivery.retry]
+# delay = 20.0
+# redeliver = [500, 502, 503]
+# deadLetter = [400]
+# defaultAction = "redeliver"
+# networkFailureAction = "deadLetter"
+
 [ballerina.log]
 level = "DEBUG"
 

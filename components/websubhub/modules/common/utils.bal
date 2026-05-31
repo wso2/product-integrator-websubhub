@@ -62,8 +62,8 @@ public isolated function logContentDelivery(string topic, string callback, strin
 # + config - Optional retry configuration used to construct the `http:RetryConfig`
 # + return - The constructed `http:RetryConfig` if a configuration is provided,
 # otherwise `()`
-public isolated function extractHttpRetryConfig(RetryConfig? config) returns http:RetryConfig? {
-    if config is RetryConfig {
+public isolated function extractHttpRetryConfig(anydata config) returns http:RetryConfig? {
+    if config is HttpRetryConfig {
         var {resetOnExhaust, ...httpRetryConfig} = config;
         return httpRetryConfig;
     }
