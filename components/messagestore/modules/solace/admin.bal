@@ -73,7 +73,7 @@ public isolated client class Administrator {
 
     isolated remote function createSubscription(string topic, string queueName, boolean systemSubscriber = false, record {} meta = {}) returns api:SubscriptionExists|error? {
         string effectiveQueueName = systemSubscriber ? queueName : resolveQueueName(self.queueConfig, queueName, meta);
-        string effectiveDlqName = resolveDlqName(self.queueConfig, effectiveQueueName, meta);
+        string effectiveDlqName = resolveDlqName(self.queueConfig, effectiveQueueName, meta, systemSubscriber);
         log:printWarn("Creating topic subscription for ", topic = topic, queue = effectiveQueueName, dlq = effectiveDlqName);
         semp:MsgVpnQueue|error queue = self.retrieveQueue(effectiveQueueName);
         if queue is SolaceQueueNotFound {
@@ -92,7 +92,7 @@ public isolated client class Administrator {
 
     isolated remote function deleteSubscription(string topic, string queueName, boolean systemSubscriber = false, record {} meta = {}) returns api:SubscriptionNotFound|error? {
         string effectiveQueueName = systemSubscriber ? queueName : resolveQueueName(self.queueConfig, queueName, meta);
-        string effectiveDlqName = resolveDlqName(self.queueConfig, effectiveQueueName, meta);
+        string effectiveDlqName = resolveDlqName(self.queueConfig, effectiveQueueName, meta, systemSubscriber);
         log:printWarn("Deleting topic subscription for ", topic = topic, queue = effectiveQueueName, dlq = effectiveDlqName);
         semp:MsgVpnQueueSubscription[]? subscriptions = check self.retrieveTopicSubscriptions(effectiveQueueName);
         if subscriptions is () {
@@ -305,7 +305,10 @@ isolated function resolveQueueName(SolaceQueueConfig? queueConfig, string queueI
     return string `consumer-${queueId}`;
 }
 
-isolated function resolveDlqName(SolaceQueueConfig? queueConfig, string queueName, record {} meta) returns string {
+isolated function resolveDlqName(SolaceQueueConfig? queueConfig, string queueName, record {} meta, boolean systemSubscriber) returns string {
+    if systemSubscriber {
+        return string `dlq-${queueName}`;        
+    }
     anydata val = meta[META_DLQ_NAME];
     if val is string {
         return val;
