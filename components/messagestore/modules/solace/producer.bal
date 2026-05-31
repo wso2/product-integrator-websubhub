@@ -16,6 +16,8 @@
 
 import messagestore.api;
 
+import ballerina/log;
+
 import xlibb/solace;
 
 public isolated client class Producer {
@@ -38,13 +40,18 @@ public isolated client class Producer {
     }
 
     isolated remote function send(string topic, api:Message message) returns error? {
-        // todo: Setting properties will throw an error, hence ignoring setting properties for now
+        log:printDebug("Sending message to topic", topic = topic, messageId = message.id);
         check self.producer->send(
             {topicName: topic},
             {
-            applicationMessageId: message.id,
-            payload: message.payload
-        }
+                applicationMessageId: message.id,
+                payload: message.payload,
+                // PERSISTENT ensures the message is spooled to subscriber queues for guaranteed delivery.
+                // dmqEligible=true is required for the broker to route the message to the Dead Message Queue
+                // when max-redelivery is exceeded (FAILED nack) or on REJECTED nack (deadLetter()).
+                deliveryMode: solace:PERSISTENT,
+                dmqEligible: true
+            }
         );
     }
 

@@ -22,6 +22,9 @@ public type Message record {
     byte[] payload;
     # The metadata associated with the message (e.g., Kafka message headers or JMS message properties)
     map<string|string[]> metadata?;
+    # The number of times this message has been delivered by the broker (1 = first attempt).
+    # Populated by broker implementations that track delivery count; () if not available.
+    int deliveryCount?;
 };
 
 # Represents the intent of closing a `Consumer`. This is used to indicate how the underlying broker-side resources

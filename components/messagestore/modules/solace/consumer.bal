@@ -51,7 +51,8 @@ isolated client class Consumer {
         }
         api:Message message = {
             id: receivedMsg.applicationMessageId,
-            payload: receivedMsg.payload
+            payload: receivedMsg.payload,
+            deliveryCount: receivedMsg.deliveryCount
         };
         message[ORIGINAL_SOLACE_MSG] = receivedMsg;
         return message;
