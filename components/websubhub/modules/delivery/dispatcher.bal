@@ -123,11 +123,15 @@ isolated client class MessageBrokerRetryBasedDispatcher {
 
         websubhub:ContentDistributionSuccess|websubhub:Error result = self.dispatcherClient->notifyContentDistribution(notification);
         if result is websubhub:ContentDistributionSuccess {
+            common:logContentDelivery(self.topic, self.callback, message.id);
+            check self.consumer->ack(message);
             return;
         }
 
         int statusCode = result.detail().statusCode;
         common:RetryAction action = self.resolveRetryAction(statusCode);
+        log:printDebug("Received errror response for content-delivery from the subscriber", messageId = message.id ?: "[No Message Id]", status = statusCode, action = action);
+
         if action === "redeliver" {
             check self.consumer->nack(message);
             runtime:sleep(self.'retry.delay);
