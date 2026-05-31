@@ -42,7 +42,7 @@ gracefulClosePeriod = 5.0
 
 # [websubhub.config.store.solace.queue]
 # queueNamePrefix = "consumer-"
-# dlq.prefix = "dlq-"
+# dlq.postfix = "-dlq"
 # dlq.deleteCustomOnUbsubscription = false
 # messageQueueQuota = 5000
 # queueOwner = "default"
