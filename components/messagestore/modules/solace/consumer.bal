@@ -16,6 +16,7 @@
 
 import messagestore.api;
 
+import ballerina/log;
 import xlibb/solace;
 
 const string ORIGINAL_SOLACE_MSG = "originalMessage";
@@ -61,6 +62,10 @@ isolated client class Consumer {
             }
             metadata = restored;
         }
+        log:printDebug("[Solace MessageStore] Received message",
+                messageId = receivedMsg.applicationMessageId ?: "(none)",
+                payloadSize = receivedMsg.payload.length(),
+                metadataCount = metadata is map<string|string[]> ? metadata.length() : 0);
         api:Message message = {
             id: receivedMsg.applicationMessageId,
             payload: receivedMsg.payload,

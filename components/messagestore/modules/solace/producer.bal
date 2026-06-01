@@ -16,6 +16,7 @@
 
 import messagestore.api;
 
+import ballerina/log;
 import xlibb/solace;
 
 public isolated client class Producer {
@@ -51,6 +52,10 @@ public isolated client class Producer {
             }
             properties = props;
         }
+        log:printDebug("[Solace MessageStore] Publishing message",
+                topic = topic, messageId = message.id ?: "(none)",
+                payloadSize = message.payload.length(),
+                propertyCount = properties is map<anydata> ? properties.length() : 0);
         check self.producer->send(
             {topicName: topic},
             {

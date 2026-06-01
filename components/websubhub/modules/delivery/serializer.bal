@@ -17,6 +17,7 @@
 import websubhub.common;
 
 import ballerina/lang.value;
+import ballerina/log;
 import ballerina/mime;
 import ballerina/websubhub;
 
@@ -32,6 +33,11 @@ isolated function constructContentDistMsg(storeapi:Message message) returns webs
         string|string[] ctValue = metadata.get(common:CONTENT_TYPE_METADATA_KEY);
         contentType = ctValue is string ? ctValue : (ctValue.length() > 0 ? ctValue[0] : mime:APPLICATION_JSON);
     }
+
+    log:printDebug("Reconstructing content distribution message",
+            messageId = message.id ?: "(none)", contentType = contentType,
+            path = contentType == mime:APPLICATION_JSON ? "json-parse" : "raw-passthrough",
+            payloadSize = message.payload.length());
 
     websubhub:ContentDistributionMessage distributionMsg;
     if contentType == mime:APPLICATION_JSON {

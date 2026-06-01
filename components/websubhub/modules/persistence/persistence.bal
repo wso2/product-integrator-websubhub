@@ -116,6 +116,10 @@ public isolated function addUpdateMessage(string topicName, websubhub:UpdateMess
     }
     enrichedMetadata[common:CONTENT_TYPE_METADATA_KEY] = effectiveContentType;
 
+    log:printDebug("Persisting update message to the message store",
+            topic = topicName, messageId = messageId ?: "(none)",
+            publisherContentType = message.contentType, storedContentType = effectiveContentType,
+            payloadSize = payload.length());
     check produceMessage(topicName, payload, enrichedMetadata, messageId);
 }
 
