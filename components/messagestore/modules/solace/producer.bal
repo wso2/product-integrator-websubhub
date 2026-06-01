@@ -38,13 +38,26 @@ public isolated client class Producer {
     }
 
     isolated remote function send(string topic, api:Message message) returns error? {
-        // todo: Setting properties will throw an error, hence ignoring setting properties for now
+        // Carry the message metadata (e.g. the original Content-Type) as Solace user-properties
+        // (SDTMap) so it survives the broker round-trip and can be restored by the consumer.
+        // xlibb/solace 0.4.1 exposes `properties: map<anydata>?` natively. Values are flattened to
+        // single strings (first element of any multi-valued header).
+        map<anydata>? properties = ();
+        map<string|string[]>? metadata = message.metadata;
+        if metadata is map<string|string[]> {
+            map<anydata> props = {};
+            foreach [string, string|string[]] [key, value] in metadata.entries() {
+                props[key] = value is string[] ? (value.length() > 0 ? value[0] : "") : value;
+            }
+            properties = props;
+        }
         check self.producer->send(
             {topicName: topic},
             {
-            applicationMessageId: message.id,
-            payload: message.payload
-        }
+                applicationMessageId: message.id,
+                payload: message.payload,
+                properties
+            }
         );
     }
 

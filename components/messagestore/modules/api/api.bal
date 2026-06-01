@@ -20,7 +20,10 @@ public type Message record {
     string id?;
     # The message payload
     byte[] payload;
-    # The metadata associated with the message (e.g., Kafka message headers or JMS message properties)
+    # The metadata associated with the message (e.g., Solace user-properties, Kafka message headers,
+    # or JMS message properties). Store adapters MUST round-trip this map across the broker; the hub
+    # relies on it to carry the original publisher Content-Type (key `x-hub-contentType`) for
+    # content-type passthrough.
     map<string|string[]> metadata?;
 };
 

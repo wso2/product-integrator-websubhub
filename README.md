@@ -14,8 +14,21 @@
 
 * **Pluggable messaging backend** – Integrates with the messaging broker or persistence layer of your choice for scalability and fault tolerance.
 * **Real-time event distribution** – Pushes events instantly to subscribers, enabling responsive and dynamic applications.
+* **Content-type passthrough** – Publishers can send `application/json`, `application/xml`, `text/plain`, or `application/octet-stream`; subscribers receive the exact payload with the matching `Content-Type` header.
 * **Enterprise-ready** – Ideal for building event-driven microservice-based architectures across services, systems, and organizations.
 * **Cloud-native deployment** – Easily deployable in containerized and cloud environments to support modern infrastructure needs.
+
+### Content-type passthrough
+
+The hub preserves the publisher's `Content-Type` end to end. The supported content types
+(`application/json`, `application/xml`, `text/plain`, `application/octet-stream`) are delivered to
+subscribers byte-for-byte with the original `Content-Type` header. JSON publishers and subscribers are
+unaffected; messages stored before this feature shipped fall back to `application/json`.
+
+> Internally the original content-type travels through the message store under the broker-internal
+> metadata key `x-hub-contentType` (a storage detail, not a publisher/subscriber-facing field). Broker
+> adapters must round-trip the message metadata map for this to work — the Solace adapter carries it as
+> message user-properties. See `components/websubhub/modules/common/message_keys.bal` for the contract.
 
 ## Contribute to `WSO2 Integrator: WebSubHub`
 

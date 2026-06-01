@@ -49,9 +49,22 @@ isolated client class Consumer {
         if receivedMsg is () {
             return;
         }
+        // Restore any Solace user-properties (e.g. the original Content-Type) into api:Message.metadata
+        // so the delivery layer can reconstruct the correct subscriber payload. All values are read
+        // back as strings.
+        map<string|string[]>? metadata = ();
+        map<anydata>? properties = receivedMsg.properties;
+        if properties is map<anydata> && properties.length() > 0 {
+            map<string|string[]> restored = {};
+            foreach [string, anydata] [key, value] in properties.entries() {
+                restored[key] = value.toString();
+            }
+            metadata = restored;
+        }
         api:Message message = {
             id: receivedMsg.applicationMessageId,
-            payload: receivedMsg.payload
+            payload: receivedMsg.payload,
+            metadata
         };
         message[ORIGINAL_SOLACE_MSG] = receivedMsg;
         return message;
