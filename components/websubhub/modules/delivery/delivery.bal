@@ -20,9 +20,7 @@ import websubhub.connections as conn;
 import websubhub.persistence as persist;
 import websubhub.state;
 
-import ballerina/http;
 import ballerina/lang.'runtime as runtime;
-import ballerina/log;
 import ballerina/websubhub;
 
 import wso2/messagestore.api as storeapi;
@@ -58,15 +56,27 @@ isolated function startDispatchTask(websubhub:VerifiedSubscription subscription)
                     string `Subscription or the topic is invalid`, topic = topic, subscriberId = subscriberId
                 );
             }
-            // deliverNextNotification returns () for a handled/skipped message (loop continues) and an
-            // error only for fatal conditions that must stop the consumer (e.g. delivery exhausted →
-            // stale). A receive() failure is treated as recoverable inside it (logged + skipped), so a
-            // single unreadable message never reaches this `check` and never halts the subscriber.
-            check deliverNextNotification(consumerEp, clientEp, topic, subscription.hubCallback);
+
+            // A receive() failure (e.g. a zero-length poison message the broker adapter cannot
+            // deserialize) must NOT halt the subscriber. Log it, back off, and keep polling; the
+            // message stays unacked, so the broker redelivers it and ultimately routes it to the DMQ
+            // once max-redelivery is exceeded.
+            storeapi:Message|error? received = consumerEp->receive();
+            if received is error {
+                common:logRecoverableError(
+                        "Error occurred while receiving a message; skipping it so the broker can redeliver/DMQ it",
+                        received, topic = topic);
+                runtime:sleep(RECEIVE_ERROR_BACKOFF);
+                continue;
+            }
+            storeapi:Message? message = received;
             if message is () {
                 continue;
             }
 
+            // The dispatcher owns deserialization, HTTP delivery, and the ACK / NACK / dead-letter
+            // signal. It returns an error only for a fatal delivery outcome, which propagates to the
+            // on-fail block below to mark the subscription stale.
             check contentDispatcher->notifyContentDistribution(message);
         }
     } on fail var e {
@@ -130,77 +140,6 @@ isolated function startDispatchTask(websubhub:VerifiedSubscription subscription)
         if persistResult is error {
             common:logRecoverableError(
                     "Error occurred while persisting the stale subscription", persistResult, subscription = staleSubscription);
-        }
-    }
-}
-
-# Polls for and delivers a single notification.
-#
-# Returns `()` when the iteration was handled and the caller should continue polling — this includes
-# the recoverable cases: nothing received, an unreadable message (receive error → skipped so the
-# broker can redeliver/DMQ it), and a deserialization failure (message dead-lettered).
-#
-# Returns an `error` ONLY for fatal conditions that must stop the consumer (e.g. delivery retries
-# exhausted), which the caller propagates to mark the subscription stale. Keeping receive-error
-# handling here (rather than letting it propagate) is what prevents one unreadable message from
-# halting the whole subscriber.
-#
-# + consumerEp - The message-store consumer to poll
-# + clientEp - The subscriber HubClient
-# + topic - The hub topic
-# + callbackUrl - The subscriber callback URL
-# + return - `()` to continue polling, or an `error` for a fatal (stale-triggering) delivery failure
-isolated function deliverNextNotification(storeapi:Consumer consumerEp, websubhub:HubClient clientEp,
-        string topic, string callbackUrl) returns error? {
-    storeapi:Message|error? received = consumerEp->receive();
-    if received is error {
-        // Recoverable: a single unreadable message (e.g. a zero-length payload that the broker adapter
-        // cannot deserialize) must NOT halt the subscriber. Log and back off; the message stays
-        // unacked, so the broker redelivers it and ultimately routes it to the DMQ once max-redelivery
-        // is exceeded. The brief sleep prevents a hot loop while the broker counts down redeliveries.
-        common:logRecoverableError(
-                "Error occurred while receiving a message; skipping it so the broker can redeliver/DMQ it",
-                received, topic = topic);
-        runtime:sleep(RECEIVE_ERROR_BACKOFF);
-        return;
-    }
-    storeapi:Message? message = received;
-    if message is () {
-        return;
-    }
-
-    websubhub:ContentDistributionMessage|error notification = constructContentDistMsg(message);
-    if notification is error {
-        log:printWarn("Error occurred while deserializing the message, hence pushing the message to DLQ", 'error = notification);
-        return consumerEp->deadLetter(message);
-    }
-
-    error? result = deliverWithRetryReset(clientEp, notification);
-    if result is error {
-        check consumerEp->nack(message);
-        return result;
-    }
-    common:logContentDelivery(topic, callbackUrl, message.id);
-    return consumerEp->ack(message);
-}
-
-isolated function deliverWithRetryReset(websubhub:HubClient clientEp, websubhub:ContentDistributionMessage notification) returns error? {
-    common:RetryConfig? 'retry = config:delivery.'retry;
-    if 'retry is () || !'retry.resetOnExhaust {
-        _ = check clientEp->notifyContentDistribution(notification);
-        return;
-    }
-
-    while true {
-        websubhub:ContentDistributionSuccess|websubhub:Error result = clientEp->notifyContentDistribution(notification);
-        if result is websubhub:ContentDistributionSuccess {
-            return;
-        }
-
-        // Check whether the returned status code is a retryable status-code, if not return the error
-        int statusCode = result.detail().statusCode;
-        if 'retry.statusCodes.indexOf(statusCode) is () {
-            return result;
         }
     }
 }

@@ -60,14 +60,14 @@ isolated client class HttpRetryBasedDispatcher {
             return;
         }
 
-        error? result = check self.deliverWithRetryReset(notification);
+        // Do not `check` here: on failure the message must be nacked before the error propagates.
+        error? result = self.deliverWithRetryReset(notification);
         if result is error {
             check self.consumer->nack(message);
-            check result;
-        } else {
-            common:logContentDelivery(self.topic, self.callback, message.id);
-            check self.consumer->ack(message);
+            return result;
         }
+        common:logContentDelivery(self.topic, self.callback, message.id);
+        check self.consumer->ack(message);
     }
 
     isolated function deliverWithRetryReset(websubhub:ContentDistributionMessage notification) returns error? {
@@ -129,12 +129,25 @@ isolated client class MessageBrokerRetryBasedDispatcher {
         }
 
         int statusCode = result.detail().statusCode;
+
+        // The WebSub HubClient can surface a 2xx response (e.g. 202 Accepted) as a websubhub:Error.
+        // That is still a successful delivery, so acknowledge it rather than classifying it as a
+        // retry/fail outcome (which would wrongly mark the subscription stale).
+        if statusCode >= 200 && statusCode < 300 {
+            common:logContentDelivery(self.topic, self.callback, message.id);
+            check self.consumer->ack(message);
+            return;
+        }
+
         common:RetryAction action = self.resolveRetryAction(statusCode);
         log:printDebug("Received errror response for content-delivery from the subscriber", messageId = message.id ?: "[No Message Id]", status = statusCode, action = action);
 
         if action === "redeliver" {
-            check self.consumer->nack(message);
+            // Sleep BEFORE nacking. The broker redelivers immediately on nack, so the delay must be
+            // applied first; otherwise (with more than one async worker) another worker picks up the
+            // redelivery instantly and the configured backoff is lost.
             runtime:sleep(self.'retry.delay);
+            check self.consumer->nack(message);
             return;
         }
 

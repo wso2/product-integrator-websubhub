@@ -51,14 +51,14 @@ isolated client class Consumer {
             return;
         }
         // Restore any Solace user-properties (e.g. the original Content-Type) into api:Message.metadata
-        // so the delivery layer can reconstruct the correct subscriber payload. All values are read
-        // back as strings.
+        // so the delivery layer can reconstruct the correct subscriber payload. A multi-valued
+        // property is preserved as a string[]; scalar values are converted to a string.
         map<string|string[]>? metadata = ();
         map<anydata>? properties = receivedMsg.properties;
         if properties is map<anydata> && properties.length() > 0 {
             map<string|string[]> restored = {};
             foreach [string, anydata] [key, value] in properties.entries() {
-                restored[key] = value.toString();
+                restored[key] = value is string[] ? <string[]>value : value.toString();
             }
             metadata = restored;
         }

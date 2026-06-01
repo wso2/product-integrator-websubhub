@@ -41,8 +41,13 @@ public isolated client class Producer {
     isolated remote function send(string topic, api:Message message) returns error? {
         // Carry the message metadata (e.g. the original Content-Type) as Solace user-properties
         // (SDTMap) so it survives the broker round-trip and can be restored by the consumer.
-        // xlibb/solace 0.4.1 exposes `properties: map<anydata>?` natively. Values are flattened to
-        // single strings (first element of any multi-valued header).
+        // xlibb/solace 0.4.1 exposes `properties: map<anydata>?` natively.
+        //
+        // A multi-valued header (string[]) is flattened to its first element. The Solace SDTMap does
+        // not accept array values — sending one fails with "Failed to send message: null" — so we
+        // cannot carry arrays as-is. Single-valued metadata (which includes the only key this hub
+        // relies on, x-hub-contentType) is unaffected. Preserving repeated header values would require
+        // reversibly encoding the array (e.g. JSON) here and decoding it in the consumer.
         map<anydata>? properties = ();
         map<string|string[]>? metadata = message.metadata;
         if metadata is map<string|string[]> {

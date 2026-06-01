@@ -64,17 +64,23 @@ isolated function constructContentDistMsg(storeapi:Message message) returns webs
 }
 
 isolated function constructDeliveryHeaders(storeapi:Message message) returns map<string|string[]>? {
-    string? messageId = message.id;
-    if messageId is () {
-        return message.metadata;
+    // Build a fresh header map rather than mutating/returning message.metadata directly. The stored
+    // metadata carries broker-internal keys (e.g. x-hub-contentType, used only to reconstruct the
+    // delivery Content-Type) which must NOT leak to the subscriber as HTTP headers.
+    map<string|string[]> headers = {};
+    map<string|string[]>? metadata = message.metadata;
+    if metadata is map<string|string[]> {
+        foreach var [key, value] in metadata.entries() {
+            if key == common:CONTENT_TYPE_METADATA_KEY {
+                continue;
+            }
+            headers[key] = value;
+        }
     }
 
-    map<string|string[]>? metadata = message.metadata;
-    if metadata is () {
-        return {
-            "x-hub-messageId": messageId
-        };
+    string? messageId = message.id;
+    if messageId is string {
+        headers["x-hub-messageId"] = messageId;
     }
-    metadata["x-hub-messageId"] = messageId;
-    return metadata;
+    return headers.length() > 0 ? headers : ();
 }

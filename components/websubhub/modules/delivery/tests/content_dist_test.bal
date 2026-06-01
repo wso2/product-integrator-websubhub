@@ -243,5 +243,7 @@ function testConstructContentDist_MessageId_PropagatedInHeaders() returns error?
     test:assertTrue(headers is map<string|string[]>, "headers must be present");
     if headers is map<string|string[]> {
         test:assertTrue(headers.hasKey("x-hub-messageId"), "x-hub-messageId must be forwarded");
+        test:assertFalse(headers.hasKey(common:CONTENT_TYPE_METADATA_KEY),
+                "broker-internal x-hub-contentType must NOT leak to subscriber headers");
     }
 }
