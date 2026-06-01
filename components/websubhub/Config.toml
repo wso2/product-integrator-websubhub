@@ -64,7 +64,7 @@ delay = 3.0
 redeliver = [500, 502, 503]
 deadLetter = [400, 404]
 defaultAction = "redeliver"
-networkFailureAction = "deadLetter"
+networkFailureAction = "redeliver"
 
 # [websubhub.config.delivery.retry]
 # delay = 20.0
