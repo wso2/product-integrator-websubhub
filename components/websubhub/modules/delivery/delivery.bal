@@ -16,7 +16,6 @@
 
 import websubhub.admin;
 import websubhub.common;
-import websubhub.config;
 import websubhub.connections as conn;
 import websubhub.persistence as persist;
 import websubhub.state;
@@ -32,6 +31,7 @@ import wso2/messagestore.api as storeapi;
 # unreadable (e.g. zero-length) message so it does not spin the CPU while the broker counts down
 # max-redelivery and routes the poison message to the DMQ.
 const decimal RECEIVE_ERROR_BACKOFF = 1;
+const NUMBER_OF_DEFAULT_ASYNC_WORKERS = 1;
 
 # Distributes a content notification to the specified subscriber using an async worker.
 # This function delivers the published content update associated with the
@@ -40,16 +40,17 @@ const decimal RECEIVE_ERROR_BACKOFF = 1;
 #
 # + subscription - Verified subscription details
 # + return - An error if the content notification distribution fails
-public isolated function distributeContentNotification(websubhub:VerifiedSubscription subscription) returns error? {
+public isolated function distributeContentNotification(readonly & websubhub:VerifiedSubscription subscription) returns error? {
+    foreach int i in 0 ..< NUMBER_OF_DEFAULT_ASYNC_WORKERS {
+        _ = start startDispatchTask(subscription);
+    }
+}
+
+isolated function startDispatchTask(websubhub:VerifiedSubscription subscription) returns error? {
     string subscriberId = common:generateSubscriberId(subscription.hubTopic, subscription.hubCallback);
     string topic = subscription.hubTopic;
     storeapi:Consumer consumerEp = check conn:createConsumer(subscription);
-    websubhub:HubClient clientEp = check new (subscription, {
-        httpVersion: http:HTTP_2_0,
-        secureSocket: common:extractClientSecureSocketConfig(config:delivery.secureSocket),
-        retryConfig: common:extractHttpRetryConfig(config:delivery.'retry),
-        timeout: config:delivery.timeout
-    });
+    Dispatcher contentDispatcher = check createDispatcher(subscription, consumerEp);
     do {
         while true {
             if !isValidConsumer(subscription.hubTopic, subscriberId) {
@@ -62,6 +63,11 @@ public isolated function distributeContentNotification(websubhub:VerifiedSubscri
             // stale). A receive() failure is treated as recoverable inside it (logged + skipped), so a
             // single unreadable message never reaches this `check` and never halts the subscriber.
             check deliverNextNotification(consumerEp, clientEp, topic, subscription.hubCallback);
+            if message is () {
+                continue;
+            }
+
+            check contentDispatcher->notifyContentDistribution(message);
         }
     } on fail var e {
         common:logRecoverableError("Error occurred while sending notification to subscriber", e);

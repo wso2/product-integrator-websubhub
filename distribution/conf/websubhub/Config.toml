@@ -42,7 +42,7 @@ gracefulClosePeriod = 5.0
 
 # [websubhub.config.store.solace.queue]
 # queueNamePrefix = "consumer-"
-# dlq.prefix = "dlq-"
+# dlq.postfix = "-dlq"
 # dlq.deleteCustomOnUbsubscription = false
 # messageQueueQuota = 5000
 # queueOwner = "default"
@@ -62,6 +62,13 @@ backOffFactor = 2.0
 maxWaitInterval = 20.0
 statusCodes = [500, 502, 503]
 resetOnExhaust = false
+
+# [websubhub.config.delivery.retry]
+# delay = 20.0
+# redeliver = [500, 502, 503]
+# deadLetter = [400]
+# defaultAction = "redeliver"
+# networkFailureAction = "deadLetter"
 
 [ballerina.log]
 level = "DEBUG"

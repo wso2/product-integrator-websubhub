@@ -96,14 +96,43 @@ public type HttpClientConfig record {|
     # The maximum time (in seconds) to wait for a response before the request times out
     decimal timeout = 60;
     # Automatic retry settings for failed HTTP requests
-    RetryConfig 'retry?;
+    http:RetryConfig 'retry?;
+    # SSL/TLS configurations for the HTTP client
+    http:ClientSecureSocket secureSocket?;
+|};
+
+# # Defines configurations for content delivery client.
+public type ContentDeliveryClientConfig record {|
+    # The maximum time (in seconds) to wait for a response before the request times out
+    decimal timeout = 60;
+    # Automatic retry settings for failed content delivery requests
+    record {|
+        *MessageStoreRetryConfig;
+        *HttpRetryConfig;
+    |} 'retry?;
     # SSL/TLS configurations for the HTTP client
     http:ClientSecureSocket secureSocket?;
 |};
 
 # Provides configurations for controlling the retrying behavior in failure scenarios.
-public type RetryConfig record {|
+public type HttpRetryConfig record {|
     *http:RetryConfig;
     # When set to `true`, the internal retry counter is reset to zero after the count attempts are exhausted
     boolean resetOnExhaust = false;
 |};
+
+# Provides configurations for controlling the retrying behavior in failure scenarios using message-store acknowledgements.
+public type MessageStoreRetryConfig record {|
+    # Delay in seconds before retrying a failed message delivery
+    decimal delay = 30;
+    # HTTP status for which should trigger broker redelivery
+    int[] redeliver?;
+    # HTTP status for that should route the message to the DLQ
+    int[] deadLetter?;
+    # Action to take when the derived response does not match any entry in `redeliver` or `deadLetter`
+    RetryAction defaultAction = "fail";
+    # Action to take when delivery fails due to a network-level failure
+    RetryAction networkFailureAction = "fail";
+|};
+
+public type RetryAction "redeliver"|"deadLetter"|"fail";
