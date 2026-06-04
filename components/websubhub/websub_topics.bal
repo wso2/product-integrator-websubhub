@@ -14,6 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import websubhub.config;
 import websubhub.state;
 
 import ballerina/log;
@@ -31,7 +32,8 @@ isolated function processWebsubTopicsSnapshotState(websubhub:TopicRegistration[]
 }
 
 isolated function processTopicRegistration(websubhub:TopicRegistration topicRegistration) {
-    log:printDebug(string `Topic registration event received for topic ${topicRegistration.topic}, hence adding the topic to the internal state`, 'type = "state-update");
+    log:printDebug(string `Topic registration event received for topic ${topicRegistration.topic}, hence adding the topic to the internal state`,
+            'type = "state-update", serverId = config:serverId);
     // add the topic if topic is not already available in the hub
     if state:isTopicAvailable(topicRegistration.topic) {
         return;

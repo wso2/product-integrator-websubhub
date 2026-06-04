@@ -32,7 +32,8 @@ isolated function processWebsubSubscriptionsSnapshotState(websubhub:VerifiedSubs
 }
 
 isolated function processSubscription(websubhub:VerifiedSubscription subscription) returns error? {
-    log:printDebug("Subscription event received", topic = subscription.hubTopic, callback = subscription.hubCallback, 'type = "state-update");
+    log:printDebug("Subscription event received",
+            topic = subscription.hubTopic, callback = subscription.hubCallback, 'type = "state-update", serverId = config:serverId);
     string subscriberId = common:generateSubscriberId(subscription.hubTopic, subscription.hubCallback);
     websubhub:VerifiedSubscription? existingSubscription = state:getSubscription(subscriberId);
     boolean isFreshSubscription = existingSubscription is ();
