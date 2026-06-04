@@ -68,6 +68,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             }
         }
         do {
+            log:printDebug("Persisting topic-registration event", topic = message.topic, 'type = "state-update");
             check admin:createTopic(message);
             check persist:addRegsiteredTopic(message);
         } on fail error topicRegErr {
@@ -103,6 +104,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             }
         }
         do {
+            log:printDebug("Persisting topic-deregistration event", topic = message.topic, 'type = "state-update");
             check admin:deleteTopic(message);
             check persist:removeRegsiteredTopic(message);
         } on fail error topicDeregErr {
@@ -165,6 +167,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     isolated remote function onSubscriptionIntentVerified(websubhub:VerifiedSubscription message) returns error? {
         websubhub:VerifiedSubscription subscription = self.prepareSubscriptionToBePersisted(message);
         do {
+            log:printDebug("Persisting subscription event", topic = message.hubTopic, callback = message.hubCallback, 'type = "state-update");
             check admin:createSubscription(subscription);
             check persist:addSubscription(subscription);
         } on fail error subscriptionErr {
@@ -235,6 +238,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
         }
 
         do {
+            log:printDebug("Persisting unsubscription event", topic = message.hubTopic, callback = message.hubCallback, 'type = "state-update");
             check admin:deleteSubscription(subscription);
             check persist:removeSubscription(message);
         } on fail error unsubscriptionErr {
