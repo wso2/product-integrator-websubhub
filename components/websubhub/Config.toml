@@ -13,65 +13,64 @@ url = "http://localhost:10001/consolidator/state-snapshot"
 topic = "websub-events"
 consumerIdPrefix = "websub-events-consumer"
 
-# --- Kafka store (disabled for content-type passthrough validation) ---
-# Kafka is checked first in store selection, so it must stay commented while Solace is active.
-# Kafka cannot round-trip the x-hub-contentType metadata yet (its consumer header-mapping is disabled).
-# [websubhub.config.store.kafka]
-# bootstrapServers = "localhost:9092"
+[websubhub.config.store.kafka]
+bootstrapServers = "localhost:9092"
 
-# [websubhub.config.store.kafka.producer]
-# acks = "all"
-# retryCount = 3
+[websubhub.config.store.kafka.producer]
+acks = "all"
+retryCount = 3
 
-# [websubhub.config.store.kafka.consumer]
-# maxPollRecords = 50
-# pollingInterval = 10.0
-# gracefulClosePeriod = 5.0
+[websubhub.config.store.kafka.consumer]
+maxPollRecords = 50
+pollingInterval = 10.0
+gracefulClosePeriod = 5.0
 
-# --- Solace store (active) — required for content-type passthrough end-to-end ---
-[websubhub.config.store.solace]
-url = "tcp://localhost:55554"
-messageVpn = "default"
-auth.username = "admin"
-auth.password = "admin"
+# --- Solace store — uncomment to switch to Solace, comment out kafka blocks above first ---
+# [websubhub.config.store.solace]
+# url = "tcp://localhost:55554"
+# messageVpn = "default"
+# auth.username = "admin"
+# auth.password = "admin"
 
-[websubhub.config.store.solace.consumer]
-receiveTimeout = 10.0
+# [websubhub.config.store.solace.consumer]
+# receiveTimeout = 10.0
 
-[websubhub.config.store.solace.admin]
-url = "http://localhost:8085/SEMP/v2/config"
-timeout = 30.0
-auth.username = "admin"
-auth.password = "admin"
+# [websubhub.config.store.solace.admin]
+# url = "http://localhost:8085/SEMP/v2/config"
+# timeout = 30.0
+# auth.username = "admin"
+# auth.password = "admin"
 
-[websubhub.config.store.solace.queue]
-queueNamePrefix = "consumer-"
-dlq.postfix = "-dlq"
-dlq.deleteCustomOnUbsubscription = false
-messageQueueQuota = 5000
-queueOwner = "default"
-nonOwnerPermission = "no-access"
-deliveryCountEnabled = true
-respectTtl = false
-maxTtl = 0
-redeliver.maxCount = 10
+# [websubhub.config.store.solace.queue]
+# queueNamePrefix = "consumer-"
+# dlq.postfix = "-dlq"
+# dlq.deleteCustomOnUbsubscription = false
+# messageQueueQuota = 5000
+# queueOwner = "default"
+# nonOwnerPermission = "no-access"
+# deliveryCountEnabled = true
+# respectTtl = false
+# maxTtl = 0
+# redeliver.maxCount = 10
+
+# --- JMS store (ActiveMQ) — uncomment to switch to JMS, comment out kafka blocks above first ---
+# [websubhub.config.store.jms]
+# initialContextFactory = "org.apache.activemq.jndi.ActiveMQInitialContextFactory"
+# providerUrl = "tcp://localhost:61616"
+# connectionFactoryName = "ConnectionFactory"
+# [websubhub.config.store.jms.consumer]
+# receiveTimeout = 10.0
 
 [websubhub.config.delivery]
 timeout = 60.0
 
 [websubhub.config.delivery.retry]
-delay = 3.0
-redeliver = [500, 502, 503]
-deadLetter = [400, 404]
-defaultAction = "redeliver"
-networkFailureAction = "redeliver"
-
-# [websubhub.config.delivery.retry]
-# delay = 20.0
-# redeliver = [500, 502, 503]
-# deadLetter = [400]
-# defaultAction = "redeliver"
-# networkFailureAction = "deadLetter"
+count = 3
+interval = 3.0
+backOffFactor = 2.0
+maxWaitInterval = 20.0
+statusCodes = [500, 502, 503]
+resetOnExhaust = false
 
 [ballerina.log]
 level = "DEBUG"
