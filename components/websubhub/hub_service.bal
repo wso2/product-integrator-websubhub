@@ -137,11 +137,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     # + return - `websubhub:SubscriptionDeniedError` if the subscription is denied by the hub or else `()`
     isolated remote function onSubscriptionValidation(websubhub:Subscription message)
                 returns websubhub:SubscriptionDeniedError? {
-        websubhub:TopicRegistration|error result = stateSync.consume(5);
-        if result is error {
-            log:printDebug("Consuming messages from state-sync timed-out", 'error = result);
-        }
-        if !state:isTopicAvailable(message.hubTopic) {
+        if !state:isTopicAvailableWithRetry(message.hubTopic) {
             return error websubhub:SubscriptionDeniedError(
                 "Topic [" + message.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
         } else {
@@ -215,7 +211,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     # + return - `websubhub:UnsubscriptionDeniedError` if the unsubscription is denied by the hub or else `()`
     isolated remote function onUnsubscriptionValidation(websubhub:Unsubscription message)
                 returns websubhub:UnsubscriptionDeniedError? {
-        if !state:isTopicAvailable(message.hubTopic) {
+        if !state:isTopicAvailableWithRetry(message.hubTopic) {
             return error websubhub:UnsubscriptionDeniedError(
                 "Topic [" + message.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
         } else {

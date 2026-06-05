@@ -20,10 +20,6 @@ import websubhub.state;
 import ballerina/log;
 import ballerina/websubhub;
 
-import xlibb/pipe;
-
-final pipe:Pipe stateSync = new (5);
-
 isolated function processWebsubTopicsSnapshotState(websubhub:TopicRegistration[] topics) {
     log:printDebug("Received latest state-snapshot for websub topics", newState = topics);
     foreach websubhub:TopicRegistration topicReg in topics {
@@ -39,10 +35,6 @@ isolated function processTopicRegistration(websubhub:TopicRegistration topicRegi
         return;
     }
     state:addTopic(topicRegistration);
-    error? result = stateSync.produce(topicRegistration.cloneReadOnly(), 5);
-    if result is error {
-        log:printDebug("Publishing to the state-sync timed-out", 'error = result);
-    }
 }
 
 isolated function processTopicDeregistration(websubhub:TopicDeregistration topicDeregistration) {

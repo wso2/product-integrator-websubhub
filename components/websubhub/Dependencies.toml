@@ -441,8 +441,7 @@ dependencies = [
 	{org = "ballerinai", name = "observe"},
 	{org = "ballerinax", name = "jaeger"},
 	{org = "ballerinax", name = "prometheus"},
-	{org = "wso2", name = "messagestore"},
-	{org = "xlibb", name = "pipe"}
+	{org = "wso2", name = "messagestore"}
 ]
 modules = [
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub"},
@@ -454,17 +453,6 @@ modules = [
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.persistence"},
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.security"},
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.state"}
-]
-
-[[package]]
-org = "xlibb"
-name = "pipe"
-version = "1.6.1"
-dependencies = [
-	{org = "ballerina", name = "jballerina.java"}
-]
-modules = [
-	{org = "xlibb", packageName = "pipe", moduleName = "pipe"}
 ]
 
 [[package]]

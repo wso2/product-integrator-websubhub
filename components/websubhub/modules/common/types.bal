@@ -89,6 +89,13 @@ public type ServerStateConfig record {|
         # (for example, `websub-events-consumer-hub-1`).
         string consumerIdPrefix;
     |} events;
+    # Configurations for state-sync retries.
+    record {|
+        # Number of maximum retries for state-sync
+        int maxRetries = 5;
+        # State sync retry interval
+        decimal retryInterval = 3.0;
+    |} sync = {};
 |};
 
 # Defines configurations for an HTTP client.
