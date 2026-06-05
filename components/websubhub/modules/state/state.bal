@@ -30,7 +30,7 @@ public isolated function isTopicAvailable(string topicName) returns boolean {
 }
 
 public isolated function isTopicAvailableWithRetry(string topicName) returns boolean {
-    foreach int i in 0 ..< config:state.sync.maxRetries {
+    foreach int _ in 0 ..< config:state.sync.maxRetries {
         log:printDebug("Checking topic availability", topic = topicName, 'type = "state-sync", serverId = config:serverId);
         if isTopicAvailable(topicName) {
             return true;
