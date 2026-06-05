@@ -15,7 +15,9 @@
 // under the License.
 
 import websubhub.common;
+import websubhub.config;
 
+import ballerina/lang.runtime;
 import ballerina/websubhub;
 
 isolated map<websubhub:TopicRegistration> registeredTopicsCache = {};
@@ -24,6 +26,16 @@ public isolated function isTopicAvailable(string topicName) returns boolean {
     lock {
         return registeredTopicsCache.hasKey(topicName);
     }
+}
+
+public isolated function isTopicAvailableWithRetry(string topicName) returns boolean {
+    foreach int _ in 0 ..< config:state.sync.maxRetries {
+        if isTopicAvailable(topicName) {
+            return true;
+        }
+        runtime:sleep(config:state.sync.retryInterval);
+    }
+    return isTopicAvailable(topicName);
 }
 
 public isolated function addTopic(websubhub:TopicRegistration topicReg) {
