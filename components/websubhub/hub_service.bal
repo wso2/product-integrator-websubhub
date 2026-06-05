@@ -22,6 +22,7 @@ import websubhub.security;
 import websubhub.state;
 
 import ballerina/http;
+import ballerina/log;
 import ballerina/time;
 import ballerina/websubhub;
 
@@ -67,6 +68,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             }
         }
         do {
+            log:printDebug("Persisting topic-registration event", topic = message.topic, 'type = "state-update", serverId = config:serverId);
             check admin:createTopic(message);
             check persist:addRegsiteredTopic(message);
         } on fail error topicRegErr {
@@ -102,6 +104,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             }
         }
         do {
+            log:printDebug("Persisting topic-deregistration event", topic = message.topic, 'type = "state-update", serverId = config:serverId);
             check admin:deleteTopic(message);
             check persist:removeRegsiteredTopic(message);
         } on fail error topicDeregErr {
@@ -138,6 +141,8 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             return error websubhub:SubscriptionDeniedError(
                 "Topic [" + message.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
         } else {
+            log:printDebug("Topic availability check passed for subscription",
+                    topic = message.hubTopic, callback = message.hubCallback, 'type = "state-update", serverId = config:serverId);
             string subscriberId = common:generateSubscriberId(message.hubTopic, message.hubCallback);
             websubhub:VerifiedSubscription? subscription = state:getSubscription(subscriberId);
             if subscription is () {
@@ -146,6 +151,9 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             if subscription.hasKey(common:SUBSCRIPTION_STATUS) && subscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTION_STALE_STATE {
                 return;
             }
+            log:printDebug("Subscription availability check failed for subscription",
+                    topic = message.hubTopic, callback = message.hubCallback, subscriptionStatus = subscription[common:SUBSCRIPTION_STATUS] ?: "active",
+                    'type = "state-update", serverId = config:serverId);
             if state:isSubscriptionAvailable(subscriberId) {
                 return error websubhub:SubscriptionDeniedError(
                     "Subscriber has already registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
@@ -160,6 +168,8 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     isolated remote function onSubscriptionIntentVerified(websubhub:VerifiedSubscription message) returns error? {
         websubhub:VerifiedSubscription subscription = self.prepareSubscriptionToBePersisted(message);
         do {
+            log:printDebug("Persisting subscription event",
+                    topic = message.hubTopic, callback = message.hubCallback, 'type = "state-update", serverId = config:serverId);
             check admin:createSubscription(subscription);
             check persist:addSubscription(subscription);
         } on fail error subscriptionErr {
@@ -230,6 +240,8 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
         }
 
         do {
+            log:printDebug("Persisting unsubscription event",
+                    topic = message.hubTopic, callback = message.hubCallback, 'type = "state-update", serverId = config:serverId);
             check admin:deleteSubscription(subscription);
             check persist:removeSubscription(message);
         } on fail error unsubscriptionErr {
