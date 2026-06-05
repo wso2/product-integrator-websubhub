@@ -38,6 +38,7 @@ isolated function processTopicRegistration(websubhub:TopicRegistration topicRegi
 }
 
 isolated function processTopicDeregistration(websubhub:TopicDeregistration topicDeregistration) {
-    log:printDebug(string `Topic deregistration event received for topic ${topicDeregistration.topic}, hence removing the topic from the internal state`);
+    log:printDebug(string `Topic deregistration event received for topic ${topicDeregistration.topic}, hence removing the topic from the internal state`,
+            'type = "state-update", serverId = config:serverId);
     state:removeTopic(topicDeregistration);
 }

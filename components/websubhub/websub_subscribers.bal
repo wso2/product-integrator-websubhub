@@ -76,6 +76,6 @@ isolated function processSubscription(websubhub:VerifiedSubscription subscriptio
 
 isolated function processUnsubscription(websubhub:VerifiedUnsubscription unsubscription) returns error? {
     log:printDebug("Unsubscription event received, hence removing the subscriber from the internal state",
-            topic = unsubscription.hubTopic, callback = unsubscription.hubCallback);
+            topic = unsubscription.hubTopic, callback = unsubscription.hubCallback, 'type = "state-update", serverId = config:serverId);
     state:removeSubscription(unsubscription);
 }

@@ -141,6 +141,8 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             return error websubhub:SubscriptionDeniedError(
                 "Topic [" + message.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
         } else {
+            log:printDebug("Topic availability check passed for subscription",
+                    topic = message.hubTopic, callback = message.hubCallback, 'type = "state-update", serverId = config:serverId);
             string subscriberId = common:generateSubscriberId(message.hubTopic, message.hubCallback);
             websubhub:VerifiedSubscription? subscription = state:getSubscription(subscriberId);
             if subscription is () {
@@ -149,6 +151,9 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
             if subscription.hasKey(common:SUBSCRIPTION_STATUS) && subscription.get(common:SUBSCRIPTION_STATUS) is SUBSCRIPTION_STALE_STATE {
                 return;
             }
+            log:printDebug("Subscription availability check failed for subscription",
+                    topic = message.hubTopic, callback = message.hubCallback, subscriptionStatus = subscription[common:SUBSCRIPTION_STATUS] ?: "active",
+                    'type = "state-update", serverId = config:serverId);
             if state:isSubscriptionAvailable(subscriberId) {
                 return error websubhub:SubscriptionDeniedError(
                     "Subscriber has already registered with the Hub", statusCode = http:STATUS_NOT_ACCEPTABLE);
