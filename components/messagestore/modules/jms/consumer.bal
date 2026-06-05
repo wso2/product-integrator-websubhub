@@ -46,14 +46,45 @@ isolated client class Consumer {
 
     isolated remote function receive() returns api:Message|error? {
         jms:Message? receivedMsg = check self.consumer->receive(self.readTimeout);
-        if receivedMsg !is jms:BytesMessage {
+        if receivedMsg is () {
             return;
         }
-        api:Message message = {
-            id: receivedMsg.correlationId,
-            payload: receivedMsg.content
-        };
-        return message;
+
+        if receivedMsg is jms:MapMessage {
+            // New format: payload stored under JMS_PAYLOAD_KEY; all other entries are metadata.
+            // A MapMessage is produced by the updated Producer.send() and carries both the
+            // payload bytes and the metadata (e.g. x-hub-contentType) in a single message.
+            anydata rawPayload = receivedMsg.content[JMS_PAYLOAD_KEY];
+            byte[] payload = rawPayload is byte[] ? rawPayload : [];
+
+            map<string|string[]> metadata = {};
+            foreach var [k, v] in receivedMsg.content.entries() {
+                if k == JMS_PAYLOAD_KEY {
+                    continue;
+                }
+                if v is string {
+                    metadata[k] = v;
+                }
+                // Non-string, non-payload entries are ignored (e.g. unexpected types).
+            }
+            return {
+                id: receivedMsg.correlationId,
+                payload,
+                metadata: metadata.length() > 0 ? metadata : ()
+            };
+        }
+
+        if receivedMsg is jms:BytesMessage {
+            // Backward-compat: messages stored by the old producer (BytesMessage, no metadata).
+            // Delivered without metadata; the delivery layer falls back to application/json.
+            return {
+                id: receivedMsg.correlationId,
+                payload: receivedMsg.content
+            };
+        }
+
+        // Unknown message type — skip (return nil so the polling loop continues).
+        return;
     }
 
     isolated remote function ack(api:Message message) returns error? {

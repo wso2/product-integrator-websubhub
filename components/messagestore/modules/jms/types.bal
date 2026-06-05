@@ -16,6 +16,12 @@
 
 import ballerinax/java.jms;
 
+# Reserved MapMessage key under which the raw message payload (byte[]) is stored.
+# All other MapMessage entries are treated as metadata (string values). This key must
+# not collide with any metadata key the hub stores; the hub's metadata keys are HTTP
+# request headers (e.g. "x-hub-contentType") which cannot legally start with "__".
+const string JMS_PAYLOAD_KEY = "__payload";
+
 public type Config record {|
     *jms:ConnectionConfiguration;
     # JMS consumer-specific configurations
