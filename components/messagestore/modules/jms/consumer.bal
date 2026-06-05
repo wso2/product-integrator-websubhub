@@ -17,6 +17,7 @@
 import messagestore.api;
 import messagestore.dlq;
 
+import ballerina/log;
 import ballerinax/java.jms;
 
 isolated client class Consumer {
@@ -51,6 +52,10 @@ isolated client class Consumer {
         }
 
         if receivedMsg is jms:MapMessage {
+            log:printDebug("[JMS MessageStore] Received message",
+                    messageId = receivedMsg.correlationId ?: "(none)",
+                    payloadSize = (receivedMsg.content[JMS_PAYLOAD_KEY] is byte[]
+                            ? (<byte[]>receivedMsg.content[JMS_PAYLOAD_KEY]).length() : 0));
             // New format: payload stored under JMS_PAYLOAD_KEY; all other entries are metadata.
             // A MapMessage is produced by the updated Producer.send() and carries both the
             // payload bytes and the metadata (e.g. x-hub-contentType) in a single message.

@@ -16,6 +16,7 @@
 
 import messagestore.api;
 
+import ballerina/log;
 import ballerinax/java.jms;
 
 public isolated client class Producer {
@@ -58,6 +59,9 @@ public isolated client class Producer {
             correlationId: message.id,
             content
         };
+        log:printDebug("[JMS MessageStore] Publishing message",
+                topic = topic, messageId = message.id ?: "(none)",
+                payloadSize = message.payload.length());
         check self.producer->sendTo(
             {'type: jms:TOPIC, name: topic},
             message = jmsMessage
