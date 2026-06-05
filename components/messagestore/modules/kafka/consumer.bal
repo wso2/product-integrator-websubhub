@@ -112,6 +112,9 @@ isolated client class Consumer {
         // Content-Type stored by the hub at ingest) survives the broker. Kafka delivers header values
         // as bytes, so they are decoded back to strings here. A header that cannot be decoded is
         // skipped and logged rather than failing the whole receive.
+        log:printDebug("[Kafka MessageStore] Received message",
+                partition = current.offset.partition, offset = current.offset.offset,
+                payloadSize = current.value.length());
         return {
             payload: current.value,
             metadata: toMetadata(current.headers)
