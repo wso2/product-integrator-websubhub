@@ -25,10 +25,16 @@ import ballerina/websubhub;
 
 import wso2/messagestore.api as storeapi;
 
-# Backoff applied after a failed `receive()` before polling again. Bounds the redelivery loop for an
-# unreadable (e.g. zero-length) message so it does not spin the CPU while the broker counts down
-# max-redelivery and routes the poison message to the DMQ.
+# Backoff applied after a failed `receive()` before polling again.
 const decimal RECEIVE_ERROR_BACKOFF = 1;
+
+# Maximum number of consecutive `receive()` failures before the polling loop is aborted.
+# A single bad message (e.g. zero-length) causes a transient error and should be skipped;
+# but if `receive()` keeps failing on every call, the broker session itself is likely broken
+# and looping forever would spin without ever making progress. Aborting after this many
+# consecutive errors lets the on-fail block close the consumer cleanly.
+const int MAX_CONSECUTIVE_RECEIVE_ERRORS = 5;
+
 const NUMBER_OF_DEFAULT_ASYNC_WORKERS = 1;
 
 # Distributes a content notification to the specified subscriber using an async worker.
@@ -50,6 +56,7 @@ isolated function startDispatchTask(websubhub:VerifiedSubscription subscription)
     storeapi:Consumer consumerEp = check conn:createConsumer(subscription);
     Dispatcher contentDispatcher = check createDispatcher(subscription, consumerEp);
     do {
+        int consecutiveReceiveErrors = 0;
         while true {
             if !isValidConsumer(subscription.hubTopic, subscriberId) {
                 fail error common:InvalidSubscriptionError(
@@ -57,18 +64,25 @@ isolated function startDispatchTask(websubhub:VerifiedSubscription subscription)
                 );
             }
 
-            // A receive() failure (e.g. a zero-length poison message the broker adapter cannot
-            // deserialize) must NOT halt the subscriber. Log it, back off, and keep polling; the
-            // message stays unacked, so the broker redelivers it and ultimately routes it to the DMQ
-            // once max-redelivery is exceeded.
             storeapi:Message|error? received = consumerEp->receive();
             if received is error {
+                consecutiveReceiveErrors += 1;
+                if consecutiveReceiveErrors >= MAX_CONSECUTIVE_RECEIVE_ERRORS {
+                    // Too many consecutive failures — the broker session is likely broken.
+                    // Propagate to the on-fail block so the consumer is closed cleanly rather
+                    // than looping indefinitely without making progress.
+                    fail received;
+                }
+                // Transient failure (e.g. a single unreadable message): log, back off, and
+                // keep polling. The message stays unacked so the broker redelivers it and
+                // ultimately routes it to the DMQ once max-redelivery is exceeded.
                 common:logRecoverableError(
                         "Error occurred while receiving a message; skipping it so the broker can redeliver/DMQ it",
                         received, topic = topic);
                 runtime:sleep(RECEIVE_ERROR_BACKOFF);
                 continue;
             }
+            consecutiveReceiveErrors = 0;
             storeapi:Message? message = received;
             if message is () {
                 continue;

@@ -53,7 +53,17 @@ public isolated client class Producer {
         if metadata is map<string|string[]> {
             map<anydata> props = {};
             foreach [string, string|string[]] [key, value] in metadata.entries() {
-                props[key] = value is string[] ? (value.length() > 0 ? value[0] : "") : value;
+                if value is string[] {
+                    // Solace SDTMap does not support array values. Flatten to the first element.
+                    // Skip the key entirely when the array is empty — storing "" would silently
+                    // round-trip as an empty string on the consumer side, which is more surprising
+                    // than simply omitting the key.
+                    if value.length() > 0 {
+                        props[key] = value[0];
+                    }
+                } else {
+                    props[key] = value;
+                }
             }
             properties = props;
         }
