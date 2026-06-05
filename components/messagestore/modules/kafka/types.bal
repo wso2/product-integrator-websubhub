@@ -61,10 +61,13 @@ public type KafkaConsumerConfig record {|
 |};
 
 // Internal record to data-bind the Kafka consumer record.
-// `headers` must keep the same type as kafka:AnydataConsumerRecord. On consume, Kafka deserializes
-// header values as `byte[]` (it does not know they were strings), so narrowing this to
-// `map<string|string[]>` makes the poll data-binding fail at runtime. The consumer decodes these
-// bytes into `api:Message.metadata` in `receive()`.
+// `headers` must match the type declared on kafka:AnydataConsumerRecord exactly:
+// `map<byte[]|byte[][]|string|string[]>`. In practice the Kafka connector delivers header values
+// as `byte[]` or `byte[][]` on the wire, but the library type also allows `string|string[]`
+// (e.g. for headers set programmatically). Narrowing this field would cause a runtime
+// data-binding failure for any value shape not covered by the narrower type.
+// The consumer decodes all variants back into `map<string|string[]>` in `receive()` via
+// `toMetadata()`, so the wide type here is purely a data-binding contract with the connector.
 type KafkaConsumerRecord record {|
     *kafka:AnydataConsumerRecord;
     byte[] value;

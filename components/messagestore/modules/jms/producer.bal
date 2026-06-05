@@ -52,6 +52,12 @@ public isolated client class Producer {
         map<string|string[]>? metadata = message.metadata;
         if metadata is map<string|string[]> {
             foreach var [k, v] in metadata.entries() {
+                if k == JMS_PAYLOAD_KEY {
+                    // Skip: this key is reserved for the payload bytes and must not be
+                    // overwritten by metadata. HTTP request headers cannot legally start with
+                    // "__" so this guard should never fire in practice, but is kept for safety.
+                    continue;
+                }
                 content[k] = v is string[] ? (v.length() > 0 ? v[0] : "") : v;
             }
         }
