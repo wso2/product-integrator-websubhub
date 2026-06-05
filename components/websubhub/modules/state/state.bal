@@ -15,6 +15,7 @@
 // under the License.
 
 import websubhub.common;
+import websubhub.config;
 
 import ballerina/lang.runtime;
 import ballerina/websubhub;
@@ -27,12 +28,12 @@ public isolated function isTopicAvailable(string topicName) returns boolean {
     }
 }
 
-public isolated function isTopicAvailableWithRetry(string topicName, int maxRetries = 5, decimal retryInterval = 3) returns boolean {
-    foreach int _ in 0 ..< maxRetries {
+public isolated function isTopicAvailableWithRetry(string topicName) returns boolean {
+    foreach int _ in 0 ..< config:state.sync.maxRetries {
         if isTopicAvailable(topicName) {
             return true;
         }
-        runtime:sleep(retryInterval);
+        runtime:sleep(config:state.sync.retryInterval);
     }
     return isTopicAvailable(topicName);
 }
