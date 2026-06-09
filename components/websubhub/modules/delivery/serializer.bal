@@ -15,6 +15,7 @@
 // under the License.
 
 import websubhub.common;
+import websubhub.config;
 
 import ballerina/lang.value;
 import ballerina/log;
@@ -24,6 +25,21 @@ import ballerina/websubhub;
 import wso2/messagestore.api as storeapi;
 
 isolated function constructContentDistMsg(storeapi:Message message) returns websubhub:ContentDistributionMessage|error {
+    return buildContentDistMsg(message, config:delivery.contentPassthrough);
+}
+
+# Reconstructs a delivery message from a stored message-store record.
+#
+# When `contentPassthrough` is `true` the stored payload bytes are forwarded verbatim with the
+# recorded `Content-Type` (content-unaware: no parse, any type, single copy). When `false`, JSON
+# payloads are parsed and re-encoded into a structured body — the legacy content-aware behaviour.
+# Split out from `constructContentDistMsg` (which sources the flag from config) so both modes can be
+# unit-tested deterministically.
+#
+# + message - The stored message (payload bytes + metadata carrying `x-hub-contentType`)
+# + contentPassthrough - `true` to forward bytes verbatim, `false` to re-encode JSON
+# + return - The `websubhub:ContentDistributionMessage` to deliver, or an `error` on malformed JSON
+isolated function buildContentDistMsg(storeapi:Message message, boolean contentPassthrough) returns websubhub:ContentDistributionMessage|error {
     // Recover the original publisher Content-Type stored at ingest as a broker user-property.
     // Fall back to application/json for messages stored before this feature shipped (the key is absent),
     // preserving the legacy behaviour for in-flight messages.
@@ -32,6 +48,22 @@ isolated function constructContentDistMsg(storeapi:Message message) returns webs
     if metadata is map<string|string[]> && metadata.hasKey(common:CONTENT_TYPE_METADATA_KEY) {
         string|string[] ctValue = metadata.get(common:CONTENT_TYPE_METADATA_KEY);
         contentType = ctValue is string ? ctValue : (ctValue.length() > 0 ? ctValue[0] : mime:APPLICATION_JSON);
+    }
+
+    // Content-unaware passthrough (default): forward the stored payload bytes verbatim with the
+    // recorded Content-Type. This skips the JSON parse + re-encode on the delivery hot path — the
+    // primary memory/CPU win for the consumer flow — and lets any Content-Type flow through unchanged.
+    // content MUST be the byte[] payload, never a decoded string: string is a json subtype in Ballerina,
+    // so the HubClient would JSON-serialize it (adding quotes); byte[] is sent as-is by setPayload.
+    if contentPassthrough {
+        log:printDebug("Reconstructing content distribution message (passthrough)",
+                messageId = message.id ?: "(none)", contentType = contentType,
+                payloadSize = message.payload.length());
+        return {
+            content: message.payload,
+            contentType,
+            headers: constructDeliveryHeaders(message)
+        };
     }
 
     log:printDebug("Reconstructing content distribution message",

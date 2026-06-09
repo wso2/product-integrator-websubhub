@@ -263,28 +263,34 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
         if config:securityOn {
             check security:authorize(headers, ["update_content"]);
         }
-        check self.updateMessage(message, headers);
+        check publishUpdateMessage(message, headers);
         return websubhub:ACKNOWLEDGEMENT;
     }
-
-    isolated function updateMessage(websubhub:UpdateMessage msg, http:Headers headers) returns websubhub:UpdateMessageError? {
-        if state:isTopicAvailable(msg.hubTopic) {
-            string? messageId = getMessageId(headers);
-            map<string[]> metadata = getMetadata(headers);
-            error? errorResponse = persist:addUpdateMessage(msg.hubTopic, msg, metadata, messageId);
-            if errorResponse is websubhub:UpdateMessageError {
-                return errorResponse;
-            } else if errorResponse is error {
-                common:logRecoverableError("Error occurred while publishing the content ", errorResponse);
-                return error websubhub:UpdateMessageError(
-                    errorResponse.message(), statusCode = http:STATUS_INTERNAL_SERVER_ERROR);
-            }
-        } else {
-            return error websubhub:UpdateMessageError(
-                "Topic [" + msg.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_FOUND);
-        }
-    }
 };
+
+# Validates the target topic and persists the published content to the message store. Shared by the
+# standard WebSub publish path (`onUpdateMessage`) and the content-unaware passthrough endpoint, so
+# both ingest routes apply the same topic check, metadata extraction, and persistence logic.
+#
+# + msg - The content-update message to persist (its `content` may be raw `byte[]` for passthrough)
+# + headers - `http:Headers` of the original `http:Request`, used to derive the message id and metadata
+# + return - `websubhub:UpdateMessageError` if the topic is unknown or persistence fails, else `()`
+isolated function publishUpdateMessage(websubhub:UpdateMessage msg, http:Headers headers) returns websubhub:UpdateMessageError? {
+    if !state:isTopicAvailable(msg.hubTopic) {
+        return error websubhub:UpdateMessageError(
+            "Topic [" + msg.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_FOUND);
+    }
+    string? messageId = getMessageId(headers);
+    map<string[]> metadata = getMetadata(headers);
+    error? errorResponse = persist:addUpdateMessage(msg.hubTopic, msg, metadata, messageId);
+    if errorResponse is websubhub:UpdateMessageError {
+        return errorResponse;
+    } else if errorResponse is error {
+        common:logRecoverableError("Error occurred while publishing the content ", errorResponse);
+        return error websubhub:UpdateMessageError(
+            errorResponse.message(), statusCode = http:STATUS_INTERNAL_SERVER_ERROR);
+    }
+}
 
 isolated function getMessageId(http:Headers httpHeaders) returns string? {
     if !httpHeaders.hasHeader(MESSAGE_ID_HEADER) {

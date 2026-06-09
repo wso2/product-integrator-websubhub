@@ -60,9 +60,11 @@ public type KafkaConsumerConfig record {|
     kafka:OffsetResetMethod offsetReset?;
 |};
 
-// Internal record to data-bind the Kafka consumer record
+// Internal record to data-bind the Kafka consumer record. `headers` intentionally keeps the Kafka
+// header value type (map<byte[]|byte[][]|string|string[]>) inherited from kafka:AnydataConsumerRecord:
+// Kafka delivers header values as raw byte[] on the wire, so narrowing to map<string|string[]> here
+// makes the runtime data-binding fail and crashes the consumer. They are decoded to strings in receive().
 type KafkaConsumerRecord record {|
     *kafka:AnydataConsumerRecord;
     byte[] value;
-    map<string|string[]> headers;
 |};

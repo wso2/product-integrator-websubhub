@@ -37,6 +37,13 @@ public function main() returns error? {
     );
     check httpListener.attach(healthCheckService, "/health");
 
+    // Attach the content-unaware (passthrough) publish endpoint when enabled. It shares the hub
+    // listener but is hosted on a distinct path, so it does not collide with the WebSub hub service.
+    if config:server.publishEndpoint.enabled {
+        check httpListener.attach(rawPublishService, config:server.publishEndpoint.path);
+        log:printInfo("Content passthrough publish endpoint enabled", path = config:server.publishEndpoint.path);
+    }
+
     // Start the Hub
     websubhub:Listener hubListener = check new (httpListener);
     check hubListener.attach(hubService, "hub");

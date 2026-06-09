@@ -18,6 +18,12 @@ import messagestore.api;
 
 import ballerinax/java.jms;
 
+# Reserved MapMessage key under which the raw payload bytes are stored. ballerinax/java.jms does not
+# expose JMS string user-properties at the Ballerina level, so metadata (e.g. the x-hub-contentType
+# used to reconstruct the delivery Content-Type) is carried as ordinary MapMessage entries alongside
+# the payload. Metadata keys never collide with this reserved key in practice (hub headers, not "__payload").
+const string JMS_PAYLOAD_KEY = "__payload";
+
 public isolated client class Producer {
     *api:Producer;
 
@@ -38,9 +44,22 @@ public isolated client class Producer {
     }
 
     isolated remote function send(string topic, api:Message message) returns error? {
-        jms:BytesMessage jmsMessage = {
+        // Carry the payload and any metadata in a single MapMessage: the raw bytes under the reserved
+        // JMS_PAYLOAD_KEY (MapMessage supports byte[] entries), and each metadata entry as a string so
+        // it survives the broker round-trip and the consumer can restore api:Message.metadata.
+        map<anydata> content = {};
+        content[JMS_PAYLOAD_KEY] = message.payload;
+        map<string|string[]>? metadata = message.metadata;
+        if metadata is map<string|string[]> {
+            foreach var [key, value] in metadata.entries() {
+                // MapMessage entries are scalar; flatten a multi-valued header to its first element.
+                // The only key the hub relies on (x-hub-contentType) is single-valued.
+                content[key] = value is string[] ? (value.length() > 0 ? value[0] : "") : value;
+            }
+        }
+        jms:MapMessage jmsMessage = {
             correlationId: message.id,
-            content: message.payload
+            content
         };
         check self.producer->sendTo(
             {'type: jms:TOPIC, name: topic},
