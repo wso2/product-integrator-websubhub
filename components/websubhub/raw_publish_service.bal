@@ -49,7 +49,7 @@ http:Service rawPublishService = isolated service object {
         }
 
         string? topic = request.getQueryParamValue("hub.topic");
-        if topic is () {
+        if topic is () || topic.trim() == "" {
             return <http:BadRequest>{body: "Missing required query parameter: hub.topic"};
         }
 

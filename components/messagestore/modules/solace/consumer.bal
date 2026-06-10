@@ -58,7 +58,7 @@ isolated client class Consumer {
         if properties is map<anydata> && properties.length() > 0 {
             map<string|string[]> restored = {};
             foreach [string, anydata] [key, value] in properties.entries() {
-                restored[key] = value is string[] ? <string[]>value : value.toString();
+                restored[key] = value.toString();
             }
             metadata = restored;
         }

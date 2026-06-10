@@ -21,7 +21,8 @@ import ballerinax/java.jms;
 # Reserved MapMessage key under which the raw payload bytes are stored. ballerinax/java.jms does not
 # expose JMS string user-properties at the Ballerina level, so metadata (e.g. the x-hub-contentType
 # used to reconstruct the delivery Content-Type) is carried as ordinary MapMessage entries alongside
-# the payload. Metadata keys never collide with this reserved key in practice (hub headers, not "__payload").
+# the payload. The metadata copy loop skips this key to prevent a metadata entry from overwriting the
+# payload.
 const string JMS_PAYLOAD_KEY = "__payload";
 
 public isolated client class Producer {
@@ -52,6 +53,9 @@ public isolated client class Producer {
         map<string|string[]>? metadata = message.metadata;
         if metadata is map<string|string[]> {
             foreach var [key, value] in metadata.entries() {
+                if key == JMS_PAYLOAD_KEY {
+                    continue;
+                }
                 // MapMessage entries are scalar; flatten a multi-valued header to its first element.
                 // The only key the hub relies on (x-hub-contentType) is single-valued.
                 content[key] = value is string[] ? (value.length() > 0 ? value[0] : "") : value;

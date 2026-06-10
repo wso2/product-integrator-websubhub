@@ -40,8 +40,12 @@ public function main() returns error? {
     // Attach the content-unaware (passthrough) publish endpoint when enabled. It shares the hub
     // listener but is hosted on a distinct path, so it does not collide with the WebSub hub service.
     if config:server.publishEndpoint.enabled {
-        check httpListener.attach(rawPublishService, config:server.publishEndpoint.path);
-        log:printInfo("Content passthrough publish endpoint enabled", path = config:server.publishEndpoint.path);
+        string epPath = config:server.publishEndpoint.path.trim();
+        if epPath == "" || epPath == "/hub" || epPath == "hub" || epPath == "/health" {
+            return error(string `Invalid publishEndpoint.path '${epPath}': must be non-empty and must not conflict with /hub or /health`);
+        }
+        check httpListener.attach(rawPublishService, epPath);
+        log:printInfo("Content passthrough publish endpoint enabled", path = epPath);
     }
 
     // Start the Hub
