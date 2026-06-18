@@ -16,12 +16,15 @@
 
 import messagestore.api;
 
+import ballerina/log;
 import ballerinax/java.jms;
 
 public isolated client class Producer {
     *api:Producer;
 
-    private final jms:MessageProducer producer;
+    private jms:MessageProducer producer;
+    private jms:Connection connection;
+    private final jms:ConnectionConfiguration & readonly connectionConfig;
 
     public isolated function init(string clientName, Config config) returns error? {
         jms:ConnectionConfiguration connectionConfig = {
@@ -32,23 +35,43 @@ public isolated client class Producer {
             password: config.password,
             properties: config.properties
         };
+        self.connectionConfig = connectionConfig.cloneReadOnly();
         jms:Connection connection = check new (connectionConfig);
         jms:Session session = check connection->createSession();
         self.producer = check session.createProducer();
+        self.connection = connection;
     }
 
     isolated remote function send(string topic, api:Message message) returns error? {
-        jms:BytesMessage jmsMessage = {
-            correlationId: message.id,
-            content: message.payload
-        };
-        check self.producer->sendTo(
-            {'type: jms:TOPIC, name: topic},
-            message = jmsMessage
-        );
+        lock {
+            jms:BytesMessage jmsMessage = {
+                correlationId: message.id,
+                content: message.payload.cloneReadOnly()
+            };
+            check self.producer->sendTo(
+                {'type: jms:TOPIC, name: topic},
+                message = jmsMessage
+            );
+        }
     }
 
     isolated remote function close() returns error? {
-        return self.producer->close();
+        lock {
+            check self.producer->close();
+            return self.connection->close();
+        }
+    }
+
+    isolated remote function reconnect() returns error? {
+        lock {
+            error? result = self.connection->close();
+            if result is error {
+                log:printWarn("Error while closing JMS connection during reconnect", 'error = result);
+            }
+            jms:Connection connection = check new (self.connectionConfig);
+            jms:Session session = check connection->createSession();
+            self.producer = check session.createProducer();
+            self.connection = connection;
+        }
     }
 }

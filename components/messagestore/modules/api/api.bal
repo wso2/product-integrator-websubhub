@@ -51,6 +51,13 @@ public isolated client class Producer {
     isolated remote function close() returns error? {
         return error("Calling an abstract API");
     }
+
+    # Reconnects to the underlying broker by closing and reinitializing the connection.
+    #
+    # + return - An `error` if reconnecting fails, otherwise `()`.
+    isolated remote function reconnect() returns error? {
+        return error("Calling an abstract API");
+    }
 }
 
 # Represents a consumer client that receives messages from the message store.
