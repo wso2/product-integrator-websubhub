@@ -99,7 +99,11 @@ isolated client class Consumer {
     }
 
     isolated remote function receive() returns api:Message|error? {
-        check self.updateCurrentBatch();
+        do {
+            check self.updateCurrentBatch();
+        } on fail error e {
+            return error api:MessageReceiveError(e.message(), cause = e);
+        }
         if self.isCurrentBatchEmpty() {
             return;
         }

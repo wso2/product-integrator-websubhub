@@ -45,7 +45,12 @@ isolated client class Consumer {
     }
 
     isolated remote function receive() returns api:Message|error? {
-        solace:Message? receivedMsg = check self.consumer->receive(self.config.receiveTimeout);
+        solace:Message? receivedMsg;
+        do {
+            receivedMsg = check self.consumer->receive(self.config.receiveTimeout);
+        } on fail error e {
+            return error api:MessageReceiveError(e.message(), cause = e);
+        }
         if receivedMsg is () {
             return;
         }

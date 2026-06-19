@@ -107,6 +107,16 @@ isolated function startDispatchTask(websubhub:VerifiedSubscription subscription)
             return;
         }
 
+        if e is storeapi:MessageReceiveError {
+            // Transient broker-side error during receive (e.g. queue deleted during unsubscription,
+            // connection drop). Exit the worker cleanly without marking the subscription stale.
+            error? result = consumerEp->close(storeapi:TEMPORARY);
+            if result is error {
+                common:logRecoverableError("Error occurred while gracefully closing message store consumer", result);
+            }
+            return;
+        }
+
         error? result = consumerEp->close(storeapi:TEMPORARY);
         if result is error {
             common:logRecoverableError("Error occurred while gracefully closing message store consumer", result);

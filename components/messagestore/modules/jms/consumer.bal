@@ -45,7 +45,12 @@ isolated client class Consumer {
     }
 
     isolated remote function receive() returns api:Message|error? {
-        jms:Message? receivedMsg = check self.consumer->receive(self.readTimeout);
+        jms:Message? receivedMsg;
+        do {
+            receivedMsg = check self.consumer->receive(self.readTimeout);
+        } on fail error e {
+            return error api:MessageReceiveError(e.message(), cause = e);
+        }
         if receivedMsg !is jms:BytesMessage {
             return;
         }
