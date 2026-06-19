@@ -56,7 +56,7 @@ public isolated function createProducer(string clientId, Config store) returns a
 # + systemConsumer - Flag to indicate whether this is a system consumer
 # + meta - The meta data required to resolve the consumer configurations
 # + return - A `store:Consumer` for a specific message store, or else return an `error` if the operation fails
-public isolated function createConsumer(string topic, string defaultConsumerId, Config store, boolean systemConsumer = false, record {} meta = {}) returns api:Consumer|error {
+public isolated function createConsumer(string topic, string defaultConsumerId, Config store, boolean systemConsumer = false, record {} meta = {}) returns api:ConsumerResult|error {
     var {kafka, solace, jms} = store;
     if kafka is kafka:Config {
         return kafka:createConsumer(defaultConsumerId, topic, kafka, systemConsumer, meta);

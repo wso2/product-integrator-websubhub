@@ -29,6 +29,16 @@ public type Message record {
 # callers must treat this as opaque.
 public type ConsumerMetadata record {| string...; |};
 
+# Represents the result of creating a consumer: the consumer client along with its
+# broker-specific metadata.
+#
+# + consumer - The created message store consumer
+# + metadata - Broker-specific metadata describing the consumer
+public type ConsumerResult record {|
+    Consumer consumer;
+    ConsumerMetadata metadata;
+|};
+
 # Represents the intent of closing a `Consumer`. This is used to indicate how the underlying broker-side resources
 # (such as subscriptions) should be handled when a consumer is closed.
 public enum ClosureIntent {
@@ -101,13 +111,6 @@ public isolated client class Consumer {
     # + return - An `error` if closing the consumer fails, otherwise `()`.
     isolated remote function close(ClosureIntent intent = TEMPORARY) returns error? {
         return error("Calling an abstract API");
-    }
-
-    # Returns broker-specific metadata about this consumer.
-    #
-    # + return - The broker-defined consumer metadata
-    public isolated function getMetadata() returns ConsumerMetadata {
-        return {};
     }
 }
 

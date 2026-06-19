@@ -27,7 +27,6 @@ isolated client class Consumer {
     private final kafka:Consumer consumer;
     private final readonly & KafkaConsumerConfig config;
     private final string? dlqTopic;
-    private final string consumerGroup;
 
     private KafkaConsumerRecord[] messageBatch = [];
 
@@ -43,7 +42,6 @@ isolated client class Consumer {
         };
         self.config = config.consumer.cloneReadOnly();
         self.dlqTopic = dlqTopic;
-        self.consumerGroup = groupId;
 
         if partitions is () {
             // Kafka consumer topic subscription should only be used when manual partition assignment is not used
@@ -156,10 +154,6 @@ isolated client class Consumer {
     isolated remote function close(api:ClosureIntent intent = api:TEMPORARY) returns error? {
         return self.consumer->close(self.config.gracefulClosePeriod);
     }
-
-    public isolated function getMetadata() returns api:ConsumerMetadata {
-        return {"consumerGroup": self.consumerGroup};
-    }
 }
 
 # Initialize a consumer for Kafka message store.
@@ -172,7 +166,7 @@ isolated client class Consumer {
 # if the user provided a `meta` information it would have a higher priority than the `groupId` provided. 
 # As of now only consumer-group and topic-partitions can be provided as `meta`
 # + return - A `store:Consumer` for Kafka message store, or else return an `error` if the operation fails
-public isolated function createConsumer(string groupId, string topic, Config config, boolean systemConsumer, record {} meta = {}) returns api:Consumer|error {
+public isolated function createConsumer(string groupId, string topic, Config config, boolean systemConsumer, record {} meta = {}) returns api:ConsumerResult|error {
 
     string consumerGroup = systemConsumer ? groupId : check resolveConsumerGroup(groupId, meta);
     int[]? topicPartitions = check resolveTopicPartitions(meta);
@@ -180,7 +174,11 @@ public isolated function createConsumer(string groupId, string topic, Config con
     if dlqTopic is string {
         check initKafkaDlqProducer(config);
     }
-    return new Consumer(config, consumerGroup, topic, topicPartitions, dlqTopic);
+    api:ConsumerMetadata metadata = {"consumerGroup": consumerGroup};
+    if topicPartitions !is () {
+        metadata["topicPartitions"] = string:'join(",", ...topicPartitions.'map(p => p.toString()));
+    }
+    return {consumer: check new Consumer(config, consumerGroup, topic, topicPartitions, dlqTopic), metadata};
 }
 
 const string CONSUMER_GROUP = "consumerGroup";

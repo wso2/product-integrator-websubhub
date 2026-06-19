@@ -42,8 +42,9 @@ public isolated function distributeContentNotification(readonly & websubhub:Veri
 isolated function startDispatchTask(websubhub:VerifiedSubscription subscription) returns error? {
     string subscriberId = common:generateSubscriberId(subscription.hubTopic, subscription.hubCallback);
     string topic = subscription.hubTopic;
-    storeapi:Consumer consumerEp = check conn:createConsumer(subscription);
-    Dispatcher contentDispatcher = check createDispatcher(subscription, consumerEp);
+    storeapi:ConsumerResult consumerResult = check conn:createConsumer(subscription);
+    storeapi:Consumer consumerEp = consumerResult.consumer;
+    Dispatcher contentDispatcher = check createDispatcher(subscription, consumerEp, consumerResult.metadata);
     do {
         while true {
             storeapi:Message? message = check consumerEp->receive();

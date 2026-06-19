@@ -25,7 +25,6 @@ isolated client class Consumer {
 
     private final solace:MessageConsumer consumer;
     private final readonly & SolaceConsumerConfig config;
-    private final string queueName;
 
     isolated function init(Config config, string queueName) returns error? {
 
@@ -43,7 +42,6 @@ isolated client class Consumer {
         };
         self.consumer = check new (config.url, consumerConfig);
         self.config = config.consumer.cloneReadOnly();
-        self.queueName = queueName;
     }
 
     isolated remote function receive() returns api:Message|error? {
@@ -83,10 +81,6 @@ isolated client class Consumer {
     isolated remote function close(api:ClosureIntent intent = api:TEMPORARY) returns error? {
         return self.consumer->close();
     }
-
-    public isolated function getMetadata() returns api:ConsumerMetadata {
-        return {"queue": self.queueName};
-    }
 }
 
 // todo: fix system queue consumer creation
@@ -99,7 +93,7 @@ isolated client class Consumer {
 # + meta - The meta data required to resolve the consumer configurations,
 # if `solace.queue_name` is present it takes priority over the `queueName` parameter
 # + return - A `store:Consumer` for Kafka message store, or else return an `error` if the operation fails
-public isolated function createConsumer(string queueName, Config config, boolean systemConsumer = false, record {} meta = {}) returns api:Consumer|error {
+public isolated function createConsumer(string queueName, Config config, boolean systemConsumer = false, record {} meta = {}) returns api:ConsumerResult|error {
     string effectiveQueueName = systemConsumer ? queueName : resolveQueueName(config.queue, queueName, meta);
-    return new Consumer(config, effectiveQueueName);
+    return {consumer: check new Consumer(config, effectiveQueueName), metadata: {"queue": effectiveQueueName}};
 }

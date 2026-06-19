@@ -38,14 +38,15 @@ public final storeapi:Consumer websubEventsConsumer = check initWebSubEventsCons
 function initWebSubEventsConsumer() returns storeapi:Consumer|error {
     string websubEventsConsumerId = string `${config:state.events.consumerIdPrefix}-${config:serverId}`;
     check admin:createWebSubEventsSubscription(config:state.events.topic, websubEventsConsumerId);
-    return store:createConsumer(config:state.events.topic, websubEventsConsumerId, config:store, true);
+    storeapi:ConsumerResult result = check store:createConsumer(config:state.events.topic, websubEventsConsumerId, config:store, true);
+    return result.consumer;
 }
 
 # Initialize a `store:Consumer` for a WebSub subscriber.
 #
 # + subscription - The WebSub subscriber details
 # + return - A `store:Consumer` for the message store, or else return an `error` if the operation fails
-public isolated function createConsumer(websubhub:VerifiedSubscription subscription) returns storeapi:Consumer|error {
+public isolated function createConsumer(websubhub:VerifiedSubscription subscription) returns storeapi:ConsumerResult|error {
     string topic = subscription.hubTopic;
     string defaultConsumerId = check constructDefaultConsumerId(subscription);
     return store:createConsumer(topic, defaultConsumerId, config:store, false, subscription);

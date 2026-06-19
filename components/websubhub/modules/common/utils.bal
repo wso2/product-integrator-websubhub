@@ -98,7 +98,38 @@ public isolated function logContentDeliveryFailure(string msg, string topic, str
             keyValues[k] = v;
         }
     }
-    log:printDebug(msg, err, keyValues = keyValues);
+    log:printWarn(msg, 'error = err, keyValues = keyValues);
+}
+
+# Logs a content delivery retry event including topic, callback URL, message ID, and broker-specific
+# consumer metadata, along with HTTP status and the retry action being enforced.
+#
+# + topic - Topic associated with the content delivery
+# + callback - Callback endpoint to which the content delivery was attempted
+# + msgId - Optional message identifier for tracking the delivery
+# + consumerMetadata - Broker-specific consumer metadata (e.g., queue, consumer group) to include in the log
+# + status - HTTP status code returned by the subscriber, if available
+# + action - Retry action being enforced for this delivery attempt
+public isolated function logContentDeliveryRetry(string topic, string callback, string? msgId,
+        storeapi:ConsumerMetadata consumerMetadata = {}, int? status = (), RetryAction? action = ()) {
+    string constructedMsgId = msgId ?: "[No Message Id]";
+    log:KeyValues keyValues = {};
+    keyValues["topic"] = topic;
+    keyValues["callback"] = callback;
+    keyValues["messageId"] = constructedMsgId;
+    if status !is () {
+        keyValues["status"] = status;
+    }
+    if action !is () {
+        keyValues["action"] = action;
+    }
+    foreach var [k, v] in consumerMetadata.entries() {
+        if !keyValues.hasKey(k) {
+            keyValues[k] = v;
+        }
+    }
+    log:printDebug("Received error response for content delivery from the subscriber, hence enforcing the retry semantics",
+        keyValues = keyValues);
 }
 
 # Extracts `http:RetryConfig` from the provided `RetryConfig`.

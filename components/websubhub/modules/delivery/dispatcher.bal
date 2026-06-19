@@ -38,8 +38,9 @@ isolated client class HttpRetryBasedDispatcher {
     private final string topic;
     private final string callback;
     private final common:HttpRetryConfig? & readonly 'retry;
+    private final storeapi:ConsumerMetadata & readonly consumerMetadata;
 
-    isolated function init(websubhub:VerifiedSubscription subscription, storeapi:Consumer consumer, readonly & common:HttpRetryConfig? retryConfig) returns error? {
+    isolated function init(websubhub:VerifiedSubscription subscription, storeapi:Consumer consumer, readonly & common:HttpRetryConfig? retryConfig, storeapi:ConsumerMetadata consumerMetadata) returns error? {
         self.dispatcherClient = check new (subscription, {
             httpVersion: http:HTTP_2_0,
             secureSocket: common:extractClientSecureSocketConfig(config:delivery.secureSocket),
@@ -50,6 +51,7 @@ isolated client class HttpRetryBasedDispatcher {
         self.topic = subscription.hubTopic;
         self.callback = subscription.hubCallback;
         self.'retry = retryConfig;
+        self.consumerMetadata = consumerMetadata.cloneReadOnly();
     }
 
     isolated remote function notifyContentDistribution(storeapi:Message message) returns error? {
@@ -63,11 +65,11 @@ isolated client class HttpRetryBasedDispatcher {
         error? result = self.deliverWithRetryReset(notification);
         if result is error {
             common:logContentDeliveryFailure("Failed to deliver content to the subscriber", 
-                self.topic, self.callback, message.id, self.consumer.getMetadata(), err = result);
+                self.topic, self.callback, message.id, self.consumerMetadata, err = result);
             check self.consumer->nack(message);
             return result;
         }
-        common:logContentDelivery(self.topic, self.callback, message.id, self.consumer.getMetadata());
+        common:logContentDelivery(self.topic, self.callback, message.id, self.consumerMetadata);
         check self.consumer->ack(message);
     }
 
@@ -101,8 +103,9 @@ isolated client class MessageBrokerRetryBasedDispatcher {
     private final string topic;
     private final string callback;
     private final common:MessageStoreRetryConfig & readonly 'retry;
+    private final storeapi:ConsumerMetadata & readonly consumerMetadata;
 
-    isolated function init(websubhub:VerifiedSubscription subscription, storeapi:Consumer consumer, readonly & common:MessageStoreRetryConfig retryConfig) returns error? {
+    isolated function init(websubhub:VerifiedSubscription subscription, storeapi:Consumer consumer, readonly & common:MessageStoreRetryConfig retryConfig, storeapi:ConsumerMetadata consumerMetadata) returns error? {
         self.dispatcherClient = check new (subscription, {
             httpVersion: http:HTTP_2_0,
             secureSocket: common:extractClientSecureSocketConfig(config:delivery.secureSocket),
@@ -112,40 +115,46 @@ isolated client class MessageBrokerRetryBasedDispatcher {
         self.topic = subscription.hubTopic;
         self.callback = subscription.hubCallback;
         self.'retry = retryConfig;
+        self.consumerMetadata = consumerMetadata.cloneReadOnly();
     }
 
     isolated remote function notifyContentDistribution(storeapi:Message message) returns error? {
         websubhub:ContentDistributionMessage|error notification = constructContentDistMsg(message);
         if notification is error {
-            log:printWarn("Error occurred while deserializing the message, hence pushing the message to DLQ", 'error = notification);
+            common:logContentDeliveryFailure("Error occurred while deserializing the message, moving message to dead-letter queue",
+                self.topic, self.callback, message.id, self.consumerMetadata);
             check self.consumer->deadLetter(message);
             return;
         }
 
         websubhub:ContentDistributionSuccess|websubhub:Error result = self.dispatcherClient->notifyContentDistribution(notification);
         if result is websubhub:ContentDistributionSuccess {
-            common:logContentDelivery(self.topic, self.callback, message.id, self.consumer.getMetadata());
+            common:logContentDelivery(self.topic, self.callback, message.id, self.consumerMetadata);
             check self.consumer->ack(message);
             return;
         }
 
         int statusCode = result.detail().statusCode;
         common:RetryAction action = self.resolveRetryAction(statusCode);
-        common:logContentDeliveryFailure("Received error response for content-delivery from the subscriber", 
-            self.topic, self.callback, message.id, self.consumer.getMetadata(), status = statusCode, action = action);
 
         if action === "redeliver" {
+            common:logContentDeliveryRetry(self.topic, self.callback, message.id, self.consumerMetadata,
+                status = statusCode, action = action);
             check self.consumer->nack(message);
             runtime:sleep(self.'retry.delay);
             return;
         }
 
         if action === "deadLetter" {
+            common:logContentDeliveryFailure("Content delivery failed, moving message to dead-letter queue",
+                self.topic, self.callback, message.id, self.consumerMetadata, status = statusCode, action = action);
             check self.consumer->deadLetter(message);
             return;
         }
 
         if action === "fail" {
+            common:logContentDeliveryFailure("Received error response for content delivery from the subscriber",
+                self.topic, self.callback, message.id, self.consumerMetadata, status = statusCode, action = action);
             return result;
         }
     }
