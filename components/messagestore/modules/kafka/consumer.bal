@@ -27,6 +27,7 @@ isolated client class Consumer {
     private final kafka:Consumer consumer;
     private final readonly & KafkaConsumerConfig config;
     private final string? dlqTopic;
+    private final string consumerGroup;
 
     private KafkaConsumerRecord[] messageBatch = [];
 
@@ -42,6 +43,7 @@ isolated client class Consumer {
         };
         self.config = config.consumer.cloneReadOnly();
         self.dlqTopic = dlqTopic;
+        self.consumerGroup = groupId;
 
         if partitions is () {
             // Kafka consumer topic subscription should only be used when manual partition assignment is not used
@@ -153,6 +155,10 @@ isolated client class Consumer {
 
     isolated remote function close(api:ClosureIntent intent = api:TEMPORARY) returns error? {
         return self.consumer->close(self.config.gracefulClosePeriod);
+    }
+
+    public isolated function getMetadata() returns api:ConsumerMetadata {
+        return {"consumerGroup": self.consumerGroup};
     }
 }
 

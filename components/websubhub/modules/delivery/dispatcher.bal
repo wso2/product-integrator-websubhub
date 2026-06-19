@@ -60,14 +60,15 @@ isolated client class HttpRetryBasedDispatcher {
             return;
         }
 
-        error? result = check self.deliverWithRetryReset(notification);
+        error? result = self.deliverWithRetryReset(notification);
         if result is error {
+            common:logContentDeliveryFailure("Failed to deliver content to the subscriber", 
+                self.topic, self.callback, message.id, self.consumer.getMetadata(), err = result);
             check self.consumer->nack(message);
-            check result;
-        } else {
-            common:logContentDelivery(self.topic, self.callback, message.id);
-            check self.consumer->ack(message);
+            return result;
         }
+        common:logContentDelivery(self.topic, self.callback, message.id, self.consumer.getMetadata());
+        check self.consumer->ack(message);
     }
 
     isolated function deliverWithRetryReset(websubhub:ContentDistributionMessage notification) returns error? {
@@ -123,14 +124,15 @@ isolated client class MessageBrokerRetryBasedDispatcher {
 
         websubhub:ContentDistributionSuccess|websubhub:Error result = self.dispatcherClient->notifyContentDistribution(notification);
         if result is websubhub:ContentDistributionSuccess {
-            common:logContentDelivery(self.topic, self.callback, message.id);
+            common:logContentDelivery(self.topic, self.callback, message.id, self.consumer.getMetadata());
             check self.consumer->ack(message);
             return;
         }
 
         int statusCode = result.detail().statusCode;
         common:RetryAction action = self.resolveRetryAction(statusCode);
-        log:printDebug("Received errror response for content-delivery from the subscriber", messageId = message.id ?: "[No Message Id]", status = statusCode, action = action);
+        common:logContentDeliveryFailure("Received error response for content-delivery from the subscriber", 
+            self.topic, self.callback, message.id, self.consumer.getMetadata(), status = statusCode, action = action);
 
         if action === "redeliver" {
             check self.consumer->nack(message);

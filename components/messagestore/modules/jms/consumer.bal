@@ -80,6 +80,10 @@ isolated client class Consumer {
         }
         return self.session->close();
     }
+
+    public isolated function getMetadata() returns api:ConsumerMetadata {
+        return {"subscriber": self.subscriberName};
+    }
 }
 
 # Initialize a consumer for JMS message store.

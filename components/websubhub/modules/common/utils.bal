@@ -18,6 +18,8 @@ import ballerina/http;
 import ballerina/log;
 import ballerina/os;
 
+import wso2/messagestore.api as storeapi;
+
 # Generates a unique Id for a subscriber.
 #
 # + topic - The `topic` which subscriber needs to subscribe
@@ -52,9 +54,51 @@ public isolated function logRecoverableError(string msg, error? 'error = (), *lo
 # + topic - Topic associated with the content delivery
 # + callback - Callback endpoint to which the content is delivered
 # + msgId - Optional message identifier for tracking the delivery
-public isolated function logContentDelivery(string topic, string callback, string? msgId) {
+# + consumerMetadata - Broker-specific consumer metadata (e.g., queue, consumer group) to include in the log
+public isolated function logContentDelivery(string topic, string callback, string? msgId, storeapi:ConsumerMetadata consumerMetadata = {}) {
     string constructedMsgId = msgId ?: "[No Message Id]";
-    log:printDebug("Message delivered", topic = topic, callback = callback, messageId = constructedMsgId);
+    log:KeyValues keyValues = {};
+    keyValues["topic"] = topic;
+    keyValues["callback"] = callback;
+    keyValues["messageId"] = constructedMsgId;
+    foreach var [k, v] in consumerMetadata.entries() {
+        if !keyValues.hasKey(k) {
+            keyValues[k] = v;
+        }
+    }
+    log:printDebug("Message delivered", keyValues = keyValues);
+}
+
+# Logs a failed content delivery including topic, callback URL, message ID, and broker-specific
+# consumer metadata, along with any available failure details (HTTP status, retry action, or error).
+#
+# + msg - Base log message describing the failure
+# + topic - Topic associated with the content delivery
+# + callback - Callback endpoint to which the content delivery was attempted
+# + msgId - Optional message identifier for tracking the delivery
+# + consumerMetadata - Broker-specific consumer metadata (e.g., queue, consumer group) to include in the log
+# + status - HTTP status code returned by the subscriber, if available
+# + action - Retry action resolved for the failed delivery, if available
+# + err - The error that caused the content delivery to fail, if available
+public isolated function logContentDeliveryFailure(string msg, string topic, string callback, string? msgId,
+        storeapi:ConsumerMetadata consumerMetadata = {}, int? status = (), RetryAction? action = (), error? err = ()) {
+    string constructedMsgId = msgId ?: "[No Message Id]";
+    log:KeyValues keyValues = {};
+    keyValues["topic"] = topic;
+    keyValues["callback"] = callback;
+    keyValues["messageId"] = constructedMsgId;
+    if status !is () {
+        keyValues["status"] = status;
+    }
+    if action !is () {
+        keyValues["action"] = action;
+    }
+    foreach var [k, v] in consumerMetadata.entries() {
+        if !keyValues.hasKey(k) {
+            keyValues[k] = v;
+        }
+    }
+    log:printDebug(msg, err, keyValues = keyValues);
 }
 
 # Extracts `http:RetryConfig` from the provided `RetryConfig`.

@@ -25,6 +25,7 @@ isolated client class Consumer {
 
     private final solace:MessageConsumer consumer;
     private final readonly & SolaceConsumerConfig config;
+    private final string queueName;
 
     isolated function init(Config config, string queueName) returns error? {
 
@@ -42,6 +43,7 @@ isolated client class Consumer {
         };
         self.consumer = check new (config.url, consumerConfig);
         self.config = config.consumer.cloneReadOnly();
+        self.queueName = queueName;
     }
 
     isolated remote function receive() returns api:Message|error? {
@@ -80,6 +82,10 @@ isolated client class Consumer {
 
     isolated remote function close(api:ClosureIntent intent = api:TEMPORARY) returns error? {
         return self.consumer->close();
+    }
+
+    public isolated function getMetadata() returns api:ConsumerMetadata {
+        return {"queue": self.queueName};
     }
 }
 
