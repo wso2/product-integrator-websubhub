@@ -165,7 +165,7 @@ isolated client class Consumer {
 # + meta - The meta data required to resolve the Kafka consumer group and topic partitions, 
 # if the user provided a `meta` information it would have a higher priority than the `groupId` provided. 
 # As of now only consumer-group and topic-partitions can be provided as `meta`
-# + return - A `store:Consumer` for Kafka message store, or else return an `error` if the operation fails
+# + return - An `api:ConsumerResult` tuple of the consumer and its metadata, or an `error` if the operation fails
 public isolated function createConsumer(string groupId, string topic, Config config, boolean systemConsumer, record {} meta = {}) returns api:ConsumerResult|error {
 
     string consumerGroup = systemConsumer ? groupId : check resolveConsumerGroup(groupId, meta);
@@ -178,7 +178,8 @@ public isolated function createConsumer(string groupId, string topic, Config con
     if topicPartitions !is () {
         metadata["topicPartitions"] = string:'join(",", ...topicPartitions.'map(p => p.toString()));
     }
-    return {consumer: check new Consumer(config, consumerGroup, topic, topicPartitions, dlqTopic), metadata};
+    Consumer consumer = check new Consumer(config, consumerGroup, topic, topicPartitions, dlqTopic);
+    return [consumer, metadata];
 }
 
 const string CONSUMER_GROUP = "consumerGroup";

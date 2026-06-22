@@ -89,7 +89,7 @@ isolated client class Consumer {
 # + config - The JMS connection configurations
 # + systemConsumer - Flag to indicate whether this is a system consumer
 # + meta - The meta data required to resolve the consumer configurations
-# + return - A `store:Consumer` for Kafka message store, or else return an `error` if the operation fails
+# + return - An `api:ConsumerResult` tuple of the consumer and its metadata, or an `error` if the operation fails
 public isolated function createConsumer(string topic, string defaultSubscriberId, Config config,
         boolean systemConsumer = false, record {} meta = {}) returns api:ConsumerResult|error {
     jms:ConnectionConfiguration connectionConfig = {
@@ -107,5 +107,6 @@ public isolated function createConsumer(string topic, string defaultSubscriberId
         check initJmsDlqProducer(config);
     }
     string subscriberName = systemConsumer ? defaultSubscriberId : string `consumer-${defaultSubscriberId}`;
-    return {consumer: check new Consumer(session, config.consumer, topic, subscriberName), metadata: {"subscriber": subscriberName}};
+    Consumer consumer = check new Consumer(session, config.consumer, topic, subscriberName);
+    return [consumer, {"subscriber": subscriberName}];
 }

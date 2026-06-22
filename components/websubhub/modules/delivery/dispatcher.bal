@@ -19,7 +19,6 @@ import websubhub.config;
 
 import ballerina/http;
 import ballerina/lang.runtime;
-import ballerina/log;
 import ballerina/websubhub;
 
 import wso2/messagestore.api as storeapi;
@@ -57,7 +56,8 @@ isolated client class HttpRetryBasedDispatcher {
     isolated remote function notifyContentDistribution(storeapi:Message message) returns error? {
         websubhub:ContentDistributionMessage|error notification = constructContentDistMsg(message);
         if notification is error {
-            log:printWarn("Error occurred while deserializing the message, hence pushing the message to DLQ", 'error = notification);
+            common:logContentDeliveryFailure("Error occurred while deserializing the message, moving message to dead-letter queue",
+                self.topic, self.callback, message.id, self.consumerMetadata, err = notification);
             check self.consumer->deadLetter(message);
             return;
         }
@@ -122,7 +122,7 @@ isolated client class MessageBrokerRetryBasedDispatcher {
         websubhub:ContentDistributionMessage|error notification = constructContentDistMsg(message);
         if notification is error {
             common:logContentDeliveryFailure("Error occurred while deserializing the message, moving message to dead-letter queue",
-                self.topic, self.callback, message.id, self.consumerMetadata);
+                self.topic, self.callback, message.id, self.consumerMetadata, err = notification);
             check self.consumer->deadLetter(message);
             return;
         }

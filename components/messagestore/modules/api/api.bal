@@ -29,15 +29,9 @@ public type Message record {
 # callers must treat this as opaque.
 public type ConsumerMetadata record {| string...; |};
 
-# Represents the result of creating a consumer: the consumer client along with its
-# broker-specific metadata.
-#
-# + consumer - The created message store consumer
-# + metadata - Broker-specific metadata describing the consumer
-public type ConsumerResult record {|
-    Consumer consumer;
-    ConsumerMetadata metadata;
-|};
+# Represents the result of creating a consumer: a tuple of the consumer client and its
+# broker-specific metadata. Index `0` holds the `Consumer`; index `1` holds the `ConsumerMetadata`.
+public type ConsumerResult [Consumer, ConsumerMetadata];
 
 # Represents the intent of closing a `Consumer`. This is used to indicate how the underlying broker-side resources
 # (such as subscriptions) should be handled when a consumer is closed.
