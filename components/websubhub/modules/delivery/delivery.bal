@@ -59,7 +59,14 @@ isolated function startDispatchTask(websubhub:VerifiedSubscription subscription)
             check contentDispatcher->notifyContentDistribution(message);
         }
     } on fail var e {
-        common:logRecoverableError("Error occurred while sending notification to subscriber", e);
+        if e is common:ContentDeliveryError {
+            var {messageId, status, action} = e.detail();
+            common:logContentDeliveryFailure(e.message(), subscription.hubTopic,
+                subscription.hubCallback, messageId, consumerMetadata,
+                status = status, action = action, err = e.cause());
+        } else {
+            common:logRecoverableError("Error occurred while sending notification to subscriber", e);
+        }
 
         if e is common:InvalidSubscriptionError {
             error? result = consumerEp->close(storeapi:PERMANENT);

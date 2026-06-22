@@ -64,10 +64,9 @@ isolated client class HttpRetryBasedDispatcher {
 
         error? result = self.deliverWithRetryReset(notification);
         if result is error {
-            common:logContentDeliveryFailure("Failed to deliver content to the subscriber", 
-                self.topic, self.callback, message.id, self.consumerMetadata, err = result);
             check self.consumer->nack(message);
-            return result;
+            return error common:ContentDeliveryError("Failed to deliver content to the subscriber",
+                result, messageId = message.id, status = (), action = ());
         }
         common:logContentDelivery(self.topic, self.callback, message.id, self.consumerMetadata);
         check self.consumer->ack(message);
@@ -153,9 +152,8 @@ isolated client class MessageBrokerRetryBasedDispatcher {
         }
 
         if action === "fail" {
-            common:logContentDeliveryFailure("Received error response for content delivery from the subscriber",
-                self.topic, self.callback, message.id, self.consumerMetadata, status = statusCode, action = action);
-            return result;
+            return error common:ContentDeliveryError("Received error response for content delivery from the subscriber",
+                result, messageId = message.id, status = statusCode, action = action);
         }
     }
 
