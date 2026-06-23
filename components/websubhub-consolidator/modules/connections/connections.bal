@@ -34,14 +34,16 @@ function initStatePersistProducer() returns storeapi:Producer|error {
 public final storeapi:Consumer websubEventsConsumer = check initWebSubEventsConsumer();
 
 function initWebSubEventsConsumer() returns storeapi:Consumer|error {
-    return store:createConsumer(config:state.events.topic, config:state.events.consumerId, config:store, true);
+    var [consumer, _] = check store:createConsumer(config:state.events.topic, config:state.events.consumerId, config:store, true);
+    return consumer;
 }
 
 # Initializes the WebSub event snapshot consumer.
 #
 # + return - A `store:Consumer` for the message store, or else return an `error` if the operation fails
 public isolated function initWebSubEventSnapshotConsumer() returns storeapi:Consumer|error {
-    return store:createConsumer(config:state.snapshot.topic, config:state.snapshot.consumerId, config:store, true);
+    var [consumer, _] = check store:createConsumer(config:state.snapshot.topic, config:state.snapshot.consumerId, config:store, true);
+    return consumer;
 }
 
 # Retrieves a message producer per topic.
