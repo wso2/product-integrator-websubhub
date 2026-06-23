@@ -17,6 +17,7 @@
 import messagestore.api;
 
 import ballerina/log;
+
 import xlibb/solace;
 
 public isolated client class Producer {
