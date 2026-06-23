@@ -65,8 +65,8 @@ isolated client class HttpRetryBasedDispatcher {
         error? result = self.deliverWithRetryReset(notification);
         if result is error {
             check self.consumer->nack(message);
-            return error common:ContentDeliveryError("Failed to deliver content to the subscriber",
-                result, messageId = message.id, status = (), action = ());
+            return error(result.message(), result, topic = self.topic, callback = self.callback, 
+                messageId = message.id ?: "[No Message Id]", consumerMetadata = self.consumerMetadata);
         }
         common:logContentDelivery(self.topic, self.callback, message.id, self.consumerMetadata);
         check self.consumer->ack(message);
@@ -135,25 +135,23 @@ isolated client class MessageBrokerRetryBasedDispatcher {
 
         int statusCode = result.detail().statusCode;
         common:RetryAction action = self.resolveRetryAction(statusCode);
+        common:logContentDeliveryFailure("Received error response for content-delivery from the subscriber",
+                self.topic, self.callback, message.id, self.consumerMetadata, err = result);
 
         if action === "redeliver" {
-            common:logContentDeliveryRetry(self.topic, self.callback, message.id, self.consumerMetadata,
-                status = statusCode, action = action);
             check self.consumer->nack(message);
             runtime:sleep(self.'retry.delay);
             return;
         }
 
         if action === "deadLetter" {
-            common:logContentDeliveryFailure("Content delivery failed, moving message to dead-letter queue",
-                self.topic, self.callback, message.id, self.consumerMetadata, status = statusCode, action = action);
             check self.consumer->deadLetter(message);
             return;
         }
 
         if action === "fail" {
-            return error common:ContentDeliveryError("Received error response for content delivery from the subscriber",
-                result, messageId = message.id, status = statusCode, action = action);
+            return error(result.message(), result, topic = self.topic, callback = self.callback, 
+                messageId = message.id ?: "[No Message Id]", consumerMetadata = self.consumerMetadata);
         }
     }
 

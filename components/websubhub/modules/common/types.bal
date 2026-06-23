@@ -39,12 +39,6 @@ public type SubscriptionDetails record {|
 
 public type InvalidSubscriptionError distinct error<SubscriptionDetails>;
 
-public type ContentDeliveryError distinct error<record {|
-    string? messageId;
-    int? status;
-    RetryAction? action;
-|}>;
-
 # Defines the configuration for the WebSubHub server endpoint.
 public type ServerConfig record {|
     # The port on which the WebSubHub service will listen

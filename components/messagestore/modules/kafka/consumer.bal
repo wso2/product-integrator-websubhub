@@ -174,10 +174,9 @@ public isolated function createConsumer(string groupId, string topic, Config con
     if dlqTopic is string {
         check initKafkaDlqProducer(config);
     }
-    api:ConsumerMetadata metadata = {"consumerGroup": consumerGroup};
-    if topicPartitions !is () {
-        metadata["topicPartitions"] = string:'join(",", ...topicPartitions.'map(p => p.toString()));
-    }
+    api:ConsumerMetadata metadata = topicPartitions !is ()
+        ? {"topicPartitions": string:'join(",", ...topicPartitions.'map(p => p.toString()))}
+        : {"consumerGroup": consumerGroup};
     Consumer consumer = check new Consumer(config, consumerGroup, topic, topicPartitions, dlqTopic);
     return [consumer, metadata];
 }
