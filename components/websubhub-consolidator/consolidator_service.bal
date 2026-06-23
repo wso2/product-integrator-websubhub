@@ -39,12 +39,14 @@ http:Service consolidatorService = service object {
         string subscriberId = common:generatedSubscriberId(topic, callback);
         websubhub:VerifiedSubscription? subscription = getSubscription(subscriberId);
         if subscription is () {
+            log:printInfo("Can not find the subscription", topic = topic, callback = callback);
             return <http:NotFound>{
                 body: {
                     message: string `Subscription for ${topic} and ${callback} not found`
                 }
             };
         }
+        log:printInfo("Subscription found", topic = topic, callback = callback, status = subscription["status"] ?: "active");
         return <http:Ok>{
             body: {
                 status: subscription["status"] ?: "active"
