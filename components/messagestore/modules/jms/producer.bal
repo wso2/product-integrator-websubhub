@@ -74,9 +74,7 @@ public isolated client class Producer {
             }
             jms:Connection|error connectionResult = new (self.connectionConfig);
             if connectionResult is error {
-                if connectionResult is error {
-                    log:printWarn("Error while creating the JMS connection when reconnect", 'error = connectionResult);
-                }
+                log:printWarn("Error while creating the JMS connection when reconnect", 'error = connectionResult);
                 return connectionResult;
             }
             jms:Session|error sessionResult = connectionResult->createSession();
