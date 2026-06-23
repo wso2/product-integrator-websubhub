@@ -64,5 +64,13 @@ public isolated function addUpdateMessage(string topicName, websubhub:UpdateMess
 
 isolated function produceMessage(string topic, byte[] payload, map<string|string[]>? metadata = (), string? messageId = ()) returns error? {
     storeapi:Message message = {id: messageId, payload, metadata};
-    return (check conn:getMessageProducer(topic))->send(topic, message);
+    storeapi:Producer producer = check conn:getMessageProducer(topic);
+    var sendResult = producer->send(topic, message);
+    if sendResult is error {
+        var reconnectResult = producer->reconnect();
+        if reconnectResult is error {
+            common:logFatalError(string `Failed to reconnect to the topic: ${reconnectResult.message()}`, reconnectResult);
+        }
+    }
+    return sendResult;
 }

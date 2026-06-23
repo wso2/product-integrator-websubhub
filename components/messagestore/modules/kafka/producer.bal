@@ -16,12 +16,15 @@
 
 import messagestore.api;
 
+import ballerina/log;
 import ballerinax/kafka;
 
 public isolated client class Producer {
     *api:Producer;
 
-    private final kafka:Producer producer;
+    private kafka:Producer producer;
+    private final string|string[] & readonly bootstrapServers;
+    private final kafka:ProducerConfiguration & readonly producerConfig;
 
     public isolated function init(string clientId, Config config) returns error? {
         kafka:ProducerConfiguration producerConfig = {
@@ -31,15 +34,31 @@ public isolated client class Producer {
             secureSocket: config.secureSocket,
             securityProtocol: config.securityProtocol
         };
+        self.bootstrapServers = config.bootstrapServers.cloneReadOnly();
+        self.producerConfig = producerConfig.cloneReadOnly();
         self.producer = check new (config.bootstrapServers, producerConfig);
     }
 
     isolated remote function send(string topic, api:Message message) returns error? {
-        check self.producer->send({topic, value: message.payload, headers: message.metadata});
-        return self.producer->'flush();
+        lock {
+            check self.producer->send({topic, value: message.payload.cloneReadOnly(), headers: message.metadata.cloneReadOnly()});
+            return self.producer->'flush();
+        }
     }
 
     isolated remote function close() returns error? {
-        return self.producer->close();
+        lock {
+            return self.producer->close();
+        }
+    }
+
+    isolated remote function reconnect() returns error? {
+        lock {
+            error? result = self.producer->close();
+            if result is error {
+                log:printWarn("Error while closing Kafka producer during reconnect", 'error = result);
+            }
+            self.producer = check new (self.bootstrapServers, self.producerConfig);
+        }
     }
 }

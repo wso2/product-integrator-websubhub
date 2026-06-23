@@ -307,7 +307,7 @@ isolated function resolveQueueName(SolaceQueueConfig? queueConfig, string queueI
 
 isolated function resolveDlqName(SolaceQueueConfig? queueConfig, string queueName, record {} meta, boolean systemSubscriber) returns string {
     if systemSubscriber {
-        return string `dlq-${queueName}`;        
+        return string `dlq-${queueName}`;
     }
     anydata val = meta[META_DLQ_NAME];
     if val is string {
