@@ -34,6 +34,23 @@ http:Service consolidatorService = service object {
         log:printInfo("Request received to retrieve state-snapshot, hence responding with the current state-snapshot", state = stateSnapshot);
         return stateSnapshot;
     }
+
+    isolated resource function get subscriptions/status(string topic, string callback) returns http:Ok|http:NotFound {
+        string subscriberId = common:generatedSubscriberId(topic, callback);
+        websubhub:VerifiedSubscription? subscription = getSubscription(subscriberId);
+        if subscription is () {
+            return <http:NotFound>{
+                body: {
+                    message: string `Subscription for ${topic} and ${callback} not found`
+                }
+            };
+        }
+        return <http:Ok>{
+            body: {
+                status: subscription["status"] ?: "active"
+            }
+        };
+    }
 };
 
 isolated function consolidateSystemState() returns error? {
