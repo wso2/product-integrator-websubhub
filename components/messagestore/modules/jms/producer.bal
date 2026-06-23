@@ -57,21 +57,46 @@ public isolated client class Producer {
 
     isolated remote function close() returns error? {
         lock {
-            check self.producer->close();
-            return self.connection->close();
+            error? producerCloseResult = self.producer->close();
+            error? connectionCloseResult = self.connection->close();
+            if producerCloseResult is error {
+                return producerCloseResult;
+            }
+            return connectionCloseResult;
         }
     }
 
     isolated remote function reconnect() returns error? {
         lock {
-            error? result = self.connection->close();
+            error? result = self->close();
             if result is error {
-                log:printWarn("Error while closing JMS connection during reconnect", 'error = result);
+                log:printWarn("Error while closing JMS producer during reconnect", 'error = result);
             }
-            jms:Connection connection = check new (self.connectionConfig);
-            jms:Session session = check connection->createSession();
-            self.producer = check session.createProducer();
-            self.connection = connection;
+            jms:Connection|error connectionResult = new (self.connectionConfig);
+            if connectionResult is error {
+                if connectionResult is error {
+                    log:printWarn("Error while creating the JMS connection when reconnect", 'error = connectionResult);
+                }
+                return connectionResult;
+            }
+            jms:Session|error sessionResult = connectionResult->createSession();
+            if sessionResult is error {
+                error? closeResult = connectionResult->close();
+                if closeResult is error {
+                    log:printWarn("Error while closing JMS connection after reconnect failure", 'error = closeResult);
+                }
+                return sessionResult;
+            }
+            jms:MessageProducer|error producerResult = sessionResult.createProducer();
+            if producerResult is error {
+                error? closeResult = connectionResult->close();
+                if closeResult is error {
+                    log:printWarn("Error while closing JMS connection after reconnect failure", 'error = closeResult);
+                }
+                return producerResult;
+            }
+            self.producer = producerResult;
+            self.connection = connectionResult;
         }
     }
 }
