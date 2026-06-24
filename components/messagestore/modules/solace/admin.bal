@@ -48,7 +48,7 @@ public isolated client class Administrator {
     private final semp:Client administrator;
     private final string messageVpn;
     private final readonly & SolaceQueueConfig? queueConfig;
-    private final boolean strictMetaValidation;
+    private final boolean strictQueueConfigValidation;
 
     public isolated function init(Config config) returns error? {
         self.administrator = check new (
@@ -62,7 +62,7 @@ public isolated client class Administrator {
         );
         self.messageVpn = config.messageVpn;
         self.queueConfig = config.queue.cloneReadOnly();
-        self.strictMetaValidation = config.admin.strictMetaValidation;
+        self.strictQueueConfigValidation = config.admin.strictQueueConfigValidation;
     }
 
     isolated remote function createTopic(string topic, boolean systemTopic = false, record {} meta = {}) returns api:TopicExists|error? {
@@ -151,7 +151,7 @@ public isolated client class Administrator {
 
     isolated function createQueue(string queueName, string? dlqName = (), SolaceQueueConfig? queueConfig = (), record {} meta = {}) returns semp:MsgVpnQueue|error {
         string vpn = self.messageVpn;
-        semp:MsgVpnQueue queuePayload = check buildQueuePayload(queueName, dlqName, queueConfig, meta, self.strictMetaValidation);
+        semp:MsgVpnQueue queuePayload = check buildQueuePayload(queueName, dlqName, queueConfig, meta, self.strictQueueConfigValidation);
         semp:MsgVpnQueueResponse|error response = self.administrator->createMsgVpnQueue(msgVpnName = vpn, payload = queuePayload);
         if response is semp:MsgVpnQueueResponse {
             if response.data is semp:MsgVpnQueue {
@@ -326,14 +326,14 @@ isolated function resolveDlqName(SolaceQueueConfig? queueConfig, string queueNam
     return string `dlq-${queueName}`;
 }
 
-isolated function handleMetaValidationError(string message, boolean strictMetaValidation) returns error? {
-    if strictMetaValidation {
+isolated function handleQueueConfigValidation(string message, boolean strictQueueConfigValidation) returns error? {
+    if strictQueueConfigValidation {
         return error(message);
     }
     log:printWarn(message);
 }
 
-isolated function buildQueuePayload(string queueName, string? dlqName, SolaceQueueConfig? queueConfig, record {} meta, boolean strictMetaValidation = false) returns semp:MsgVpnQueue|error {
+isolated function buildQueuePayload(string queueName, string? dlqName, SolaceQueueConfig? queueConfig, record {} meta, boolean strictQueueConfigValidation = false) returns semp:MsgVpnQueue|error {
     semp:MsgVpnQueue payload = {
         queueName,
         accessType: "non-exclusive",
@@ -371,7 +371,7 @@ isolated function buildQueuePayload(string queueName, string? dlqName, SolaceQue
         if parsed is int {
             payload.maxMsgSpoolUsage = parsed;
         } else {
-            check handleMetaValidationError(string `invalid meta value for '${META_MAX_MSG_SPOOL}': "${spoolVal}", expected an integer`, strictMetaValidation);
+            check handleQueueConfigValidation(string `invalid meta value for '${META_MAX_MSG_SPOOL}': "${spoolVal}", expected an integer`, strictQueueConfigValidation);
         }
     }
 
@@ -381,7 +381,7 @@ isolated function buildQueuePayload(string queueName, string? dlqName, SolaceQue
         if perm is SolaceQueuePermission {
             payload.permission = perm;
         } else {
-            check handleMetaValidationError(string `invalid meta value for '${META_NON_OWNER_PERMISSION}': "${permVal}", expected an "no-access" or "read-only" or "consume" or "modify-topic" or "delete"`, strictMetaValidation);
+            check handleQueueConfigValidation(string `invalid meta value for '${META_NON_OWNER_PERMISSION}': "${permVal}", expected an "no-access" or "read-only" or "consume" or "modify-topic" or "delete"`, strictQueueConfigValidation);
         }
     }
 
@@ -392,10 +392,10 @@ isolated function buildQueuePayload(string queueName, string? dlqName, SolaceQue
         if dcVal == "true" || dcVal == "false" {
             payload.deliveryCountEnabled = dcVal == "true";
         } else {
-            check handleMetaValidationError(string `invalid meta value for '${META_DELIVERY_COUNT_ENABLED}': "${dcVal}", expected boolean or "true"/"false"`, strictMetaValidation);
+            check handleQueueConfigValidation(string `invalid meta value for '${META_DELIVERY_COUNT_ENABLED}': "${dcVal}", expected boolean or "true"/"false"`, strictQueueConfigValidation);
         }
     } else if dcVal !is () {
-        check handleMetaValidationError(string `invalid meta value for '${META_DELIVERY_COUNT_ENABLED}': expected boolean or string`, strictMetaValidation);
+        check handleQueueConfigValidation(string `invalid meta value for '${META_DELIVERY_COUNT_ENABLED}': expected boolean or string`, strictQueueConfigValidation);
     }
 
     anydata ttlVal = meta[META_RESPECT_TTL];
@@ -405,10 +405,10 @@ isolated function buildQueuePayload(string queueName, string? dlqName, SolaceQue
         if ttlVal == "true" || ttlVal == "false" {
             payload.respectTtlEnabled = ttlVal == "true";
         } else {
-            check handleMetaValidationError(string `invalid meta value for '${META_RESPECT_TTL}': "${ttlVal}", expected boolean or "true"/"false"`, strictMetaValidation);
+            check handleQueueConfigValidation(string `invalid meta value for '${META_RESPECT_TTL}': "${ttlVal}", expected boolean or "true"/"false"`, strictQueueConfigValidation);
         }
     } else if ttlVal !is () {
-        check handleMetaValidationError(string `invalid meta value for '${META_RESPECT_TTL}': expected boolean or string`, strictMetaValidation);
+        check handleQueueConfigValidation(string `invalid meta value for '${META_RESPECT_TTL}': expected boolean or string`, strictQueueConfigValidation);
     }
 
     anydata maxTtlVal = meta[META_MAX_TTL];
@@ -419,7 +419,7 @@ isolated function buildQueuePayload(string queueName, string? dlqName, SolaceQue
         if parsed is int {
             payload.maxTtl = parsed;
         } else {
-            check handleMetaValidationError(string `invalid meta value for '${META_MAX_TTL}': "${maxTtlVal}", expected an integer`, strictMetaValidation);
+            check handleQueueConfigValidation(string `invalid meta value for '${META_MAX_TTL}': "${maxTtlVal}", expected an integer`, strictQueueConfigValidation);
         }
     }
 
@@ -430,10 +430,10 @@ isolated function buildQueuePayload(string queueName, string? dlqName, SolaceQue
         if redeliveryVal == "true" || redeliveryVal == "false" {
             payload.redeliveryEnabled = redeliveryVal == "true";
         } else {
-            check handleMetaValidationError(string `invalid meta value for '${META_REDELIVERY_ENABLED}': "${redeliveryVal}", expected boolean or "true"/"false"`, strictMetaValidation);
+            check handleQueueConfigValidation(string `invalid meta value for '${META_REDELIVERY_ENABLED}': "${redeliveryVal}", expected boolean or "true"/"false"`, strictQueueConfigValidation);
         }
     } else if redeliveryVal !is () {
-        check handleMetaValidationError(string `invalid meta value for '${META_REDELIVERY_ENABLED}': expected boolean or string`, strictMetaValidation);
+        check handleQueueConfigValidation(string `invalid meta value for '${META_REDELIVERY_ENABLED}': expected boolean or string`, strictQueueConfigValidation);
     }
 
     anydata maxCountVal = meta[META_REDELIVERY_MAX_COUNT];
@@ -446,7 +446,7 @@ isolated function buildQueuePayload(string queueName, string? dlqName, SolaceQue
             payload.redeliveryEnabled = true;
             payload.maxRedeliveryCount = parsed;
         } else {
-            check handleMetaValidationError(string `invalid meta value for '${META_REDELIVERY_MAX_COUNT}': "${maxCountVal}", expected an integer`, strictMetaValidation);
+            check handleQueueConfigValidation(string `invalid meta value for '${META_REDELIVERY_MAX_COUNT}': "${maxCountVal}", expected an integer`, strictQueueConfigValidation);
         }
     }
 
