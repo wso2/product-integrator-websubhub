@@ -39,6 +39,7 @@ gracefulClosePeriod = 5.0
 # timeout = 30.0
 # auth.username = "admin"
 # auth.password = "admin"
+# strictMetaValidation = false
 
 # [websubhub.config.store.solace.queue]
 # queueNamePrefix = "consumer-"
