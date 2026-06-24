@@ -101,10 +101,10 @@ isolated function getRetryConfig() returns common:HttpRetryConfig|common:Message
     return;
 }
 
-isolated function createDispatcher(websubhub:VerifiedSubscription subscription, storeapi:Consumer consumer) returns Dispatcher|error {
+isolated function createDispatcher(websubhub:VerifiedSubscription subscription, storeapi:Consumer consumer, storeapi:ConsumerMetadata consumerMetadata) returns Dispatcher|error {
     common:HttpRetryConfig|common:MessageStoreRetryConfig? config = getRetryConfig();
     if config is common:MessageStoreRetryConfig {
-        return new MessageBrokerRetryBasedDispatcher(subscription, consumer, config.cloneReadOnly());
+        return new MessageBrokerRetryBasedDispatcher(subscription, consumer, config.cloneReadOnly(), consumerMetadata);
     }
-    return new HttpRetryBasedDispatcher(subscription, consumer, config.cloneReadOnly());
+    return new HttpRetryBasedDispatcher(subscription, consumer, config.cloneReadOnly(), consumerMetadata);
 }

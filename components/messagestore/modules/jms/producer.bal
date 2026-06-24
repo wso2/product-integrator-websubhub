@@ -22,7 +22,9 @@ import ballerinax/java.jms;
 public isolated client class Producer {
     *api:Producer;
 
-    private final jms:MessageProducer producer;
+    private jms:MessageProducer producer;
+    private jms:Connection connection;
+    private final jms:ConnectionConfiguration & readonly connectionConfig;
 
     public isolated function init(string clientName, Config config) returns error? {
         jms:ConnectionConfiguration connectionConfig = {
@@ -33,9 +35,11 @@ public isolated client class Producer {
             password: config.password,
             properties: config.properties
         };
+        self.connectionConfig = connectionConfig.cloneReadOnly();
         jms:Connection connection = check new (connectionConfig);
         jms:Session session = check connection->createSession();
         self.producer = check session.createProducer();
+        self.connection = connection;
     }
 
     isolated remote function send(string topic, api:Message message) returns error? {
@@ -75,6 +79,45 @@ public isolated client class Producer {
     }
 
     isolated remote function close() returns error? {
-        return self.producer->close();
+        lock {
+            error? producerCloseResult = self.producer->close();
+            error? connectionCloseResult = self.connection->close();
+            if producerCloseResult is error {
+                return producerCloseResult;
+            }
+            return connectionCloseResult;
+        }
+    }
+
+    isolated remote function reconnect() returns error? {
+        lock {
+            error? result = self->close();
+            if result is error {
+                log:printWarn("Error while closing JMS producer during reconnect", 'error = result);
+            }
+            jms:Connection|error connectionResult = new (self.connectionConfig);
+            if connectionResult is error {
+                log:printWarn("Error while creating the JMS connection when reconnect", 'error = connectionResult);
+                return connectionResult;
+            }
+            jms:Session|error sessionResult = connectionResult->createSession();
+            if sessionResult is error {
+                error? closeResult = connectionResult->close();
+                if closeResult is error {
+                    log:printWarn("Error while closing JMS connection after reconnect failure", 'error = closeResult);
+                }
+                return sessionResult;
+            }
+            jms:MessageProducer|error producerResult = sessionResult.createProducer();
+            if producerResult is error {
+                error? closeResult = connectionResult->close();
+                if closeResult is error {
+                    log:printWarn("Error while closing JMS connection after reconnect failure", 'error = closeResult);
+                }
+                return producerResult;
+            }
+            self.producer = producerResult;
+            self.connection = connectionResult;
+        }
     }
 }

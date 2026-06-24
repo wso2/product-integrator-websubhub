@@ -14,14 +14,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import websubhub.config;
 import websubhub.state;
 
 import ballerina/log;
 import ballerina/websubhub;
-
-import xlibb/pipe;
-
-final pipe:Pipe stateSync = new (5);
 
 isolated function processWebsubTopicsSnapshotState(websubhub:TopicRegistration[] topics) {
     log:printDebug("Received latest state-snapshot for websub topics", newState = topics);
@@ -31,22 +28,17 @@ isolated function processWebsubTopicsSnapshotState(websubhub:TopicRegistration[]
 }
 
 isolated function processTopicRegistration(websubhub:TopicRegistration topicRegistration) {
-    log:printDebug(string `Topic registration event received for topic ${topicRegistration.topic}, hence adding the topic to the internal state`);
-    boolean topicAvailable = true;
-    // add the topic if topic-registration event received
-    if !state:isTopicAvailable(topicRegistration.topic) {
-        topicAvailable = false;
-        state:addTopic(topicRegistration);
+    log:printDebug(string `Topic registration event received for topic ${topicRegistration.topic}, hence adding the topic to the internal state`,
+            'type = "state-update", serverId = config:serverId);
+    // add the topic if topic is not already available in the hub
+    if state:isTopicAvailable(topicRegistration.topic) {
+        return;
     }
-    if !topicAvailable {
-        error? result = stateSync.produce(topicRegistration.cloneReadOnly(), 5);
-        if result is error {
-            log:printDebug("Publishing to the state-sync timed-out", 'error = result);
-        }
-    }
+    state:addTopic(topicRegistration);
 }
 
 isolated function processTopicDeregistration(websubhub:TopicDeregistration topicDeregistration) {
-    log:printDebug(string `Topic deregistration event received for topic ${topicDeregistration.topic}, hence removing the topic from the internal state`);
+    log:printDebug(string `Topic deregistration event received for topic ${topicDeregistration.topic}, hence removing the topic from the internal state`,
+            'type = "state-update", serverId = config:serverId);
     state:removeTopic(topicDeregistration);
 }

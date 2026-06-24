@@ -35,6 +35,14 @@ public isolated function publish(string? dlq, api:Producer? dlqProducer, api:Mes
         return;
     }
     check dlqProducer->send(dlq, message);
+    var sendResult = dlqProducer->send(dlq, message);
+    if sendResult is error {
+        var reconnectResult = dlqProducer->reconnect();
+        if reconnectResult is error {
+            log:printError(string `Failed to reconnect to the DLQ: ${reconnectResult.message()}`, reconnectResult);
+        }
+    }
+    return sendResult;
 }
 
 # The field name that can be found in the meta-information provided during consumer creation for dead-letter configurations.

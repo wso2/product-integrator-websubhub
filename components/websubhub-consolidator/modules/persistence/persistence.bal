@@ -31,5 +31,13 @@ public isolated function saveWebsubEventsSnapshot(common:SystemStateSnapshot sys
 }
 
 isolated function produceMessage(string topic, storeapi:Message message) returns error? {
-    return (check conn:getMessageProducer(topic))->send(topic, message);
+    storeapi:Producer producer = check conn:getMessageProducer(topic);
+    var sendResult = producer->send(topic, message);
+    if sendResult is error {
+        var reconnectResult = producer->reconnect();
+        if reconnectResult is error {
+            common:logFatalError(string `Failed to reconnect to the topic: ${reconnectResult.message()}`, reconnectResult);
+        }
+    }
+    return sendResult;
 }
