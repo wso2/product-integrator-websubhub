@@ -17,12 +17,15 @@
 import messagestore.api;
 
 import ballerina/log;
+
 import xlibb/solace;
 
 public isolated client class Producer {
     *api:Producer;
 
-    private final solace:MessageProducer producer;
+    private solace:MessageProducer producer;
+    private final string url;
+    private final solace:ProducerConfiguration & readonly producerConfig;
 
     public isolated function init(string clientName, Config config) returns error? {
 
@@ -35,6 +38,8 @@ public isolated client class Producer {
             auth: config.auth,
             retryConfig: config.retryConfig
         };
+        self.url = config.url;
+        self.producerConfig = producerConfig.cloneReadOnly();
         self.producer = check new (config.url, producerConfig);
     }
 
@@ -79,9 +84,31 @@ public isolated client class Producer {
                 properties
             }
         );
+        lock {
+            // todo: Setting properties will throw an error, hence ignoring setting properties for now
+            check self.producer->send(
+                {topicName: topic},
+                {
+                applicationMessageId: message.id,
+                payload: message.payload.cloneReadOnly()
+            }
+            );
+        }
     }
 
     isolated remote function close() returns error? {
-        return self.producer->close();
+        lock {
+            return self.producer->close();
+        }
+    }
+
+    isolated remote function reconnect() returns error? {
+        lock {
+            error? result = self.producer->close();
+            if result is error {
+                log:printWarn("Error while closing Solace producer during reconnect", 'error = result);
+            }
+            self.producer = check new (self.url, self.producerConfig);
+        }
     }
 }

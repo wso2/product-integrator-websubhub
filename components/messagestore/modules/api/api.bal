@@ -27,6 +27,15 @@ public type Message record {
     map<string|string[]> metadata?;
 };
 
+# Represents broker-specific metadata about a consumer as an opaque string map
+# (e.g., Solace queue, Kafka consumer group, JMS subscriber). Keys are broker-defined;
+# callers must treat this as opaque.
+public type ConsumerMetadata record {| string...; |};
+
+# Represents the result of creating a consumer: a tuple of the consumer client and its
+# broker-specific metadata. Index `0` holds the `Consumer`; index `1` holds the `ConsumerMetadata`.
+public type ConsumerResult [Consumer, ConsumerMetadata];
+
 # Represents the intent of closing a `Consumer`. This is used to indicate how the underlying broker-side resources
 # (such as subscriptions) should be handled when a consumer is closed.
 public enum ClosureIntent {
@@ -52,6 +61,13 @@ public isolated client class Producer {
     #
     # + return - An `error` if closing the connection fails, otherwise `()`.
     isolated remote function close() returns error? {
+        return error("Calling an abstract API");
+    }
+
+    # Reconnects to the underlying broker by closing and reinitializing the connection.
+    #
+    # + return - An `error` if reconnecting fails, otherwise `()`.
+    isolated remote function reconnect() returns error? {
         return error("Calling an abstract API");
     }
 }

@@ -53,11 +53,14 @@ public isolated function distributeContentNotification(readonly & websubhub:Veri
 isolated function startDispatchTask(websubhub:VerifiedSubscription subscription) returns error? {
     string subscriberId = common:generateSubscriberId(subscription.hubTopic, subscription.hubCallback);
     string topic = subscription.hubTopic;
-    storeapi:Consumer consumerEp = check conn:createConsumer(subscription);
-    Dispatcher contentDispatcher = check createDispatcher(subscription, consumerEp);
+    var [consumerEp, consumerMetadata] = check conn:createConsumer(subscription);
+    Dispatcher contentDispatcher = check createDispatcher(subscription, consumerEp, consumerMetadata);
+    string? messageId = ();
     do {
         int consecutiveReceiveErrors = 0;
         while true {
+            storeapi:Message? message = check consumerEp->receive();
+            messageId = message?.id;
             if !isValidConsumer(subscription.hubTopic, subscriberId) {
                 fail error common:InvalidSubscriptionError(
                     string `Subscription or the topic is invalid`, topic = topic, subscriberId = subscriberId
@@ -94,8 +97,8 @@ isolated function startDispatchTask(websubhub:VerifiedSubscription subscription)
             check contentDispatcher->notifyContentDistribution(message);
         }
     } on fail var e {
-        common:logRecoverableError("Error occurred while sending notification to subscriber", e);
-
+        common:logContentDeliveryFailure("Error occurred while distributing content notification to the subscriber", 
+            topic, subscription.hubCallback, messageId, consumerMetadata, err = e);
         if e is common:InvalidSubscriptionError {
             error? result = consumerEp->close(storeapi:PERMANENT);
             if result is error {

@@ -427,7 +427,7 @@ modules = [
 [[package]]
 org = "wso2"
 name = "websubhub"
-version = "1.0.5-SNAPSHOT"
+version = "1.0.6-SNAPSHOT"
 dependencies = [
 	{org = "ballerina", name = "http"},
 	{org = "ballerina", name = "jwt"},
@@ -458,7 +458,7 @@ modules = [
 [[package]]
 org = "xlibb"
 name = "solace"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerinai", name = "observe"}
