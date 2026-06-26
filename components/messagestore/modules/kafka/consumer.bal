@@ -24,78 +24,25 @@ import ballerinax/kafka;
 isolated client class Consumer {
     *api:Consumer;
 
-    private final kafka:Consumer consumer;
+    private kafka:Consumer consumer;
     private final readonly & KafkaConsumerConfig config;
     private final string? dlqTopic;
+    private final readonly & Config kafkaConfig;
+    private final string consumerGroupId;
+    private final string kafkaTopic;
+    private final (int[] & readonly)? partitions;
 
     private KafkaConsumerRecord[] messageBatch = [];
 
     isolated function init(Config config, string groupId, string topic, int[]? partitions = (), string? dlqTopic = ()) returns error? {
 
-        kafka:ConsumerConfiguration consumerConfig = {
-            groupId,
-            offsetReset: config.consumer.offsetReset,
-            autoCommit: false,
-            maxPollRecords: config.consumer.maxPollRecords,
-            secureSocket: config.secureSocket,
-            securityProtocol: config.securityProtocol
-        };
         self.config = config.consumer.cloneReadOnly();
         self.dlqTopic = dlqTopic;
-
-        if partitions is () {
-            // Kafka consumer topic subscription should only be used when manual partition assignment is not used
-            consumerConfig.topics = [topic];
-            self.consumer = check new (config.bootstrapServers, consumerConfig);
-            return;
-        }
-
-        kafka:Consumer|kafka:Error consumer = check new (config.bootstrapServers, consumerConfig);
-        if consumer is kafka:Error {
-            log:printError("Error occurred while creating the Kafka consumer", consumer);
-            return consumer;
-        }
-
-        kafka:TopicPartition[] kafkaTopicPartitions = partitions.'map(p => {topic: topic, partition: p});
-        kafka:Error? paritionAssignmentErr = consumer->assign(kafkaTopicPartitions);
-        if paritionAssignmentErr is kafka:Error {
-            log:printError("Error occurred while assigning partitions to the Kafka consumer", paritionAssignmentErr);
-            return paritionAssignmentErr;
-        }
-
-        kafka:TopicPartition[] parititionsWithoutCmtdOffsets = [];
-        foreach kafka:TopicPartition partition in kafkaTopicPartitions {
-            kafka:PartitionOffset|kafka:Error? offset = consumer->getCommittedOffset(partition);
-            if offset is kafka:Error {
-                log:printError("Error occurred while retrieving the commited offsets for the Kafka topic partition", offset);
-                return offset;
-            }
-
-            if offset is () {
-                parititionsWithoutCmtdOffsets.push(partition);
-            }
-
-            if offset is kafka:PartitionOffset {
-                kafka:Error? kafkaSeekErr = consumer->seek(offset);
-                if kafkaSeekErr is kafka:Error {
-                    log:printError("Error occurred while assigning seeking partitions for the Kafka consumer", kafkaSeekErr);
-                    return kafkaSeekErr;
-                }
-            }
-        }
-
-        if parititionsWithoutCmtdOffsets.length() > 0 {
-            kafka:Error? kafkaSeekErr = consumer->seekToBeginning(parititionsWithoutCmtdOffsets);
-            if kafkaSeekErr is kafka:Error {
-                log:printError(
-                        "Error occurred while assigning seeking partitions (for paritions without committed offsets) for the Kafka consumer",
-                        kafkaSeekErr
-                );
-                return kafkaSeekErr;
-            }
-        }
-
-        self.consumer = consumer;
+        self.kafkaConfig = config.cloneReadOnly();
+        self.consumerGroupId = groupId;
+        self.kafkaTopic = topic;
+        self.partitions = partitions is () ? () : partitions.cloneReadOnly();
+        self.consumer = check createKafkaConsumer(config, groupId, topic, partitions);
     }
 
     isolated remote function receive() returns api:Message|error? {
@@ -124,7 +71,11 @@ isolated client class Consumer {
         if !self.isCurrentBatchEmpty() {
             return;
         }
-        KafkaConsumerRecord[] messages = check self.consumer->poll(self.config.pollingInterval);
+        kafka:Consumer currentConsumer;
+        lock {
+            currentConsumer = self.consumer;
+        }
+        KafkaConsumerRecord[] messages = check currentConsumer->poll(self.config.pollingInterval);
         lock {
             self.messageBatch.push(...messages.cloneReadOnly());
         }
@@ -132,7 +83,9 @@ isolated client class Consumer {
 
     isolated remote function ack(api:Message message) returns error? {
         if self.isCurrentBatchEmpty() {
-            return self.consumer->'commit();
+            lock {
+                return self.consumer->'commit();
+            }
         }
     }
 
@@ -147,13 +100,92 @@ isolated client class Consumer {
         }
         check dlq:publish(self.dlqTopic, _dlqProducer, message);
         if self.isCurrentBatchEmpty() {
-            check self.consumer->'commit();
+            lock {
+                check self.consumer->'commit();
+            }
         }
     }
 
     isolated remote function close(api:ClosureIntent intent = api:TEMPORARY) returns error? {
-        return self.consumer->close(self.config.gracefulClosePeriod);
+        kafka:Consumer currentConsumer;
+        lock {
+            currentConsumer = self.consumer;
+        }
+        return currentConsumer->close(self.config.gracefulClosePeriod);
     }
+
+    isolated remote function reconnect() returns error? {
+        kafka:Consumer newConsumer = check createKafkaConsumer(self.kafkaConfig, self.consumerGroupId,
+                                                               self.kafkaTopic, self.partitions);
+        lock {
+            error? closeErr = self.consumer->close(self.config.gracefulClosePeriod);
+            if closeErr is error {
+                log:printWarn("Error while closing old Kafka consumer during reconnect", 'error = closeErr);
+            }
+            self.consumer = newConsumer;
+            self.messageBatch = [];
+        }
+    }
+}
+
+isolated function createKafkaConsumer(Config config, string groupId, string topic, int[]? partitions) returns kafka:Consumer|error {
+    kafka:ConsumerConfiguration consumerConfig = {
+        groupId,
+        offsetReset: config.consumer.offsetReset,
+        autoCommit: false,
+        maxPollRecords: config.consumer.maxPollRecords,
+        secureSocket: config.secureSocket,
+        securityProtocol: config.securityProtocol
+    };
+
+    if partitions is () {
+        // Kafka consumer topic subscription should only be used when manual partition assignment is not used
+        consumerConfig.topics = [topic];
+        return new (config.bootstrapServers, consumerConfig);
+    }
+
+    kafka:Consumer consumer = check new (config.bootstrapServers, consumerConfig);
+
+    kafka:TopicPartition[] kafkaTopicPartitions = partitions.'map(p => {topic: topic, partition: p});
+    kafka:Error? paritionAssignmentErr = consumer->assign(kafkaTopicPartitions);
+    if paritionAssignmentErr is kafka:Error {
+        log:printError("Error occurred while assigning partitions to the Kafka consumer", paritionAssignmentErr);
+        return paritionAssignmentErr;
+    }
+
+    kafka:TopicPartition[] parititionsWithoutCmtdOffsets = [];
+    foreach kafka:TopicPartition partition in kafkaTopicPartitions {
+        kafka:PartitionOffset|kafka:Error? offset = consumer->getCommittedOffset(partition);
+        if offset is kafka:Error {
+            log:printError("Error occurred while retrieving the commited offsets for the Kafka topic partition", offset);
+            return offset;
+        }
+
+        if offset is () {
+            parititionsWithoutCmtdOffsets.push(partition);
+        }
+
+        if offset is kafka:PartitionOffset {
+            kafka:Error? kafkaSeekErr = consumer->seek(offset);
+            if kafkaSeekErr is kafka:Error {
+                log:printError("Error occurred while assigning seeking partitions for the Kafka consumer", kafkaSeekErr);
+                return kafkaSeekErr;
+            }
+        }
+    }
+
+    if parititionsWithoutCmtdOffsets.length() > 0 {
+        kafka:Error? kafkaSeekErr = consumer->seekToBeginning(parititionsWithoutCmtdOffsets);
+        if kafkaSeekErr is kafka:Error {
+            log:printError(
+                    "Error occurred while assigning seeking partitions (for paritions without committed offsets) for the Kafka consumer",
+                    kafkaSeekErr
+            );
+            return kafkaSeekErr;
+        }
+    }
+
+    return consumer;
 }
 
 # Initialize a consumer for Kafka message store.
@@ -162,8 +194,8 @@ isolated client class Consumer {
 # + topic - The Kafka topic to which the consumer should received events for
 # + config - The Kafka connection configurations
 # + systemConsumer - Flag to indicate whether this is a system consumer
-# + meta - The meta data required to resolve the Kafka consumer group and topic partitions, 
-# if the user provided a `meta` information it would have a higher priority than the `groupId` provided. 
+# + meta - The meta data required to resolve the Kafka consumer group and topic partitions,
+# if the user provided a `meta` information it would have a higher priority than the `groupId` provided.
 # As of now only consumer-group and topic-partitions can be provided as `meta`
 # + return - An `api:ConsumerResult` tuple of the consumer and its metadata, or an `error` if the operation fails
 public isolated function createConsumer(string groupId, string topic, Config config, boolean systemConsumer, record {} meta = {}) returns api:ConsumerResult|error {

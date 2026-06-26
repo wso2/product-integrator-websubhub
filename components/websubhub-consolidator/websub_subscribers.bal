@@ -63,12 +63,6 @@ isolated function processUnsubscription(websubhub:VerifiedUnsubscription unsubsc
     check processStateUpdate();
 }
 
-isolated function getSubscription(string subscriberId) returns websubhub:VerifiedSubscription? {
-    lock {
-        return subscribersCache[subscriberId].cloneReadOnly();
-    }
-}
-
 isolated function getSubscriptions() returns websubhub:VerifiedSubscription[] {
     lock {
         return subscribersCache.toArray().cloneReadOnly();
