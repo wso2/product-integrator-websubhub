@@ -43,14 +43,29 @@ isolated client class Consumer {
         };
         self.connectionConfig = connectionConfig.cloneReadOnly();
         jms:Connection connection = check new (connectionConfig);
-        jms:Session session = check connection->createSession(jms:SESSION_TRANSACTED);
-        self.consumer = check session.createConsumer({
+        jms:Session|error sessionResult = connection->createSession(jms:SESSION_TRANSACTED);
+        if sessionResult is error {
+            error? closeResult = connection->close();
+            if closeResult is error {
+                log:printWarn("Error while closing JMS connection after session creation failure", 'error = closeResult);
+            }
+            return sessionResult;
+        }
+        jms:MessageConsumer|error consumerResult = sessionResult.createConsumer({
             'type: jms:DURABLE,
             destination: {'type: jms:TOPIC, name: topic},
             subscriberName
         });
+        if consumerResult is error {
+            error? closeResult = connection->close();
+            if closeResult is error {
+                log:printWarn("Error while closing JMS connection after consumer creation failure", 'error = closeResult);
+            }
+            return consumerResult;
+        }
         self.connection = connection;
-        self.session = session;
+        self.session = sessionResult;
+        self.consumer = consumerResult;
         self.subscriberName = subscriberName;
         self.readTimeout = <int>(config.consumer.receiveTimeout * 1000);
         self.dlqTopic = dlqTopic;
