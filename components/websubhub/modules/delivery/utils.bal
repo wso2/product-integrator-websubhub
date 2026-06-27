@@ -22,6 +22,10 @@ import ballerina/websubhub;
 import wso2/messagestore.api as storeapi;
 
 isolated function validateRetryConfig() returns error? {
+    if config:delivery.reconnectInterval <= 0.0d {
+        return error("invalid delivery configuration: reconnectInterval must be greater than 0");
+    }
+
     var retryConfig = config:delivery.'retry;
     if retryConfig is () {
         return;
