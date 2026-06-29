@@ -110,4 +110,7 @@ public type SolaceAdminConfig record {|
     };
     # Retry configuration
     http:RetryConfig retryConfig?;
+    # When true, invalid queue config field values abort queue creation with an error.
+    # When false (default), invalid values are logged as warnings and skipped.
+    boolean strictQueueConfigValidation = false;
 |};
