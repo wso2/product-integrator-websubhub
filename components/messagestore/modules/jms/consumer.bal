@@ -114,16 +114,17 @@ isolated client class Consumer {
     isolated remote function close(api:ClosureIntent intent = api:TEMPORARY) returns error? {
         lock {
             error? consumerCloseResult = self.consumer->close();
+            error? unsubscribeResult = ();
             if intent is api:PERMANENT {
-                error? unsubscribeResult = self.session->unsubscribe(self.subscriberName);
-                if unsubscribeResult is error {
-                    return unsubscribeResult;
-                }
+                unsubscribeResult = self.session->unsubscribe(self.subscriberName);
             }
             error? sessionCloseResult = self.session->close();
             error? connectionCloseResult = self.connection->close();
             if consumerCloseResult is error {
                 return consumerCloseResult;
+            }
+            if unsubscribeResult is error {
+                return unsubscribeResult;
             }
             if sessionCloseResult is error {
                 return sessionCloseResult;
