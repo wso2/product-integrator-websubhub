@@ -73,11 +73,11 @@ isolated client class Consumer {
     }
 
     isolated remote function receive() returns api:Message|error? {
-        jms:MessageConsumer currentConsumer;
+        jms:MessageConsumer _consumer;
         lock {
-            currentConsumer = self.consumer;
+            _consumer = self.consumer;
         }
-        jms:Message? receivedMsg = check currentConsumer->receive(self.readTimeout);
+        jms:Message? receivedMsg = check _consumer->receive(self.readTimeout);
         if receivedMsg !is jms:BytesMessage {
             return;
         }
@@ -133,6 +133,20 @@ isolated client class Consumer {
     }
 
     isolated remote function reconnect() returns error? {
+        lock {
+            error? consumerCloseErr = self.consumer->close();
+            if consumerCloseErr is error {
+                log:printWarn("Error while closing JMS consumer during reconnect", 'error = consumerCloseErr);
+            }
+            error? sessionCloseErr = self.session->close();
+            if sessionCloseErr is error {
+                log:printWarn("Error while closing JMS session during reconnect", 'error = sessionCloseErr);
+            }
+            error? connectionCloseErr = self.connection->close();
+            if connectionCloseErr is error {
+                log:printWarn("Error while closing JMS connection during reconnect", 'error = connectionCloseErr);
+            }
+        }
         jms:Connection|error connectionResult = new (self.connectionConfig);
         if connectionResult is error {
             log:printWarn("Error while creating JMS connection during consumer reconnect", 'error = connectionResult);
@@ -161,18 +175,6 @@ isolated client class Consumer {
             return consumerResult;
         }
         lock {
-            error? consumerCloseErr = self.consumer->close();
-            if consumerCloseErr is error {
-                log:printWarn("Error while closing old JMS consumer during reconnect", 'error = consumerCloseErr);
-            }
-            error? sessionCloseErr = self.session->close();
-            if sessionCloseErr is error {
-                log:printWarn("Error while closing old JMS session during reconnect", 'error = sessionCloseErr);
-            }
-            error? connectionCloseErr = self.connection->close();
-            if connectionCloseErr is error {
-                log:printWarn("Error while closing old JMS connection during reconnect", 'error = connectionCloseErr);
-            }
             self.connection = connectionResult;
             self.session = sessionResult;
             self.consumer = consumerResult;

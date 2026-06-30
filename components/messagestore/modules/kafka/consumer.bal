@@ -71,11 +71,11 @@ isolated client class Consumer {
         if !self.isCurrentBatchEmpty() {
             return;
         }
-        kafka:Consumer currentConsumer;
+        kafka:Consumer _consumer;
         lock {
-            currentConsumer = self.consumer;
+            _consumer = self.consumer;
         }
-        KafkaConsumerRecord[] messages = check currentConsumer->poll(self.config.pollingInterval);
+        KafkaConsumerRecord[] messages = check _consumer->poll(self.config.pollingInterval);
         lock {
             self.messageBatch.push(...messages.cloneReadOnly());
         }
@@ -107,22 +107,24 @@ isolated client class Consumer {
     }
 
     isolated remote function close(api:ClosureIntent intent = api:TEMPORARY) returns error? {
-        kafka:Consumer currentConsumer;
+        kafka:Consumer _consumer;
         lock {
-            currentConsumer = self.consumer;
+            _consumer = self.consumer;
         }
-        return currentConsumer->close(self.config.gracefulClosePeriod);
+        return _consumer->close(self.config.gracefulClosePeriod);
     }
 
     isolated remote function reconnect() returns error? {
-        kafka:Consumer newConsumer = check createKafkaConsumer(self.kafkaConfig, self.consumerGroupId,
-                                                               self.kafkaTopic, self.partitions);
         lock {
             error? closeErr = self.consumer->close(self.config.gracefulClosePeriod);
             if closeErr is error {
-                log:printWarn("Error while closing old Kafka consumer during reconnect", 'error = closeErr);
+                log:printWarn("Error while closing Kafka consumer during reconnect", 'error = closeErr);
             }
-            self.consumer = newConsumer;
+        }
+        kafka:Consumer _consumer = check createKafkaConsumer(self.kafkaConfig, self.consumerGroupId,
+                                                               self.kafkaTopic, self.partitions);
+        lock {
+            self.consumer = _consumer;
             self.messageBatch = [];
         }
     }

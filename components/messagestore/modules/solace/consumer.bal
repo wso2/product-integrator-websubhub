@@ -50,11 +50,11 @@ isolated client class Consumer {
     }
 
     isolated remote function receive() returns api:Message|error? {
-        solace:MessageConsumer currentConsumer;
+        solace:MessageConsumer _consumer;
         lock {
-            currentConsumer = self.consumer;
+            _consumer = self.consumer;
         }
-        solace:Message? receivedMsg = check currentConsumer->receive(self.config.receiveTimeout);
+        solace:Message? receivedMsg = check _consumer->receive(self.config.receiveTimeout);
         if receivedMsg is () {
             return;
         }
@@ -69,33 +69,33 @@ isolated client class Consumer {
     isolated remote function ack(api:Message message) returns error? {
         if message.hasKey(ORIGINAL_SOLACE_MSG) {
             solace:Message original = check message.get(ORIGINAL_SOLACE_MSG).ensureType();
-            solace:MessageConsumer currentConsumer;
+            solace:MessageConsumer _consumer;
             lock {
-                currentConsumer = self.consumer;
+                _consumer = self.consumer;
             }
-            return currentConsumer->ack(original);
+            return _consumer->ack(original);
         }
     }
 
     isolated remote function nack(api:Message message) returns error? {
         if message.hasKey(ORIGINAL_SOLACE_MSG) {
             solace:Message original = check message.get(ORIGINAL_SOLACE_MSG).ensureType();
-            solace:MessageConsumer currentConsumer;
+            solace:MessageConsumer _consumer;
             lock {
-                currentConsumer = self.consumer;
+                _consumer = self.consumer;
             }
-            return currentConsumer->nack(original);
+            return _consumer->nack(original);
         }
     }
 
     isolated remote function deadLetter(api:Message message) returns error? {
         if message.hasKey(ORIGINAL_SOLACE_MSG) {
             solace:Message original = check message.get(ORIGINAL_SOLACE_MSG).ensureType();
-            solace:MessageConsumer currentConsumer;
+            solace:MessageConsumer _consumer;
             lock {
-                currentConsumer = self.consumer;
+                _consumer = self.consumer;
             }
-            return currentConsumer->nack(original, false);
+            return _consumer->nack(original, false);
         }
     }
 
@@ -106,13 +106,15 @@ isolated client class Consumer {
     }
 
     isolated remote function reconnect() returns error? {
-        solace:MessageConsumer newConsumer = check new (self.url, self.solaceConsumerConfig);
         lock {
             error? closeErr = self.consumer->close();
             if closeErr is error {
-                log:printWarn("Error while closing old Solace consumer during reconnect", 'error = closeErr);
+                log:printWarn("Error while closing Solace consumer during reconnect", 'error = closeErr);
             }
-            self.consumer = newConsumer;
+        }
+        solace:MessageConsumer _consumer = check new (self.url, self.solaceConsumerConfig);
+        lock {
+            self.consumer = _consumer;
         }
     }
 }
