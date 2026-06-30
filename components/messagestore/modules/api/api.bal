@@ -107,10 +107,18 @@ public isolated client class Consumer {
 
     # Closes the underlying consumer and the associated broker connection.
     #
-    # + intent - A parameter indicates how broker-side resources, such as subscriptions, 
+    # + intent - A parameter indicates how broker-side resources, such as subscriptions,
     # should be handled when closing the consumer.
     # + return - An `error` if closing the consumer fails, otherwise `()`.
     isolated remote function close(ClosureIntent intent = TEMPORARY) returns error? {
+        return error("Calling an abstract API");
+    }
+
+    # Reconnects the consumer to the message broker, re-establishing the underlying
+    # broker connection and any associated subscriptions.
+    #
+    # + return - An `error` if reconnection fails, otherwise `()`
+    isolated remote function reconnect() returns error? {
         return error("Calling an abstract API");
     }
 }

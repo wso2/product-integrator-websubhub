@@ -117,6 +117,8 @@ public type ContentDeliveryClientConfig record {|
         *MessageStoreRetryConfig;
         *HttpRetryConfig;
     |} 'retry?;
+    # Delay in seconds between consecutive message-store reconnect attempts when reconnect fails
+    decimal reconnectInterval = 1.0;
     # SSL/TLS configurations for the HTTP client
     http:ClientSecureSocket secureSocket?;
 |};

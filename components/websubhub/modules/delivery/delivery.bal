@@ -16,10 +16,12 @@
 
 import websubhub.admin;
 import websubhub.common;
+import websubhub.config;
 import websubhub.connections as conn;
 import websubhub.persistence as persist;
 import websubhub.state;
 
+import ballerina/lang.runtime;
 import ballerina/websubhub;
 
 import wso2/messagestore.api as storeapi;
@@ -47,17 +49,28 @@ isolated function startDispatchTask(websubhub:VerifiedSubscription subscription)
     string? messageId = ();
     do {
         while true {
-            storeapi:Message? message = check consumerEp->receive();
-            messageId = message?.id;
             if !isValidConsumer(subscription.hubTopic, subscriberId) {
                 fail error common:InvalidSubscriptionError(
                     string `Subscription or the topic is invalid`, topic = topic, subscriberId = subscriberId
                 );
             }
+            (storeapi:Message|error)? message = consumerEp->receive();
+            if message is error {
+                common:logRecoverableError("Error occurred while receiving message from the message store", message, 
+                    topic = topic, callback = subscription.hubCallback, subscriberId = subscriberId, consumerMetadata = consumerMetadata); 
+                error? reconnectErr = consumerEp->reconnect();
+                if reconnectErr is error {
+                    common:logRecoverableError("Error occurred while reconnecting the message store consumer", reconnectErr,
+                        topic = topic, callback = subscription.hubCallback, subscriberId = subscriberId, consumerMetadata = consumerMetadata);
+                    runtime:sleep(config:delivery.reconnectInterval);
+                    continue;
+                }
+                continue;
+            }
             if message is () {
                 continue;
             }
-
+            messageId = message?.id;
             check contentDispatcher->notifyContentDistribution(message);
         }
     } on fail var e {

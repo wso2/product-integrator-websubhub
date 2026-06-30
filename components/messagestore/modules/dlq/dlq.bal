@@ -34,7 +34,6 @@ public isolated function publish(string? dlq, api:Producer? dlqProducer, api:Mes
         log:printWarn("Could not find the DLQ producer, hence ignoring the message and continue");
         return;
     }
-    check dlqProducer->send(dlq, message);
     var sendResult = dlqProducer->send(dlq, message);
     if sendResult is error {
         var reconnectResult = dlqProducer->reconnect();
