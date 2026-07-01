@@ -127,6 +127,10 @@ public type SubscriptionExists distinct error;
 # Error indicating that the specified subscription does not exist.
 public type SubscriptionNotFound distinct error;
 
+# Error indicating that receiving a message from the broker failed due to a broker or
+# consumer-side infrastructure problem (e.g. queue deleted, transient connection drop).
+public type MessageReceiveError distinct error;
+
 # Represents an administrative client used to manage topics and subscriptions in the underlying message store.
 public isolated client class Administrator {
 
