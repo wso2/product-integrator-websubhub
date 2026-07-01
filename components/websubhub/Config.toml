@@ -25,6 +25,14 @@ maxPollRecords = 50
 pollingInterval = 10.0
 gracefulClosePeriod = 5.0
 
+# --- JMS store (ActiveMQ) — uncomment to switch to JMS, comment out kafka above first ---
+# [websubhub.config.store.jms]
+# initialContextFactory = "org.apache.activemq.jndi.ActiveMQInitialContextFactory"
+# providerUrl = "tcp://localhost:61616"
+# connectionFactoryName = "ConnectionFactory"
+# [websubhub.config.store.jms.consumer]
+# receiveTimeout = 10.0
+
 # [websubhub.config.store.solace]
 # url = "tcp://localhost:55554"
 # messageVpn = "default"

@@ -43,16 +43,39 @@ public isolated client class Producer {
     }
 
     isolated remote function send(string topic, api:Message message) returns error? {
-        lock {
-            jms:BytesMessage jmsMessage = {
-                correlationId: message.id,
-                content: message.payload.cloneReadOnly()
-            };
-            check self.producer->sendTo(
-                {'type: jms:TOPIC, name: topic},
-                message = jmsMessage
-            );
+        // Encode the message as a MapMessage so that metadata (e.g. the original Content-Type)
+        // can travel alongside the payload through the JMS broker. MapMessage.content is a
+        // map<anydata> that accepts both byte[] (for the payload) and string (for metadata)
+        // without requiring a JAR patch or property-name mangling — confirmed by live test against
+        // ActiveMQ: hyphenated keys such as "x-hub-contentType" are accepted and round-trip cleanly.
+        //
+        // The payload is stored under the reserved key JMS_PAYLOAD_KEY. All metadata entries are
+        // stored as top-level string values. Multi-valued metadata is flattened to its first element
+        // (JMS MapMessage values are scalar; full multi-value support would need a different encoding).
+        map<anydata> content = {[JMS_PAYLOAD_KEY]: message.payload};
+        map<string|string[]>? metadata = message.metadata;
+        if metadata is map<string|string[]> {
+            foreach var [k, v] in metadata.entries() {
+                if k == JMS_PAYLOAD_KEY {
+                    // Skip: this key is reserved for the payload bytes and must not be
+                    // overwritten by metadata. HTTP request headers cannot legally start with
+                    // "__" so this guard should never fire in practice, but is kept for safety.
+                    continue;
+                }
+                content[k] = v is string[] ? (v.length() > 0 ? v[0] : "") : v;
+            }
         }
+        jms:MapMessage jmsMessage = {
+            correlationId: message.id,
+            content
+        };
+        log:printDebug("[JMS MessageStore] Publishing message",
+                topic = topic, messageId = message.id ?: "(none)",
+                payloadSize = message.payload.length());
+        check self.producer->sendTo(
+            {'type: jms:TOPIC, name: topic},
+            message = jmsMessage
+        );
     }
 
     isolated remote function close() returns error? {
