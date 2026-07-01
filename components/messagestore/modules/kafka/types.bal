@@ -60,9 +60,13 @@ public type KafkaConsumerConfig record {|
     kafka:OffsetResetMethod offsetReset?;
 |};
 
-// Internal record to data-bind the Kafka consumer record
+// Internal record to data-bind the Kafka consumer record.
+// `headers` must keep the same type as kafka:AnydataConsumerRecord. On consume, Kafka deserializes
+// header values as `byte[]` (it does not know they were strings), so narrowing this to
+// `map<string|string[]>` makes the poll data-binding fail at runtime. The consumer decodes these
+// bytes into `api:Message.metadata` in `receive()`.
 type KafkaConsumerRecord record {|
     *kafka:AnydataConsumerRecord;
     byte[] value;
-    map<string|string[]> headers;
+    map<byte[]|byte[][]|string|string[]> headers;
 |};

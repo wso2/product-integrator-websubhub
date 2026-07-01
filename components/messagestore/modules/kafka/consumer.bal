@@ -108,9 +108,16 @@ isolated client class Consumer {
         lock {
             current = self.messageBatch.shift().cloneReadOnly();
         }
-        // TODO: Temporary disabling kafka-header mapping as there is bug which crashes the `store:Consumer` when retrieving headers
+        // Round-trip Kafka headers into api:Message.metadata so message metadata (e.g. the original
+        // Content-Type stored by the hub at ingest) survives the broker. Kafka delivers header values
+        // as bytes, so they are decoded back to strings here. A header that cannot be decoded is
+        // skipped and logged rather than failing the whole receive.
+        log:printDebug("[Kafka MessageStore] Received message",
+                partition = current.offset.partition, offset = current.offset.offset,
+                payloadSize = current.value.length());
         return {
-            payload: current.value
+            payload: current.value,
+            metadata: toMetadata(current.headers)
         };
     }
 
@@ -154,6 +161,50 @@ isolated client class Consumer {
     isolated remote function close(api:ClosureIntent intent = api:TEMPORARY) returns error? {
         return self.consumer->close(self.config.gracefulClosePeriod);
     }
+}
+
+# Decodes Kafka consumer-record headers into the `map<string|string[]>` shape of `api:Message.metadata`.
+# Kafka serializes all header values to `byte[]` on the wire, so this function decodes them back to
+# strings. A header value that cannot be decoded (e.g. non-UTF-8 bytes) is skipped with a warning
+# rather than failing the whole `receive()` call.
+#
+# + headers - The raw Kafka consumer record headers
+# + return - The decoded metadata map, or `()` when there are no usable headers
+isolated function toMetadata(map<byte[]|byte[][]|string|string[]> headers) returns map<string|string[]>? {
+    if headers.length() == 0 {
+        return;
+    }
+    map<string|string[]> metadata = {};
+    foreach [string, byte[]|byte[][]|string|string[]] [key, value] in headers.entries() {
+        string|string[]|error decoded = decodeHeaderValue(value);
+        if decoded is error {
+            log:printWarn("Skipping Kafka header that could not be decoded to a string",
+                    key = key, 'error = decoded);
+            continue;
+        }
+        metadata[key] = decoded;
+    }
+    return metadata.length() > 0 ? metadata : ();
+}
+
+isolated function decodeHeaderValue(byte[]|byte[][]|string|string[] value) returns string|string[]|error {
+    if value is string {
+        return value;
+    }
+    if value is string[] {
+        return value;
+    }
+    if value is byte[] {
+        return check string:fromBytes(value);
+    }
+    if value is byte[][] {
+        string[] decoded = [];
+        foreach byte[] item in value {
+            decoded.push(check string:fromBytes(item));
+        }
+        return decoded;
+    }
+    return error("unsupported Kafka header value type");
 }
 
 # Initialize a consumer for Kafka message store.
