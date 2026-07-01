@@ -22,6 +22,7 @@ pollingInterval = 10.0
 gracefulClosePeriod = 5.0
 offsetReset = "earliest"
 
+# --- Solace store — uncomment to switch to Solace, comment out kafka blocks above first ---
 # [websubhub.consolidator.config.store.solace]
 # url = "tcp://localhost:55554"
 # messageVpn = "default"
@@ -45,6 +46,14 @@ offsetReset = "earliest"
 # respectTtl = false
 # maxTtl = 0
 # redeliver.maxCount = 10
+
+# --- JMS store (ActiveMQ) — uncomment to switch to JMS, comment out kafka blocks above first ---
+# [websubhub.consolidator.config.store.jms]
+# initialContextFactory = "org.apache.activemq.jndi.ActiveMQInitialContextFactory"
+# providerUrl = "tcp://localhost:61616"
+# connectionFactoryName = "ConnectionFactory"
+# [websubhub.consolidator.config.store.jms.consumer]
+# receiveTimeout = 10.0
 
 [ballerina.log]
 level = "INFO"

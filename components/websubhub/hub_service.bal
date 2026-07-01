@@ -263,28 +263,34 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
         if config:securityOn {
             check security:authorize(headers, ["update_content"]);
         }
-        check self.updateMessage(message, headers);
+        check publishUpdateMessage(message, headers);
         return websubhub:ACKNOWLEDGEMENT;
     }
-
-    isolated function updateMessage(websubhub:UpdateMessage msg, http:Headers headers) returns websubhub:UpdateMessageError? {
-        if state:isTopicAvailable(msg.hubTopic) {
-            string? messageId = getMessageId(headers);
-            map<string[]> metadata = getMetadata(headers);
-            error? errorResponse = persist:addUpdateMessage(msg.hubTopic, msg, metadata, messageId);
-            if errorResponse is websubhub:UpdateMessageError {
-                return errorResponse;
-            } else if errorResponse is error {
-                common:logRecoverableError("Error occurred while publishing the content ", errorResponse);
-                return error websubhub:UpdateMessageError(
-                    errorResponse.message(), statusCode = http:STATUS_INTERNAL_SERVER_ERROR);
-            }
-        } else {
-            return error websubhub:UpdateMessageError(
-                "Topic [" + msg.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_FOUND);
-        }
-    }
 };
+
+# Validates the target topic and persists the published content to the message store. Shared by the
+# standard WebSub publish path (`onUpdateMessage`) and the content-unaware passthrough endpoint, so
+# both ingest routes apply the same topic check, metadata extraction, and persistence logic.
+#
+# + msg - The content-update message to persist (its `content` may be raw `byte[]` for passthrough)
+# + headers - `http:Headers` of the original `http:Request`, used to derive the message id and metadata
+# + return - `websubhub:UpdateMessageError` if the topic is unknown or persistence fails, else `()`
+isolated function publishUpdateMessage(websubhub:UpdateMessage msg, http:Headers headers) returns websubhub:UpdateMessageError? {
+    if !state:isTopicAvailable(msg.hubTopic) {
+        return error websubhub:UpdateMessageError(
+            "Topic [" + msg.hubTopic + "] is not registered with the Hub", statusCode = http:STATUS_NOT_FOUND);
+    }
+    string? messageId = getMessageId(headers);
+    map<string[]> metadata = getForwardableMetadata(headers);
+    error? errorResponse = persist:addUpdateMessage(msg.hubTopic, msg, metadata, messageId);
+    if errorResponse is websubhub:UpdateMessageError {
+        return errorResponse;
+    } else if errorResponse is error {
+        common:logRecoverableError("Error occurred while publishing the content ", errorResponse);
+        return error websubhub:UpdateMessageError(
+            errorResponse.message(), statusCode = http:STATUS_INTERNAL_SERVER_ERROR);
+    }
+}
 
 isolated function getMessageId(http:Headers httpHeaders) returns string? {
     if !httpHeaders.hasHeader(MESSAGE_ID_HEADER) {
@@ -299,15 +305,20 @@ isolated function getMessageId(http:Headers httpHeaders) returns string? {
     return msgId;
 }
 
-isolated function getMetadata(http:Headers httpHeaders) returns map<string[]> {
+// Returns only headers that are safe to round-trip through the broker to subscribers.
+// Restricts to the "x-hub-" namespace (custom publisher extension headers) and skips
+// MESSAGE_ID_HEADER which is extracted separately by getMessageId. This prevents standard
+// HTTP transport headers (authorization, host, user-agent, content-length, etc.) from
+// leaking to subscribers. Content-Type is excluded because it is already carried via
+// msg.contentType → x-hub-contentType by persistence:addUpdateMessage.
+isolated function getForwardableMetadata(http:Headers httpHeaders) returns map<string[]> {
     map<string[]> headers = {};
     foreach string headerName in httpHeaders.getHeaderNames() {
-        // exclude the messageId header as it will be dealt with separately
-        if headerName == MESSAGE_ID_HEADER {
+        if headerName == MESSAGE_ID_HEADER || !headerName.startsWith("x-hub-") {
             continue;
         }
         var headerValues = httpHeaders.getHeaders(headerName);
-        // safe to ingore the error as here we are retrieving only the available headers
+        // safe to ignore the error as here we are retrieving only the available headers
         if headerValues is error {
             continue;
         }

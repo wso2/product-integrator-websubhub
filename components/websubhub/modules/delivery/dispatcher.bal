@@ -134,13 +134,26 @@ isolated client class MessageBrokerRetryBasedDispatcher {
         }
 
         int statusCode = result.detail().statusCode;
+
+        // The WebSub HubClient can surface a 2xx response (e.g. 202 Accepted) as a websubhub:Error.
+        // That is still a successful delivery, so acknowledge it rather than classifying it as a
+        // retry/fail outcome (which would wrongly mark the subscription stale).
+        if statusCode >= 200 && statusCode < 300 {
+            common:logContentDelivery(self.topic, self.callback, message.id);
+            check self.consumer->ack(message);
+            return;
+        }
+
         common:RetryAction action = self.resolveRetryAction(statusCode);
         common:logContentDeliveryFailure("Received error response for content-delivery from the subscriber",
                 self.topic, self.callback, message.id, self.consumerMetadata, err = result);
 
         if action === "redeliver" {
-            check self.consumer->nack(message);
+            // Sleep BEFORE nacking. The broker redelivers immediately on nack, so the delay must be
+            // applied first; otherwise (with more than one async worker) another worker picks up the
+            // redelivery instantly and the configured backoff is lost.
             runtime:sleep(self.'retry.delay);
+            check self.consumer->nack(message);
             return;
         }
 

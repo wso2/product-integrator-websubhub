@@ -49,6 +49,19 @@ public type ServerConfig record {|
     JwtValidatorConfig auth?;
     # SSL/TLS configurations for the service endpoint
     http:ListenerSecureSocket secureSocket?;
+    # Configuration for the content-unaware (passthrough) publish endpoint
+    PublishEndpointConfig publishEndpoint = {};
+|};
+
+# Defines configuration for the content-unaware (passthrough) publish endpoint. This endpoint reads the
+# request body as raw bytes without parsing, preserving any `Content-Type`, so publishers can send
+# arbitrary content (e.g. `image/png`, `application/pdf`) and large payloads with a single in-memory copy.
+# It is additive to the standard WebSub publish endpoint on `/hub` (`hub.mode=publish`).
+public type PublishEndpointConfig record {|
+    # When `true`, the raw-bytes passthrough publish endpoint is attached to the hub listener
+    boolean enabled = true;
+    # The path on which the passthrough publish endpoint is hosted. Must differ from the hub path (`/hub`)
+    string path = "/hub/publish";
 |};
 
 # Represents JWT validator configurations for JWT-based authentication.
@@ -110,6 +123,10 @@ public type HttpClientConfig record {|
 
 # # Defines configurations for content delivery client.
 public type ContentDeliveryClientConfig record {|
+    # When `true` (default), the stored payload bytes are delivered to subscribers verbatim with the
+    # recorded `Content-Type`, skipping the JSON parse/re-encode on the delivery path (content-unaware
+    # passthrough). Set to `false` to restore the legacy content-aware behaviour for JSON payloads.
+    boolean contentPassthrough = true;
     # The maximum time (in seconds) to wait for a response before the request times out
     decimal timeout = 60;
     # Automatic retry settings for failed content delivery requests

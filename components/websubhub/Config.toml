@@ -25,6 +25,7 @@ maxPollRecords = 50
 pollingInterval = 10.0
 gracefulClosePeriod = 5.0
 
+# --- Solace store — uncomment to switch to Solace, comment out kafka blocks above first ---
 # [websubhub.config.store.solace]
 # url = "tcp://localhost:55554"
 # messageVpn = "default"
@@ -53,6 +54,14 @@ gracefulClosePeriod = 5.0
 # maxTtl = 0
 # redeliver.maxCount = 10
 
+# --- JMS store (ActiveMQ) — uncomment to switch to JMS, comment out kafka blocks above first ---
+# [websubhub.config.store.jms]
+# initialContextFactory = "org.apache.activemq.jndi.ActiveMQInitialContextFactory"
+# providerUrl = "tcp://localhost:61616"
+# connectionFactoryName = "ConnectionFactory"
+# [websubhub.config.store.jms.consumer]
+# receiveTimeout = 10.0
+
 [websubhub.config.delivery]
 timeout = 60.0
 
@@ -63,13 +72,6 @@ backOffFactor = 2.0
 maxWaitInterval = 20.0
 statusCodes = [500, 502, 503]
 resetOnExhaust = false
-
-# [websubhub.config.delivery.retry]
-# delay = 20.0
-# redeliver = [500, 502, 503]
-# deadLetter = [400]
-# defaultAction = "redeliver"
-# networkFailureAction = "deadLetter"
 
 [ballerina.log]
 level = "DEBUG"

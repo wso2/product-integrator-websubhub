@@ -108,9 +108,14 @@ isolated client class Consumer {
         lock {
             current = self.messageBatch.shift().cloneReadOnly();
         }
-        // TODO: Temporary disabling kafka-header mapping as there is bug which crashes the `store:Consumer` when retrieving headers
+        // Decode the Kafka headers (raw byte[] on the wire) back into api:Message.metadata so the
+        // round-tripped data — e.g. the x-hub-contentType used to reconstruct the delivery
+        // Content-Type — reaches the delivery side. Non-UTF-8 header values are skipped rather than
+        // failing the whole receive.
+        map<string|string[]> metadata = decodeKafkaHeaders(current.headers);
         return {
-            payload: current.value
+            payload: current.value,
+            metadata: metadata.length() > 0 ? metadata : ()
         };
     }
 
@@ -198,4 +203,36 @@ isolated function resolveTopicPartitions(record {} meta) returns int[]|error? {
     // Kafka topic partitions will be a string with comma separated integers eg: "1,2,3,4"
     string partitionInfo = check value:ensureType(meta[CONSUMER_TOPIC_PARTITIONS]);
     return re `,`.split(partitionInfo).'map(p => p.trim()).'map(p => check int:fromString(p));
+}
+
+// Converts Kafka header values (delivered on the wire as byte[]/byte[][], or already string/string[])
+// into the string-based api:Message.metadata shape. byte[] values are decoded as UTF-8; entries that
+// are not valid UTF-8 are skipped rather than failing the whole receive — they are not metadata this
+// hub produced. This restores the x-hub-contentType round-trip used to reconstruct delivery Content-Type.
+isolated function decodeKafkaHeaders(map<byte[]|byte[][]|string|string[]> headers) returns map<string|string[]> {
+    map<string|string[]> metadata = {};
+    foreach var [key, value] in headers.entries() {
+        if value is string {
+            metadata[key] = value;
+        } else if value is string[] {
+            metadata[key] = value;
+        } else if value is byte[] {
+            string|error decoded = string:fromBytes(value);
+            if decoded is string {
+                metadata[key] = decoded;
+            }
+        } else if value is byte[][] {
+            string[] decodedValues = [];
+            foreach byte[] item in value {
+                string|error decoded = string:fromBytes(item);
+                if decoded is string {
+                    decodedValues.push(decoded);
+                }
+            }
+            if decodedValues.length() > 0 {
+                metadata[key] = decodedValues;
+            }
+        }
+    }
+    return metadata;
 }

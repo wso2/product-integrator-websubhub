@@ -46,14 +46,33 @@ isolated client class Consumer {
 
     isolated remote function receive() returns api:Message|error? {
         jms:Message? receivedMsg = check self.consumer->receive(self.readTimeout);
-        if receivedMsg !is jms:BytesMessage {
-            return;
+        if receivedMsg is jms:MapMessage {
+            // Current format: payload bytes under JMS_PAYLOAD_KEY, metadata as the remaining entries.
+            map<anydata> content = receivedMsg.content;
+            anydata rawPayload = content[JMS_PAYLOAD_KEY];
+            byte[] payload = rawPayload is byte[] ? rawPayload : [];
+            map<string|string[]> metadata = {};
+            foreach var [key, value] in content.entries() {
+                if key == JMS_PAYLOAD_KEY {
+                    continue;
+                }
+                metadata[key] = value is string ? value : value.toString();
+            }
+            return {
+                id: receivedMsg.correlationId,
+                payload,
+                metadata: metadata.length() > 0 ? metadata : ()
+            };
         }
-        api:Message message = {
-            id: receivedMsg.correlationId,
-            payload: receivedMsg.content
-        };
-        return message;
+        if receivedMsg is jms:BytesMessage {
+            // Backward compatibility: messages stored by the previous BytesMessage-based producer carry
+            // no metadata. Deliver them as before (delivery falls back to application/json).
+            return {
+                id: receivedMsg.correlationId,
+                payload: receivedMsg.content
+            };
+        }
+        return;
     }
 
     isolated remote function ack(api:Message message) returns error? {

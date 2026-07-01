@@ -1,0 +1,39 @@
+# Test-only configuration for the `delivery` module unit tests.
+# These tests exercise `constructContentDistMsg`, which is pure (it only reads the in-memory
+# message + metadata and never touches a broker). The config below exists solely to satisfy the
+# required `websubhub.config` configurables at module-init time. The Kafka producer is constructed
+# lazily, so no running broker is needed to run these tests.
+
+[websubhub.config.server]
+port = 9000
+id = "test-server"
+
+[websubhub.config.state.snapshot]
+url = "http://localhost:10001/consolidator/state-snapshot"
+
+[websubhub.config.state.events]
+topic = "websub-events-test"
+consumerIdPrefix = "test-events-consumer"
+
+[websubhub.config.store.kafka]
+bootstrapServers = "localhost:9092"
+
+[websubhub.config.store.kafka.producer]
+acks = "all"
+retryCount = 3
+
+[websubhub.config.store.kafka.consumer]
+maxPollRecords = 50
+pollingInterval = 10.0
+gracefulClosePeriod = 5.0
+
+[websubhub.config.delivery]
+timeout = 60.0
+
+[websubhub.config.delivery.retry]
+count = 3
+interval = 3.0
+backOffFactor = 2.0
+maxWaitInterval = 20.0
+statusCodes = [500, 502, 503]
+resetOnExhaust = false
