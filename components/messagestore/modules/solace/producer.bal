@@ -18,7 +18,7 @@ import messagestore.api;
 
 import ballerina/log;
 
-import xlibb/solace;
+import ballerinax/solace;
 
 public isolated client class Producer {
     *api:Producer;
@@ -31,8 +31,8 @@ public isolated client class Producer {
 
         solace:ProducerConfiguration producerConfig = {
             clientName,
-            vpnName: config.messageVpn,
-            connectionTimeout: config.connectionTimeout,
+            messageVpn: config.messageVpn,
+            connectTimeout: config.connectionTimeout,
             readTimeout: config.readTimeout,
             secureSocket: extractSolaceSecureSocketConfig(config.secureSocket),
             auth: config.auth,
@@ -47,11 +47,11 @@ public isolated client class Producer {
         lock {
             // todo: Setting properties will throw an error, hence ignoring setting properties for now
             check self.producer->send(
-                {topicName: topic},
                 {
-                applicationMessageId: message.id,
-                payload: message.payload.cloneReadOnly()
-            }
+                    messageId: message.id,
+                    payload: message.payload.cloneReadOnly()
+                },
+                {topicName: topic}
             );
         }
     }

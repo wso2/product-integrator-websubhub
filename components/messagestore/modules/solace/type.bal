@@ -17,7 +17,7 @@
 import ballerina/http;
 import ballerina/os;
 
-import xlibb/solace;
+import ballerinax/solace;
 
 public type Config record {|
     *SolaceConnectionConfig;
@@ -41,12 +41,12 @@ public type SolaceConnectionConfig record {|
     # The SSL/TLS configuration for secure connections
     solace:SecureSocket secureSocket?;
     # The authentication configuration (basic, Kerberos, or OAuth2)
-    solace:BasicAuthConfig|solace:KerberosConfig|solace:OAuth2Config? auth = {
+    solace:AuthConfiguration auth = {
         username: os:getEnv("SOLACE_USERNAME"),
         password: os:getEnv("SOLACE_USER_PASSWORD")
     };
     # Retry configuration for connection attempts
-    solace:RetryConfig retryConfig = {
+    solace:RetryConfiguration retryConfig = {
         connectRetries: 3,
         connectRetriesPerHost: 2,
         reconnectRetries: 3,

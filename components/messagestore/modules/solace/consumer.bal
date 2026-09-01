@@ -17,7 +17,7 @@
 import messagestore.api;
 
 import ballerina/log;
-import xlibb/solace;
+import ballerinax/solace;
 
 const string ORIGINAL_SOLACE_MSG = "originalMessage";
 
@@ -36,8 +36,8 @@ isolated client class Consumer {
     isolated function init(Config config, string queueName) returns error? {
 
         solace:ConsumerConfiguration consumerConfig = {
-            vpnName: config.messageVpn,
-            connectionTimeout: config.connectionTimeout,
+            messageVpn: config.messageVpn,
+            connectTimeout: config.connectionTimeout,
             readTimeout: config.readTimeout,
             secureSocket: extractSolaceSecureSocketConfig(config.secureSocket),
             auth: config.auth,
@@ -64,8 +64,8 @@ isolated client class Consumer {
             return;
         }
         api:Message message = {
-            id: receivedMsg.applicationMessageId,
-            payload: receivedMsg.payload
+            id: receivedMsg.messageId,
+            payload: check toPayloadBytes(receivedMsg.payload)
         };
         map<string|string[]>? metadata = extractMessageMetadata(receivedMsg);
         if metadata is map<string|string[]> {
@@ -155,4 +155,25 @@ public isolated function createConsumer(string queueName, Config config, boolean
     string effectiveQueueName = systemConsumer ? queueName : resolveQueueName(config.queue, queueName, meta);
     Consumer consumer = check new Consumer(config, effectiveQueueName);
     return [consumer, {"queue": effectiveQueueName}];
+}
+
+# Converts a received payload into the bytes the message store carries.
+#
+# `ballerinax/solace` types `Message.payload` as `anydata` and resolves it from the SMF message
+# type, so a text message arrives as a `string` and a map message as a mapping. The store is
+# byte-oriented, so everything is normalised here.
+#
+# + payload - The payload as the connector surfaced it
+# + return - The payload as bytes, or an `error` if it cannot be represented
+isolated function toPayloadBytes(anydata payload) returns byte[]|error {
+    if payload is byte[] {
+        return payload;
+    }
+    if payload is string {
+        return payload.toBytes();
+    }
+    if payload is xml {
+        return payload.toString().toBytes();
+    }
+    return payload.toJsonString().toBytes();
 }
