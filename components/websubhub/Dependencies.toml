@@ -78,7 +78,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "http"
-version = "2.16.6"
+version = "2.17.0"
 dependencies = [
 	{org = "ballerina", name = "auth"},
 	{org = "ballerina", name = "cache"},
@@ -267,7 +267,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "observe"
-version = "1.7.1"
+version = "1.7.2"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"}
 ]
@@ -383,7 +383,7 @@ dependencies = [
 [[package]]
 org = "ballerinax"
 name = "jaeger"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
 	{org = "ballerina", name = "io"},
 	{org = "ballerina", name = "jballerina.java"},
@@ -432,6 +432,15 @@ modules = [
 ]
 
 [[package]]
+org = "ballerinax"
+name = "solace"
+version = "1.0.3"
+dependencies = [
+	{org = "ballerina", name = "jballerina.java"},
+	{org = "ballerinai", name = "observe"}
+]
+
+[[package]]
 org = "wso2"
 name = "websubhub"
 version = "1.0.8-SNAPSHOT"
@@ -463,15 +472,6 @@ modules = [
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.persistence"},
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.security"},
 	{org = "wso2", packageName = "websubhub", moduleName = "websubhub.state"}
-]
-
-[[package]]
-org = "xlibb"
-name = "solace"
-version = "0.5.1"
-dependencies = [
-	{org = "ballerina", name = "jballerina.java"},
-	{org = "ballerinai", name = "observe"}
 ]
 
 [[package]]
