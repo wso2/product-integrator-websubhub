@@ -44,12 +44,13 @@ public isolated client class Producer {
     }
 
     isolated remote function send(string topic, api:Message message) returns error? {
+        map<solace:Property> properties = buildProperties(message);
         lock {
-            // todo: Setting properties will throw an error, hence ignoring setting properties for now
             check self.producer->send(
                 {
                     messageId: message.id,
-                    payload: message.payload.cloneReadOnly()
+                    payload: message.payload.cloneReadOnly(),
+                    properties: properties.cloneReadOnly()
                 },
                 {topicName: topic}
             );
@@ -71,4 +72,30 @@ public isolated client class Producer {
             self.producer = check new (self.url, self.producerConfig);
         }
     }
+}
+
+# Builds the Solace message properties carried alongside a published message.
+#
+# The content type is set under `solace:HTTP_CONTENT_TYPE_PROP`, which the connector writes to the
+# SMF HTTP Content Type field rather than to the application property map. That is the same field
+# the broker populates for a REST publish, so a message published through this hub and a message
+# published directly to the broker are indistinguishable to the consumer.
+#
+# + message - The message being published
+# + return - The properties to set on the Solace message
+isolated function buildProperties(api:Message message) returns map<solace:Property> {
+    map<solace:Property> properties = {};
+    map<string|string[]>? metadata = message.metadata;
+    if metadata is map<string|string[]> {
+        foreach var [key, value] in metadata.entries() {
+            // An SDT property holds a single string, so a repeated header is joined the way HTTP
+            // represents one.
+            properties[key] = value is string ? value : string:'join(", ", ...value);
+        }
+    }
+    string? contentType = message.contentType;
+    if contentType is string {
+        properties[solace:HTTP_CONTENT_TYPE_PROP] = contentType;
+    }
+    return properties;
 }

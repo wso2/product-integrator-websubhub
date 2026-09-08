@@ -67,6 +67,10 @@ isolated client class Consumer {
             id: receivedMsg.messageId,
             payload: check toPayloadBytes(receivedMsg.payload)
         };
+        string? contentType = extractContentType(receivedMsg);
+        if contentType is string {
+            message.contentType = contentType;
+        }
         map<string|string[]>? metadata = extractMessageMetadata(receivedMsg);
         if metadata is map<string|string[]> {
             message.metadata = metadata;
@@ -127,6 +131,14 @@ isolated client class Consumer {
     }
 }
 
+# Message properties that describe the message itself rather than carrying publisher metadata, and
+# so must not be replayed to subscribers as delivery headers.
+final readonly & string[] RESERVED_PROPERTIES = [
+    solace:HTTP_CONTENT_TYPE_PROP,
+    solace:HTTP_CONTENT_ENCODING_PROP,
+    solace:SOLACE_ISXML_PROP
+];
+
 isolated function extractMessageMetadata(solace:Message msg) returns map<string|string[]>? {
     map<anydata>? props = msg.properties;
     if props is () {
@@ -134,11 +146,36 @@ isolated function extractMessageMetadata(solace:Message msg) returns map<string|
     }
     map<string|string[]> metadata = {};
     foreach var [key, value] in props.entries() {
+        if RESERVED_PROPERTIES.indexOf(key) !is () {
+            continue;
+        }
         if value is string {
             metadata[key] = value;
         }
     }
     return metadata.length() > 0 ? metadata : ();
+}
+
+# Reads the content type travelling with a message.
+#
+# The connector surfaces the SMF HTTP Content Type field through `Message.properties`. The broker
+# populates that field from the `Content-Type` header of a message published over its REST
+# interface, and this hub's producer writes it for messages it publishes itself, so the same
+# property serves both a direct REST publisher and a publish made through the hub.
+#
+# + msg - The message received from the broker
+# + return - The content type of the payload, or `()` if the message carries none
+isolated function extractContentType(solace:Message msg) returns string? {
+    map<anydata>? props = msg.properties;
+    if props is () {
+        return;
+    }
+    anydata contentType = props[solace:HTTP_CONTENT_TYPE_PROP];
+    if contentType !is string {
+        return;
+    }
+    string trimmed = contentType.trim();
+    return trimmed.length() == 0 ? () : trimmed;
 }
 
 // todo: fix system queue consumer creation
