@@ -60,6 +60,9 @@ public type ServerConfig record {|
     # topic is rejected with `415 Unsupported Media Type`. When `false`, the mismatch is logged and
     # the content is still delivered using the topic's declared content type.
     boolean strictContentTypeValidation = true;
+    # Publisher request headers to propagate to subscribers in addition to
+    # `DEFAULT_FORWARDED_HEADERS`. Names are matched case-insensitively.
+    string[] forwardedHeaders = [];
 |};
 
 # Represents JWT validator configurations for JWT-based authentication.

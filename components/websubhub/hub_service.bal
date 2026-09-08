@@ -360,10 +360,11 @@ isolated function getMessageId(http:Headers httpHeaders) returns string? {
 isolated function getMetadata(http:Headers httpHeaders) returns map<string[]> {
     map<string[]> headers = {};
     foreach string headerName in httpHeaders.getHeaderNames() {
-        // Exclude credential-bearing and hop-by-hop headers, which describe the publisher's request
-        // and must not be replayed to subscribers, along with the messageId header, which is dealt
-        // with separately.
-        if common:isDeniedMetadataHeader(headerName) {
+        // Only the headers a deployment has opted into are kept. Most of a publisher's request
+        // headers describe that request rather than its content - credentials it used to reach the
+        // hub, hop-by-hop framing, values the hub sets itself per delivery - and none of those
+        // belong on a delivery to a third party. The messageId header is dealt with separately.
+        if !common:isForwardableHeader(headerName, config:server.forwardedHeaders) {
             continue;
         }
         var headerValues = httpHeaders.getHeaders(headerName);

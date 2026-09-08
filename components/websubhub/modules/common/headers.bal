@@ -16,34 +16,27 @@
 
 public const MESSAGE_ID_HEADER = "x-hub-messageId";
 
-final readonly & string[] DENIED_METADATA_HEADERS = [
-    "authorization",
-    "proxy-authorization",
-    "cookie",
-    "set-cookie",
-    "host",
-    "content-length",
-    "content-type",
-    "content-encoding",
-    "transfer-encoding",
-    "connection",
-    "keep-alive",
-    "upgrade",
-    "te",
-    "trailer",
-    "expect",
-    "accept-encoding",
-    "x-hub-signature",
-    "link",
-    "x-ballerina-publisher",
-    "x-hub-messageid",
-    "x-hub-content-type"
+# Publisher request headers propagated to subscribers by default.
+public final readonly & string[] DEFAULT_FORWARDED_HEADERS = [
+    "traceparent",
+    "tracestate",
+    "baggage"
 ];
 
-# Checks whether a request header must be excluded from message-store metadata and content delivery.
+# Checks whether a publisher request header may be propagated to subscribers.
 #
 # + headerName - The header name to check, in any case
-# + return - `true` if the header must not be propagated to subscribers
-public isolated function isDeniedMetadataHeader(string headerName) returns boolean {
-    return DENIED_METADATA_HEADERS.indexOf(headerName.toLowerAscii()) !is ();
+# + additional - Extra header names the deployment has opted into, in any case
+# + return - `true` if the header may be propagated to subscribers
+public isolated function isForwardableHeader(string headerName, string[] additional = []) returns boolean {
+    string name = headerName.toLowerAscii();
+    if DEFAULT_FORWARDED_HEADERS.indexOf(name) !is () {
+        return true;
+    }
+    foreach string allowed in additional {
+        if allowed.toLowerAscii() == name {
+            return true;
+        }
+    }
+    return false;
 }

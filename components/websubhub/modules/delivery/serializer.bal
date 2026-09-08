@@ -15,6 +15,7 @@
 // under the License.
 
 import websubhub.common;
+import websubhub.config;
 import websubhub.state;
 
 import ballerina/websubhub;
@@ -63,7 +64,7 @@ isolated function constructDeliveryHeaders(storeapi:Message message) returns map
     map<string|string[]>? metadata = message.metadata;
     if metadata is map<string|string[]> {
         foreach var [headerName, headerValue] in metadata.entries() {
-            if common:isDeniedMetadataHeader(headerName) {
+            if !common:isForwardableHeader(headerName, config:server.forwardedHeaders) {
                 continue;
             }
             deliveryHeaders[headerName] = headerValue;
