@@ -36,7 +36,7 @@ public isolated function createWebSubEventsSubscription(string topic, string con
     return result;
 }
 
-public isolated function createTopic(websubhub:TopicRegistration topicRegistration)
+public isolated function createTopic(common:TopicRegistration topicRegistration)
     returns websubhub:TopicRegistrationError|error? {
 
     error? result = administrator->createTopic(topicRegistration.topic, false, topicRegistration);

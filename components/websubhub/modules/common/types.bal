@@ -19,10 +19,17 @@ import ballerina/jwt;
 import ballerina/os;
 import ballerina/websubhub;
 
+# Represents a topic registration in the hub.
+public type TopicRegistration record {
+    *websubhub:TopicRegistration;
+    # The content type used to deliver content published to this topic.
+    string contentType = DEFAULT_CONTENT_TYPE;
+};
+
 # Represents a snapshot of the WebSubHub's state, containing all topics and subscriptions.
 public type SystemStateSnapshot record {|
     # An array of current topic registrations in the hub
-    websubhub:TopicRegistration[] topics;
+    TopicRegistration[] topics;
     # An array of all verified subscriptions in the hub
     websubhub:VerifiedSubscription[] subscriptions;
 |};
@@ -49,6 +56,10 @@ public type ServerConfig record {|
     JwtValidatorConfig auth?;
     # SSL/TLS configurations for the service endpoint
     http:ListenerSecureSocket secureSocket?;
+    # When `true`, a publish whose `Content-Type` does not match the content type declared for the
+    # topic is rejected with `415 Unsupported Media Type`. When `false`, the mismatch is logged and
+    # the content is still delivered using the topic's declared content type.
+    boolean strictContentTypeValidation = true;
 |};
 
 # Represents JWT validator configurations for JWT-based authentication.

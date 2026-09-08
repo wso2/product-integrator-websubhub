@@ -78,7 +78,7 @@ function processStateUpdateEvent(string persistedData) returns error? {
     string hubMode = check event.hubMode;
     match event.hubMode {
         "register" => {
-            websubhub:TopicRegistration topicRegistration = check event.fromJsonWithType();
+            common:TopicRegistration topicRegistration = check event.fromJsonWithType();
             processTopicRegistration(topicRegistration);
         }
         "deregister" => {
