@@ -81,7 +81,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "http"
-version = "2.16.6"
+version = "2.17.0"
 dependencies = [
 	{org = "ballerina", name = "auth"},
 	{org = "ballerina", name = "cache"},
@@ -258,7 +258,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "observe"
-version = "1.7.1"
+version = "1.7.2"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"}
 ]
@@ -373,6 +373,18 @@ modules = [
 ]
 
 [[package]]
+org = "ballerinax"
+name = "solace"
+version = "1.0.3"
+dependencies = [
+	{org = "ballerina", name = "jballerina.java"},
+	{org = "ballerinai", name = "observe"}
+]
+modules = [
+	{org = "ballerinax", packageName = "solace", moduleName = "solace"}
+]
+
+[[package]]
 org = "wso2"
 name = "messagestore"
 version = "1.0.8-SNAPSHOT"
@@ -385,7 +397,7 @@ dependencies = [
 	{org = "ballerinai", name = "observe"},
 	{org = "ballerinax", name = "java.jms"},
 	{org = "ballerinax", name = "kafka"},
-	{org = "xlibb", name = "solace"},
+	{org = "ballerinax", name = "solace"},
 	{org = "xlibb", name = "solace.semp"}
 ]
 modules = [
@@ -395,18 +407,6 @@ modules = [
 	{org = "wso2", packageName = "messagestore", moduleName = "messagestore.jms"},
 	{org = "wso2", packageName = "messagestore", moduleName = "messagestore.kafka"},
 	{org = "wso2", packageName = "messagestore", moduleName = "messagestore.solace"}
-]
-
-[[package]]
-org = "xlibb"
-name = "solace"
-version = "0.5.1"
-dependencies = [
-	{org = "ballerina", name = "jballerina.java"},
-	{org = "ballerinai", name = "observe"}
-]
-modules = [
-	{org = "xlibb", packageName = "solace", moduleName = "solace"}
 ]
 
 [[package]]
