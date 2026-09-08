@@ -76,10 +76,6 @@ public isolated client class Producer {
 
 # Builds the Solace message properties carried alongside a published message.
 #
-# The content type is set under `solace:HTTP_CONTENT_TYPE_PROP`, which the connector writes to the
-# SMF HTTP Content Type field rather than to the application property map. That is the same field
-# the broker populates for a REST publish, so a message published through this hub and a message
-# published directly to the broker are indistinguishable to the consumer.
 #
 # + message - The message being published
 # + return - The properties to set on the Solace message

@@ -158,11 +158,6 @@ isolated function extractMessageMetadata(solace:Message msg) returns map<string|
 
 # Reads the content type travelling with a message.
 #
-# The connector surfaces the SMF HTTP Content Type field through `Message.properties`. The broker
-# populates that field from the `Content-Type` header of a message published over its REST
-# interface, and this hub's producer writes it for messages it publishes itself, so the same
-# property serves both a direct REST publisher and a publish made through the hub.
-#
 # + msg - The message received from the broker
 # + return - The content type of the payload, or `()` if the message carries none
 isolated function extractContentType(solace:Message msg) returns string? {
@@ -195,10 +190,6 @@ public isolated function createConsumer(string queueName, Config config, boolean
 }
 
 # Converts a received payload into the bytes the message store carries.
-#
-# `ballerinax/solace` types `Message.payload` as `anydata` and resolves it from the SMF message
-# type, so a text message arrives as a `string` and a map message as a mapping. The store is
-# byte-oriented, so everything is normalised here.
 #
 # + payload - The payload as the connector surfaced it
 # + return - The payload as bytes, or an `error` if it cannot be represented
