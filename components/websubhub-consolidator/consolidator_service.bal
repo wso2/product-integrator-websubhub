@@ -85,7 +85,7 @@ isolated function processStateUpdateEvent(string persistedData) returns error? {
     log:printDebug("Event received", 'type = hubMode, content = event);
     match hubMode {
         "register" => {
-            websubhub:TopicRegistration topicRegistration = check event.fromJsonWithType();
+            common:TopicRegistration topicRegistration = check event.fromJsonWithType();
             check processTopicRegistration(topicRegistration);
         }
         "deregister" => {

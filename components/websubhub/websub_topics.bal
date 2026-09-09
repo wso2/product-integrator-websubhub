@@ -14,20 +14,21 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import websubhub.common;
 import websubhub.config;
 import websubhub.state;
 
 import ballerina/log;
 import ballerina/websubhub;
 
-isolated function processWebsubTopicsSnapshotState(websubhub:TopicRegistration[] topics) {
+isolated function processWebsubTopicsSnapshotState(common:TopicRegistration[] topics) {
     log:printDebug("Received latest state-snapshot for websub topics", newState = topics);
-    foreach websubhub:TopicRegistration topicReg in topics {
+    foreach common:TopicRegistration topicReg in topics {
         processTopicRegistration(topicReg);
     }
 }
 
-isolated function processTopicRegistration(websubhub:TopicRegistration topicRegistration) {
+isolated function processTopicRegistration(common:TopicRegistration topicRegistration) {
     log:printDebug(string `Topic registration event received for topic ${topicRegistration.topic}, hence adding the topic to the internal state`,
             'type = "state-update", serverId = config:serverId);
     // add the topic if topic is not already available in the hub

@@ -21,7 +21,7 @@ import ballerina/lang.runtime;
 import ballerina/log;
 import ballerina/websubhub;
 
-isolated map<websubhub:TopicRegistration> registeredTopicsCache = {};
+isolated map<common:TopicRegistration> registeredTopicsCache = {};
 
 public isolated function isTopicAvailable(string topicName) returns boolean {
     lock {
@@ -40,7 +40,29 @@ public isolated function isTopicAvailableWithRetry(string topicName) returns boo
     return isTopicAvailable(topicName);
 }
 
-public isolated function addTopic(websubhub:TopicRegistration topicReg) {
+public isolated function getTopic(string topicName) returns common:TopicRegistration? {
+    lock {
+        return registeredTopicsCache[topicName].cloneReadOnly();
+    }
+}
+
+# Resolves the content type used to deliver content published to the given topic.
+#
+# + topicName - The topic whose content type should be resolved
+# + return - The content type to set on content-delivery requests, or an `error` if the topic is not
+# in the hub's state
+public isolated function getTopicContentType(string topicName) returns string|error {
+    lock {
+        common:TopicRegistration? topicRegistration = registeredTopicsCache[topicName];
+        if topicRegistration is () {
+            return error(string `Topic [${topicName}] is not available in the hub state, so the ` +
+                "content type of its messages cannot be resolved");
+        }
+        return topicRegistration.contentType;
+    }
+}
+
+public isolated function addTopic(common:TopicRegistration topicReg) {
     lock {
         registeredTopicsCache[topicReg.topic] = topicReg.cloneReadOnly();
     }

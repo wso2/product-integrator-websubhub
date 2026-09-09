@@ -54,7 +54,7 @@ isolated client class HttpRetryBasedDispatcher {
     }
 
     isolated remote function notifyContentDistribution(storeapi:Message message) returns error? {
-        websubhub:ContentDistributionMessage|error notification = constructContentDistMsg(message);
+        websubhub:ContentDistributionMessage|error notification = constructContentDistMsg(self.topic, message);
         if notification is error {
             common:logContentDeliveryFailure("Error occurred while deserializing the message, moving message to dead-letter queue",
                 self.topic, self.callback, message.id, self.consumerMetadata, err = notification);
@@ -118,7 +118,7 @@ isolated client class MessageBrokerRetryBasedDispatcher {
     }
 
     isolated remote function notifyContentDistribution(storeapi:Message message) returns error? {
-        websubhub:ContentDistributionMessage|error notification = constructContentDistMsg(message);
+        websubhub:ContentDistributionMessage|error notification = constructContentDistMsg(self.topic, message);
         if notification is error {
             common:logContentDeliveryFailure("Error occurred while deserializing the message, moving message to dead-letter queue",
                 self.topic, self.callback, message.id, self.consumerMetadata, err = notification);

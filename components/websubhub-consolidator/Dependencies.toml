@@ -67,7 +67,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "file"
-version = "1.13.0"
+version = "1.13.1"
 dependencies = [
 	{org = "ballerina", name = "io"},
 	{org = "ballerina", name = "jballerina.java"},
@@ -78,7 +78,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "http"
-version = "2.16.6"
+version = "2.17.0"
 dependencies = [
 	{org = "ballerina", name = "auth"},
 	{org = "ballerina", name = "cache"},
@@ -241,6 +241,9 @@ dependencies = [
 	{org = "ballerina", name = "lang.int"},
 	{org = "ballerina", name = "log"}
 ]
+modules = [
+	{org = "ballerina", packageName = "mime", moduleName = "mime"}
+]
 
 [[package]]
 org = "ballerina"
@@ -258,7 +261,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "observe"
-version = "1.7.1"
+version = "1.7.2"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"}
 ]
@@ -367,7 +370,7 @@ dependencies = [
 [[package]]
 org = "ballerinax"
 name = "jaeger"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
 	{org = "ballerina", name = "io"},
 	{org = "ballerina", name = "jballerina.java"},
@@ -390,7 +393,7 @@ dependencies = [
 [[package]]
 org = "ballerinax"
 name = "kafka"
-version = "4.6.5"
+version = "4.6.6"
 dependencies = [
 	{org = "ballerina", name = "crypto"},
 	{org = "ballerina", name = "jballerina.java"},
@@ -416,14 +419,24 @@ modules = [
 ]
 
 [[package]]
+org = "ballerinax"
+name = "solace"
+version = "1.0.4"
+dependencies = [
+	{org = "ballerina", name = "jballerina.java"},
+	{org = "ballerinai", name = "observe"}
+]
+
+[[package]]
 org = "wso2"
 name = "websubhub.consolidator"
-version = "1.0.8-SNAPSHOT"
+version = "1.0.9-SNAPSHOT"
 dependencies = [
 	{org = "ballerina", name = "http"},
 	{org = "ballerina", name = "lang.runtime"},
 	{org = "ballerina", name = "lang.value"},
 	{org = "ballerina", name = "log"},
+	{org = "ballerina", name = "mime"},
 	{org = "ballerina", name = "uuid"},
 	{org = "ballerina", name = "websubhub"},
 	{org = "ballerinai", name = "observe"},
@@ -438,15 +451,6 @@ modules = [
 	{org = "wso2", packageName = "websubhub.consolidator", moduleName = "websubhub.consolidator.config"},
 	{org = "wso2", packageName = "websubhub.consolidator", moduleName = "websubhub.consolidator.connections"},
 	{org = "wso2", packageName = "websubhub.consolidator", moduleName = "websubhub.consolidator.persistence"}
-]
-
-[[package]]
-org = "xlibb"
-name = "solace"
-version = "0.5.1"
-dependencies = [
-	{org = "ballerina", name = "jballerina.java"},
-	{org = "ballerinai", name = "observe"}
 ]
 
 [[package]]

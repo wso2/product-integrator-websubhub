@@ -19,7 +19,7 @@ import ballerina/http;
 import ballerina/log;
 import ballerina/os;
 
-import xlibb/solace;
+import ballerinax/solace;
 
 const KEYSTORE_PATH = "WEBSUBHUB_KEYSTORE_PATH";
 const KEYSTORE_PASSWORD = "WEBSUBHUB_KEYSTORE_PASSWORD";

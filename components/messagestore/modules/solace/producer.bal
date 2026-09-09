@@ -18,7 +18,7 @@ import messagestore.api;
 
 import ballerina/log;
 
-import xlibb/solace;
+import ballerinax/solace;
 
 public isolated client class Producer {
     *api:Producer;
@@ -31,8 +31,8 @@ public isolated client class Producer {
 
         solace:ProducerConfiguration producerConfig = {
             clientName,
-            vpnName: config.messageVpn,
-            connectionTimeout: config.connectionTimeout,
+            messageVpn: config.messageVpn,
+            connectTimeout: config.connectionTimeout,
             readTimeout: config.readTimeout,
             secureSocket: extractSolaceSecureSocketConfig(config.secureSocket),
             auth: config.auth,
@@ -44,14 +44,15 @@ public isolated client class Producer {
     }
 
     isolated remote function send(string topic, api:Message message) returns error? {
+        map<solace:Property> properties = buildProperties(message);
         lock {
-            // todo: Setting properties will throw an error, hence ignoring setting properties for now
             check self.producer->send(
-                {topicName: topic},
                 {
-                applicationMessageId: message.id,
-                payload: message.payload.cloneReadOnly()
-            }
+                    messageId: message.id,
+                    payload: message.payload.cloneReadOnly(),
+                    properties: properties.cloneReadOnly()
+                },
+                {topicName: topic}
             );
         }
     }
@@ -71,4 +72,26 @@ public isolated client class Producer {
             self.producer = check new (self.url, self.producerConfig);
         }
     }
+}
+
+# Builds the Solace message properties carried alongside a published message.
+#
+#
+# + message - The message being published
+# + return - The properties to set on the Solace message
+isolated function buildProperties(api:Message message) returns map<solace:Property> {
+    map<solace:Property> properties = {};
+    map<string|string[]>? metadata = message.metadata;
+    if metadata is map<string|string[]> {
+        foreach var [key, value] in metadata.entries() {
+            // An SDT property holds a single string, so a repeated header is joined the way HTTP
+            // represents one.
+            properties[key] = value is string ? value : string:'join(", ", ...value);
+        }
+    }
+    string? contentType = message.contentType;
+    if contentType is string {
+        properties[solace:HTTP_CONTENT_TYPE_PROP] = contentType;
+    }
+    return properties;
 }

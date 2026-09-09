@@ -14,35 +14,66 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import ballerina/lang.value;
-import ballerina/mime;
+import websubhub.common;
+import websubhub.config;
+import websubhub.state;
+
 import ballerina/websubhub;
 
 import wso2/messagestore.api as storeapi;
 
-isolated function constructContentDistMsg(storeapi:Message message) returns websubhub:ContentDistributionMessage|error {
-    string payloadString = check string:fromBytes(message.payload);
-    json payload = check value:fromJsonString(payloadString);
-    websubhub:ContentDistributionMessage distributionMsg = {
-        content: payload,
-        contentType: mime:APPLICATION_JSON,
+# Constructs the content-distribution notification for a message consumed from the message store.
+#
+# + topic - The topic the message was published to
+# + message - The message consumed from the message store
+# + return - The notification to deliver to the subscriber, or an `error` if it cannot be built
+isolated function constructContentDistMsg(string topic, storeapi:Message message) returns websubhub:ContentDistributionMessage|error {
+    return {
+        content: message.payload,
+        contentType: check resolveDeliveryContentType(topic, message),
         headers: constructDeliveryHeaders(message)
     };
-    return distributionMsg;
 }
 
+# Resolves the content type a message is delivered under, rejecting content that contradicts its
+# topic.
+# 
+# + topic - The topic the message was published to
+# + message - The message consumed from the message store
+# + return - The content type to label the delivery with, or an `error` if the message contradicts
+# the topic's declaration or the topic is unknown
+isolated function resolveDeliveryContentType(string topic, storeapi:Message message) returns string|error {
+    string declaredContentType = check state:getTopicContentType(topic);
+    string? messageContentType = message.contentType;
+    if messageContentType is () {
+        return declaredContentType;
+    }
+    if common:normalizeContentType(messageContentType) == common:normalizeContentType(declaredContentType) {
+        return declaredContentType;
+    }
+    return error(string `Content type [${messageContentType}] of the published message does not ` +
+        string `match the content type [${declaredContentType}] declared for topic [${topic}]`);
+}
+
+# Derives the headers to send with a content-delivery request.
+#
+# + message - The message consumed from the message store
+# + return - The headers to include in the content-delivery request, or `()` if there are none
 isolated function constructDeliveryHeaders(storeapi:Message message) returns map<string|string[]>? {
-    string? messageId = message.id;
-    if messageId is () {
-        return message.metadata;
+    map<string|string[]> deliveryHeaders = {};
+    map<string|string[]>? metadata = message.metadata;
+    if metadata is map<string|string[]> {
+        foreach var [headerName, headerValue] in metadata.entries() {
+            if !common:isForwardableHeader(headerName, config:server.forwardedHeaders) {
+                continue;
+            }
+            deliveryHeaders[headerName] = headerValue;
+        }
     }
 
-    map<string|string[]>? metadata = message.metadata;
-    if metadata is () {
-        return {
-            "x-hub-messageId": messageId
-        };
+    string? messageId = message.id;
+    if messageId is string {
+        deliveryHeaders[common:MESSAGE_ID_HEADER] = messageId;
     }
-    metadata["x-hub-messageId"] = messageId;
-    return metadata;
+    return deliveryHeaders.length() == 0 ? () : deliveryHeaders;
 }

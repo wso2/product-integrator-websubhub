@@ -14,12 +14,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import websubhub.consolidator.common;
+
 import ballerina/log;
 import ballerina/websubhub;
 
-isolated map<websubhub:TopicRegistration> registeredTopicsCache = {};
+isolated map<common:TopicRegistration> registeredTopicsCache = {};
 
-isolated function refreshTopicCache(websubhub:TopicRegistration[] persistedTopics) {
+isolated function refreshTopicCache(common:TopicRegistration[] persistedTopics) {
     foreach var topic in persistedTopics.cloneReadOnly() {
         lock {
             registeredTopicsCache[topic.topic] = topic.cloneReadOnly();
@@ -27,7 +29,7 @@ isolated function refreshTopicCache(websubhub:TopicRegistration[] persistedTopic
     }
 }
 
-isolated function processTopicRegistration(websubhub:TopicRegistration topicRegistration) returns error? {
+isolated function processTopicRegistration(common:TopicRegistration topicRegistration) returns error? {
     log:printDebug("Topic registration request received", topic = topicRegistration.topic);
     lock {
         // add the topic if topic-registration event received
@@ -45,7 +47,7 @@ isolated function processTopicDeregistration(websubhub:TopicDeregistration topic
     check processStateUpdate();
 }
 
-isolated function getTopics() returns websubhub:TopicRegistration[] {
+isolated function getTopics() returns common:TopicRegistration[] {
     lock {
         return registeredTopicsCache.toArray().cloneReadOnly();
     }

@@ -20,6 +20,8 @@ public type Message record {
     string id?;
     # The message payload
     byte[] payload;
+    # The content type describing the payload, when one travels with the message.
+    string contentType?;
     # The metadata associated with the message (e.g., Kafka message headers or JMS message properties)
     map<string|string[]> metadata?;
     # Tracing attributes describing the broker-level receive that produced this message.
