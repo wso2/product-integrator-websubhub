@@ -34,24 +34,7 @@ isolated function validateRetryConfig() returns error? {
         return;
     }
 
-    // Detect HTTP retry usage
-    boolean hasHttpRetry =
-        retryConfig.count != 0 ||
-        retryConfig.interval != 0.0d ||
-        retryConfig.backOffFactor != 0.0 ||
-        retryConfig.maxWaitInterval != 0.0d ||
-        retryConfig.statusCodes.length() > 0 ||
-        retryConfig.resetOnExhaust;
-
-    // Detect message-store retry usage
-    boolean hasMessageStoreRetry =
-        retryConfig.delay != 30.0d ||
-        retryConfig.redeliver is int[] ||
-        retryConfig.deadLetter is int[] ||
-        retryConfig.defaultAction != "fail" ||
-        retryConfig.networkFailureAction != "fail";
-
-    if hasHttpRetry && hasMessageStoreRetry {
+    if common:hasHttpRetryConfig(retryConfig) && common:hasMessageStoreRetryConfig(retryConfig) {
         return error("invalid retry configuration: HTTP retry configurations and message-store retry configurations cannot be used together");
     }
 }
@@ -66,15 +49,8 @@ isolated function getRetryConfig() returns common:HttpRetryConfig|common:Message
         return;
     }
 
-    // Detect HTTP retry usage
-    boolean hasHttpRetry =
-        retryConfig.count != 0 ||
-        retryConfig.interval != 0.0d ||
-        retryConfig.backOffFactor != 0.0 ||
-        retryConfig.maxWaitInterval != 0.0d ||
-        retryConfig.statusCodes.length() > 0 ||
-        retryConfig.resetOnExhaust;
-    if hasHttpRetry {
+    // Detect HTTP retry usage.
+    if common:hasHttpRetryConfig(retryConfig) {
         return {
             count: retryConfig.count,
             interval: retryConfig.interval,
@@ -85,14 +61,7 @@ isolated function getRetryConfig() returns common:HttpRetryConfig|common:Message
         };
     }
 
-    // Detect message-store retry usage
-    boolean hasMessageStoreRetry =
-        retryConfig.delay != 30.0d ||
-        retryConfig.redeliver is int[] ||
-        retryConfig.deadLetter is int[] ||
-        retryConfig.defaultAction != "fail" ||
-        retryConfig.networkFailureAction != "fail";
-    if hasMessageStoreRetry {
+    if common:hasMessageStoreRetryConfig(retryConfig) {
         common:MessageStoreRetryConfig messageStoreRetry = {
             delay: retryConfig.delay,
             defaultAction: retryConfig.defaultAction,

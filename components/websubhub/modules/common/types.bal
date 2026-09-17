@@ -137,6 +137,15 @@ public type ContentDeliveryClientConfig record {|
     http:ClientSecureSocket secureSocket?;
 |};
 
+# Defines configurations for the client the hub uses to verify subscription and
+# unsubscription intent with a subscriber.
+public type IntentVerificationClientConfig record {|
+    # The maximum time (in seconds) to wait for a subscriber to echo the challenge
+    decimal timeout = 60;
+    # Automatic retry settings for failed intent-verification requests.
+    HttpRetryConfig 'retry?;
+|};
+
 # Provides configurations for controlling the retrying behavior in failure scenarios.
 public type HttpRetryConfig record {|
     *http:RetryConfig;

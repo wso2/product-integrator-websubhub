@@ -71,6 +71,16 @@ resetOnExhaust = false
 # defaultAction = "redeliver"
 # networkFailureAction = "deadLetter"
 
+[websubhub.config.verification]
+timeout = 60.0
+
+[websubhub.config.verification.retry]
+count = 3
+interval = 2.0
+backOffFactor = 2.0
+maxWaitInterval = 10.0
+
+
 [ballerina.log]
 level = "DEBUG"
 
