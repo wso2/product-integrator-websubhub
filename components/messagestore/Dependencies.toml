@@ -22,7 +22,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "avro"
-version = "1.2.2"
+version = "1.2.4"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"}
 ]
@@ -346,7 +346,7 @@ dependencies = [
 [[package]]
 org = "ballerinax"
 name = "java.jms"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerinai", name = "observe"}
@@ -387,7 +387,7 @@ modules = [
 [[package]]
 org = "wso2"
 name = "messagestore"
-version = "1.0.9"
+version = "1.0.10-SNAPSHOT"
 dependencies = [
 	{org = "ballerina", name = "crypto"},
 	{org = "ballerina", name = "http"},
