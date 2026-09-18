@@ -34,7 +34,9 @@ isolated function validateRetryConfig() returns error? {
         return;
     }
 
-    if common:hasHttpRetryConfig(retryConfig) && common:hasMessageStoreRetryConfig(retryConfig) {
+    boolean hasHttpRetry = common:hasHttpRetryConfig(retryConfig);
+    boolean hasMessageStoreRetry = common:hasMessageStoreRetryConfig(retryConfig);
+    if hasHttpRetry && hasMessageStoreRetry {
         return error("invalid retry configuration: HTTP retry configurations and message-store retry configurations cannot be used together");
     }
 }
