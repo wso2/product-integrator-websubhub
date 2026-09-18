@@ -108,17 +108,46 @@ public isolated function logContentDeliveryFailure(string msg, string topic, str
     log:printWarn(msg, 'error = err, keyValues = keyValues);
 }
 
-# Extracts `http:RetryConfig` from the provided `RetryConfig`.
+# Extracts `http:RetryConfig` from the provided `HttpRetryConfig`.
 #
 # + config - Optional retry configuration used to construct the `http:RetryConfig`
 # + return - The constructed `http:RetryConfig` if a configuration is provided,
 # otherwise `()`
-public isolated function extractHttpRetryConfig(anydata config) returns http:RetryConfig? {
-    if config is HttpRetryConfig {
-        var {resetOnExhaust, ...httpRetryConfig} = config;
-        return httpRetryConfig;
+public isolated function extractHttpRetryConfig(HttpRetryConfig? config) returns http:RetryConfig? {
+    if config is () {
+        return;
     }
-    return;
+    var {resetOnExhaust, ...httpRetryConfig} = config;
+    return httpRetryConfig;
+}
+
+# Indicates whether the merged content-delivery retry configuration carries HTTP retry
+# semantics rather than message-store retry semantics.
+# 
+# + config - Merged content-delivery retry configuration
+# + return - `true` if any HTTP retry field is set to a non-default value
+public isolated function hasHttpRetryConfig(
+        record {| *MessageStoreRetryConfig; *HttpRetryConfig; |} config) returns boolean {
+    return config.count != 0
+        || config.interval != 0.0d
+        || config.backOffFactor != 0.0
+        || config.maxWaitInterval != 0.0d
+        || config.statusCodes.length() > 0
+        || config.resetOnExhaust;
+}
+
+# Indicates whether the merged content-delivery retry configuration carries message-store
+# retry semantics rather than HTTP retry semantics.
+#
+# + config - Merged content-delivery retry configuration
+# + return - `true` if any message-store retry field is set to a non-default value
+public isolated function hasMessageStoreRetryConfig(
+        record {| *MessageStoreRetryConfig; *HttpRetryConfig; |} config) returns boolean {
+    return config.delay != 30.0d
+        || config.redeliver is int[]
+        || config.deadLetter is int[]
+        || config.defaultAction != "fail"
+        || config.networkFailureAction != "fail";
 }
 
 public isolated function extractListenerSecureSocketConfig(http:ListenerSecureSocket? config) returns http:ListenerSecureSocket? {

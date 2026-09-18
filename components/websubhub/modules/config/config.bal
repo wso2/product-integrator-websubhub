@@ -34,6 +34,9 @@ public configurable store:Config store = ?;
 # Message delivery related configurations
 public configurable common:ContentDeliveryClientConfig delivery = ?;
 
+# Subscription/unsubscription intent-verification related configurations.
+public configurable common:IntentVerificationClientConfig verification = {};
+
 # Flag indicating whether security is enable or not. 
 # This is derived by checking whether server authentication configuration is available or not
 public final boolean securityOn = server.auth is common:JwtValidatorConfig;

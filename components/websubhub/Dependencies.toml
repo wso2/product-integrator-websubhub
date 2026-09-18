@@ -22,7 +22,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "avro"
-version = "1.2.2"
+version = "1.2.4"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"}
 ]
@@ -171,6 +171,15 @@ dependencies = [
 
 [[package]]
 org = "ballerina"
+name = "lang.error"
+version = "0.0.0"
+scope = "testOnly"
+dependencies = [
+	{org = "ballerina", name = "jballerina.java"}
+]
+
+[[package]]
+org = "ballerina"
 name = "lang.int"
 version = "0.0.0"
 dependencies = [
@@ -300,6 +309,20 @@ dependencies = [
 
 [[package]]
 org = "ballerina"
+name = "test"
+version = "0.0.0"
+scope = "testOnly"
+dependencies = [
+	{org = "ballerina", name = "jballerina.java"},
+	{org = "ballerina", name = "lang.array"},
+	{org = "ballerina", name = "lang.error"}
+]
+modules = [
+	{org = "ballerina", packageName = "test", moduleName = "test"}
+]
+
+[[package]]
+org = "ballerina"
 name = "time"
 version = "2.8.1"
 dependencies = [
@@ -397,7 +420,7 @@ modules = [
 [[package]]
 org = "ballerinax"
 name = "java.jms"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerinai", name = "observe"}
@@ -443,7 +466,7 @@ dependencies = [
 [[package]]
 org = "wso2"
 name = "websubhub"
-version = "1.0.9"
+version = "1.0.10-SNAPSHOT"
 dependencies = [
 	{org = "ballerina", name = "http"},
 	{org = "ballerina", name = "jballerina.java"},
@@ -454,6 +477,7 @@ dependencies = [
 	{org = "ballerina", name = "mime"},
 	{org = "ballerina", name = "observe"},
 	{org = "ballerina", name = "os"},
+	{org = "ballerina", name = "test"},
 	{org = "ballerina", name = "time"},
 	{org = "ballerina", name = "websubhub"},
 	{org = "ballerinai", name = "observe"},
