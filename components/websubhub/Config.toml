@@ -80,7 +80,6 @@ interval = 2.0
 backOffFactor = 2.0
 maxWaitInterval = 10.0
 
-
 [ballerina.log]
 level = "DEBUG"
 
