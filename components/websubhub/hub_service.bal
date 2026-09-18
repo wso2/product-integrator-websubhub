@@ -40,7 +40,7 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     webHookConfig: {
         timeout: config:verification.timeout,
         secureSocket: common:extractClientSecureSocketConfig(config:delivery.secureSocket),
-        retryConfig: common:extractHttpRetryConfig(config:verification.'retry)
+        retryConfig: config:verification.'retry
     }
 } service object {
 

@@ -143,7 +143,7 @@ public type IntentVerificationClientConfig record {|
     # The maximum time (in seconds) to wait for a subscriber to echo the challenge
     decimal timeout = 60;
     # Automatic retry settings for failed intent-verification requests.
-    HttpRetryConfig 'retry?;
+    http:RetryConfig 'retry?;
 |};
 
 # Provides configurations for controlling the retrying behavior in failure scenarios.
