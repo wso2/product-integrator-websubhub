@@ -72,6 +72,7 @@ resetOnExhaust = false
 # networkFailureAction = "deadLetter"
 
 [websubhub.config.verification]
+enabled = true
 timeout = 60.0
 
 [websubhub.config.verification.retry]
