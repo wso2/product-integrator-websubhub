@@ -41,7 +41,8 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
         timeout: config:verification.timeout,
         secureSocket: common:extractClientSecureSocketConfig(config:delivery.secureSocket),
         retryConfig: config:verification.'retry
-    }
+    },
+    autoVerifySubscriptionIntent: true
 } service object {
 
     # Registers a `topic` in the hub.
@@ -121,12 +122,23 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     #
     # + message - Details of the subscription
     # + headers - `http:Headers` of the original `http:Request`
+    # + hubController - `websubhub:Controller` used to mark the subscription as verified when
+    # intent-verification is disabled for the hub
     # + return - `websubhub:SubscriptionAccepted` if subscription is accepted from the hub, `websubhub:BadSubscriptionError`
     # if subscription is denied from the hub or `error` if there is any unexpected error
-    isolated remote function onSubscription(websubhub:Subscription message, http:Headers headers)
+    isolated remote function onSubscription(websubhub:Subscription message, http:Headers headers,
+                websubhub:Controller hubController)
                 returns websubhub:SubscriptionAccepted|websubhub:BadSubscriptionError|error {
         if config:securityOn {
             check security:authorize(headers, ["subscribe"]);
+        }
+        // when intent-verification is turned off the hub accepts the request without challenging the
+        // subscriber. the request is only marked as verified when it would pass validation anyway, so that
+        // a request which is going to be denied does not leave a stale entry in the hub-controller state.
+        if !config:verification.enabled && self.validateSubscription(message) is () {
+            log:printDebug("Skipping subscription intent-verification since it is disabled for the hub",
+                    topic = message.hubTopic, callback = message.hubCallback, serverId = config:serverId);
+            check hubController.markAsVerified(message);
         }
         return websubhub:SUBSCRIPTION_ACCEPTED;
     }
@@ -136,6 +148,11 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     # + message - Details of the subscription
     # + return - `websubhub:SubscriptionDeniedError` if the subscription is denied by the hub or else `()`
     isolated remote function onSubscriptionValidation(websubhub:Subscription message)
+                returns websubhub:SubscriptionDeniedError? {
+        return self.validateSubscription(message);
+    }
+
+    isolated function validateSubscription(websubhub:Subscription message)
                 returns websubhub:SubscriptionDeniedError? {
         if !state:isTopicAvailableWithRetry(message.hubTopic) {
             return error websubhub:SubscriptionDeniedError(
@@ -200,12 +217,20 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     #
     # + message - Details of the unsubscription
     # + headers - `http:Headers` of the original `http:Request`
+    # + hubController - `websubhub:Controller` used to mark the unsubscription as verified when
+    # intent-verification is disabled for the hub
     # + return - `websubhub:UnsubscriptionAccepted` if unsubscription is accepted from the hub, `websubhub:BadUnsubscriptionError`
     # if unsubscription is denied from the hub or `error` if there is any unexpected error
-    isolated remote function onUnsubscription(websubhub:Unsubscription message, http:Headers headers)
+    isolated remote function onUnsubscription(websubhub:Unsubscription message, http:Headers headers,
+                websubhub:Controller hubController)
                 returns websubhub:UnsubscriptionAccepted|websubhub:BadUnsubscriptionError|error {
         if config:securityOn {
             check security:authorize(headers, ["subscribe"]);
+        }
+        if !config:verification.enabled && self.validateUnsubscription(message) is () {
+            log:printDebug("Skipping unsubscription intent-verification since it is disabled for the hub",
+                    topic = message.hubTopic, callback = message.hubCallback, serverId = config:serverId);
+            check hubController.markAsVerified(message);
         }
         return websubhub:UNSUBSCRIPTION_ACCEPTED;
     }
@@ -215,6 +240,11 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     # + message - Details of the unsubscription
     # + return - `websubhub:UnsubscriptionDeniedError` if the unsubscription is denied by the hub or else `()`
     isolated remote function onUnsubscriptionValidation(websubhub:Unsubscription message)
+                returns websubhub:UnsubscriptionDeniedError? {
+        return self.validateUnsubscription(message);
+    }
+
+    isolated function validateUnsubscription(websubhub:Unsubscription message)
                 returns websubhub:UnsubscriptionDeniedError? {
         if !state:isTopicAvailableWithRetry(message.hubTopic) {
             return error websubhub:UnsubscriptionDeniedError(

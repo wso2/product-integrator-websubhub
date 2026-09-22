@@ -140,6 +140,9 @@ public type ContentDeliveryClientConfig record {|
 # Defines configurations for the client the hub uses to verify subscription and
 # unsubscription intent with a subscriber.
 public type IntentVerificationClientConfig record {|
+    # When set to `false`, the hub skips the subscription/unsubscription intent-verification
+    # challenge and accepts the request without contacting the subscriber
+    boolean enabled = true;
     # The maximum time (in seconds) to wait for a subscriber to echo the challenge
     decimal timeout = 60;
     # Automatic retry settings for failed intent-verification requests.
