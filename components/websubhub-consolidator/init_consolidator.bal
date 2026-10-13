@@ -63,33 +63,34 @@ public function main() returns error? {
 isolated function syncSystemState() returns error? {
     storeapi:Consumer websubEventsSnapshotConsumer = check conn:initWebSubEventSnapshotConsumer();
     do {
-        // The snapshot messages are acknowledged only after the latest snapshot is re-persisted. If any step fails
-        // before that, the consumer is closed with the messages unacknowledged, so that the message store redelivers
-        // them on the next startup instead of the system state being lost.
-        storeapi:Message[] receivedMessages = [];
+        // Only the latest snapshot is retained, and it is acknowledged only after it is re-persisted. If any step fails
+        // before that, the consumer is closed with it unacknowledged, so that the message store redelivers it on the
+        // next startup instead of the system state being lost.
+        boolean ackOlderSnapshots = config:store?.solace !is ();
+        storeapi:Message? lastMessage = ();
         while true {
             storeapi:Message? message = check websubEventsSnapshotConsumer->receive();
             if message is () {
                 break;
             }
-            receivedMessages.push(message);
+            if ackOlderSnapshots && lastMessage is storeapi:Message {
+                check websubEventsSnapshotConsumer->ack(lastMessage);
+            }
+            lastMessage = message;
         }
 
-        if receivedMessages.length() == 0 {
+        if lastMessage is () {
             check websubEventsSnapshotConsumer->close();
             return;
         }
 
-        storeapi:Message lastMessage = receivedMessages[receivedMessages.length() - 1];
         string persistedMsg = check string:fromBytes(lastMessage.payload);
         common:SystemStateSnapshot lastStateSnapshot = check (check value:fromJsonString(persistedMsg)).fromJsonWithType();
         check persist:saveLastSnapshotMessage({
             payload: lastMessage.payload,
             metadata: lastMessage.metadata
         });
-        foreach storeapi:Message message in receivedMessages {
-            check websubEventsSnapshotConsumer->ack(message);
-        }
+        check websubEventsSnapshotConsumer->ack(lastMessage);
         check websubEventsSnapshotConsumer->close();
         refreshTopicCache(lastStateSnapshot.topics);
         refreshSubscribersCache(lastStateSnapshot.subscriptions);
