@@ -65,15 +65,15 @@ isolated function syncSystemState() returns error? {
     do {
         // Only the latest snapshot is retained, and it is acknowledged only after it is re-persisted. If any step fails
         // before that, the consumer is closed with it unacknowledged, so that the message store redelivers it on the
-        // next startup instead of the system state being lost.
-        boolean ackOlderSnapshots = config:store?.solace !is ();
+        // next startup instead of the system state being lost. Older snapshots are superseded by the latest one, hence
+        // they are acknowledged as soon as a newer one is received.
         storeapi:Message? lastMessage = ();
         while true {
             storeapi:Message? message = check websubEventsSnapshotConsumer->receive();
             if message is () {
                 break;
             }
-            if ackOlderSnapshots && lastMessage is storeapi:Message {
+            if lastMessage is storeapi:Message {
                 check websubEventsSnapshotConsumer->ack(lastMessage);
             }
             lastMessage = message;
