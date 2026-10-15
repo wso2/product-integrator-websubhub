@@ -63,36 +63,44 @@ public function main() returns error? {
 isolated function syncSystemState() returns error? {
     storeapi:Consumer websubEventsSnapshotConsumer = check conn:initWebSubEventSnapshotConsumer();
     do {
+        // Only the latest snapshot is retained, and it is acknowledged only after it is re-persisted. If any step fails
+        // before that, the consumer is closed with it unacknowledged, so that the message store redelivers it on the
+        // next startup instead of the system state being lost. Older snapshots are superseded by the latest one, hence
+        // they are acknowledged as soon as a newer one is received.
         storeapi:Message? lastMessage = ();
         while true {
             storeapi:Message? message = check websubEventsSnapshotConsumer->receive();
             if message is () {
-                check websubEventsSnapshotConsumer->close();
                 break;
             }
-            check websubEventsSnapshotConsumer->ack(message);
-            lastMessage = {
-                payload: message.payload,
-                metadata: message.metadata
-            };
+            if lastMessage is storeapi:Message {
+                check websubEventsSnapshotConsumer->ack(lastMessage);
+            }
+            lastMessage = message;
         }
 
         if lastMessage is () {
+            check websubEventsSnapshotConsumer->close();
             return;
         }
 
-        check persist:saveLastSnapshotMessage(lastMessage);
         string persistedMsg = check string:fromBytes(lastMessage.payload);
         common:SystemStateSnapshot lastStateSnapshot = check (check value:fromJsonString(persistedMsg)).fromJsonWithType();
+        check persist:saveLastSnapshotMessage({
+            payload: lastMessage.payload,
+            metadata: lastMessage.metadata
+        });
+        check websubEventsSnapshotConsumer->ack(lastMessage);
+        check websubEventsSnapshotConsumer->close();
         refreshTopicCache(lastStateSnapshot.topics);
         refreshSubscribersCache(lastStateSnapshot.subscriptions);
-    } on fail error kafkaError {
-        common:logFatalError("Error occurred while syncing system-state", kafkaError);
-        error? result = check websubEventsSnapshotConsumer->close();
+    } on fail error syncError {
+        common:logFatalError("Error occurred while syncing system-state", syncError);
+        error? result = websubEventsSnapshotConsumer->close();
         if result is error {
             common:logFatalError("Error occurred while gracefully closing the message store consumer", result);
         }
-        return kafkaError;
+        return syncError;
     }
 }
 
