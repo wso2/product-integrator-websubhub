@@ -73,7 +73,7 @@ release {
 }
 
 subprojects {
-    if (project.name != 'distribution') {
+    if (!['distribution', 'integration-tests'].contains(project.name)) {
         apply plugin: 'websubhub-ballerina'
     }
 }
