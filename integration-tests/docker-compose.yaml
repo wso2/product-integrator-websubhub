@@ -1,0 +1,67 @@
+# Copyright (c) 2026, WSO2 LLC. (http://www.wso2.com)
+#
+# WSO2 LLC. licenses this file to you under the Apache License,
+# Version 2.0 (the "License"); you may not use this file except
+# in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Environment of the WebSubHub integration tests: the message broker, and the tracing backend the end-to-end tracing
+# tests assert against. The host ports are provided by the integration-tests Gradle build (see
+# integration-tests/build.gradle).
+#
+# Traces reach Jaeger over two paths:
+#   - the hub exports its own spans directly to the OTLP endpoint of Jaeger;
+#   - the broker publishes its telemetry to its '#telemetry-trace' queue, from which the OpenTelemetry collector
+#     consumes over AMQP and forwards to Jaeger.
+# The telemetry profile that the second path needs is provisioned over SEMP by the Gradle build, as it cannot be
+# created through the configuration of the broker image.
+services:
+  solace:
+    image: 'solace/solace-pubsub-standard:10.26.0.8799'
+    container_name: websubhub-it-solace
+    ports:
+      - '${SOLACE_SMF_PORT:-55580}:55555'   # SMF messaging
+      - '${SOLACE_SEMP_PORT:-18580}:8080'   # SEMP (management API)
+      - '${SOLACE_REST_PORT:-9680}:9000'    # REST messaging (publishing directly to the broker)
+    environment:
+      - username_admin_globalaccesslevel=admin
+      - username_admin_password=admin
+      - system_scaling_maxconnectioncount=100
+    shm_size: 1g
+    ulimits:
+      core: -1
+      nofile:
+        soft: 1048576
+        hard: 1048576
+
+  jaeger:
+    image: 'jaegertracing/all-in-one:1.57'
+    container_name: websubhub-it-jaeger
+    ports:
+      - '${JAEGER_QUERY_PORT:-16680}:16686'   # Query API, used by the tests to assert on traces
+      - '${JAEGER_OTLP_PORT:-4327}:4317'      # OTLP/gRPC, used by the hub to export its spans
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+
+  otel-collector:
+    image: 'otel/opentelemetry-collector-contrib:0.156.0'
+    container_name: websubhub-it-otel-collector
+    command: ['--config=/etc/otel-collector.yaml']
+    volumes:
+      - './resources/otel-collector.yaml:/etc/otel-collector.yaml:ro'
+    ports:
+      - '${OTEL_HEALTH_PORT:-13680}:13133'    # Health check, used by the build to wait for the collector
+    depends_on:
+      - jaeger
+    # The collector can only bind to the telemetry queue once the Gradle build has provisioned the telemetry profile
+    # on the broker, so it is expected to retry - and to be restarted - until the broker is ready.
+    restart: unless-stopped

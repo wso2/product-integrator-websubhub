@@ -1,0 +1,63 @@
+# Copyright (c) 2026, WSO2 LLC. (http://www.wso2.com)
+#
+# WSO2 LLC. licenses this file to you under the Apache License,
+# Version 2.0 (the "License"); you may not use this file except
+# in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Collector that forwards the telemetry of the broker to Jaeger, so that the broker spans appear in the same traces
+# as the spans of the hub. The hub exports its own spans straight to Jaeger and does not pass through here.
+#
+# The receiver of the broker speaks AMQP, not SMF, and binds to the queue that the telemetry profile provisioned by
+# the Gradle build creates. Both the telemetry profile name and the receiver credentials are fixed by that build
+# (see integration-tests/build.gradle).
+receivers:
+  solace:
+    broker: ['solace:5672']
+    queue: 'queue://#telemetry-trace'
+    auth:
+      sasl_plain:
+        username: 'telemetry-receiver'
+        password: 'telemetry-receiver'
+    tls:
+      insecure: true
+      insecure_skip_verify: true
+
+processors:
+  # The broker reports itself under the host name of its container, which is a different, generated value on every
+  # run. Naming it here is what lets a test assert on the broker spans by service name.
+  resource:
+    attributes:
+      - key: 'service.name'
+        value: 'solace-broker'
+        action: 'upsert'
+
+exporters:
+  otlp:
+    endpoint: 'jaeger:4317'
+    tls:
+      insecure: true
+
+extensions:
+  health_check:
+    endpoint: '0.0.0.0:13133'
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [solace]
+      processors: [resource]
+      exporters: [otlp]
+  telemetry:
+    logs:
+      level: warn
