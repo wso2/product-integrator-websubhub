@@ -39,7 +39,8 @@ public function main() returns error? {
     error? stateSyncResult = syncSystemState();
     if stateSyncResult is error {
         common:logFatalError("Error while syncing system state during startup", stateSyncResult);
-        return;
+        // Exit with a failure, so that the consolidator is restarted by a restart policy that only acts on failures
+        exit(1);
     }
 
     // Start the HTTP endpoint
@@ -106,7 +107,8 @@ isolated function syncSystemState() returns error? {
 
 isolated function onShutdown() returns error? {
     log:printInfo("Shutting down the Event consolidator service, persisting the system state");
-    error? persistError = processStateUpdate();
+    // A single attempt, as retrying would hold up the shutdown
+    error? persistError = processStateUpdate(retryOnFailure = false);
     if persistError is error {
         log:printError("Error occurred while persisting the consolidated state during shutdown, hence logging the state",
                 state = constructStateSnapshot());
