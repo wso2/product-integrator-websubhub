@@ -18,16 +18,51 @@ import websubhub.consolidator.common;
 import websubhub.consolidator.config;
 import websubhub.consolidator.connections as conn;
 
+import ballerina/lang.runtime;
+
 import wso2/messagestore.api as storeapi;
 
+# Re-persists the latest state snapshot read during startup. Returns only after the message store has acknowledged
+# the snapshot, so that the caller can safely acknowledge the original snapshot. A failed persistence is retried as
+# configured in `persistRetry`.
+#
+# + message - The latest state snapshot message
+# + return - An `error` if the snapshot could not be persisted or was rejected by the message store once the retries
+# are exhausted
 public isolated function saveLastSnapshotMessage(storeapi:Message message) returns error? {
-    return produceMessage(config:state.snapshot.topic, message);
+    return produceMessageWithRetry(config:state.snapshot.topic, message, true);
 }
 
-public isolated function saveWebsubEventsSnapshot(common:SystemStateSnapshot systemStateSnapshot) returns error? {
+# Persists the given system state snapshot. Returns only after the message store has acknowledged the snapshot.
+#
+# + systemStateSnapshot - The system state snapshot
+# + retryOnFailure - Whether to retry a failed persistence as configured in `persistRetry`. It is turned off where the
+# caller cannot wait for the retries, e.g. during a graceful shutdown.
+# + return - An `error` if the snapshot could not be persisted or was rejected by the message store, once the retries
+# are exhausted if they are turned on
+public isolated function saveWebsubEventsSnapshot(common:SystemStateSnapshot systemStateSnapshot,
+        boolean retryOnFailure = true) returns error? {
     json data = systemStateSnapshot.toJson();
     byte[] payload = data.toJsonString().toBytes();
-    return produceMessage(config:state.snapshot.topic, {payload});
+    return produceMessageWithRetry(config:state.snapshot.topic, {payload}, retryOnFailure);
+}
+
+isolated function produceMessageWithRetry(string topic, storeapi:Message message, boolean retryOnFailure)
+        returns error? {
+    var {maxRetries, retryInterval, backOffFactor, maxWaitInterval} = config:state.persistRetry;
+    int retries = 0;
+    decimal waitInterval = retryInterval;
+    while true {
+        error? result = produceMessage(topic, message);
+        if result is () || !retryOnFailure || retries >= maxRetries {
+            return result;
+        }
+        retries += 1;
+        common:logRecoverableError(string `Failed to persist the state snapshot, hence retrying in ${waitInterval}s`,
+                result, attempt = retries, maxRetries = maxRetries);
+        runtime:sleep(waitInterval);
+        waitInterval = decimal:min(waitInterval * backOffFactor, maxWaitInterval);
+    }
 }
 
 isolated function produceMessage(string topic, storeapi:Message message) returns error? {

@@ -51,6 +51,20 @@ public type ServerStateConfig record {|
     MessageStoreTopic snapshot;
     # Configurations for the message store topic where state update events are published
     MessageStoreTopic events;
+    # Configurations for retrying the persistence of the state snapshot when the message store fails or rejects it
+    SnapshotPersistRetryConfig persistRetry = {};
+|};
+
+# Defines the configurations for retrying the persistence of the state snapshot.
+public type SnapshotPersistRetryConfig record {|
+    # The maximum number of retries
+    int maxRetries = 10;
+    # The time in seconds to wait before the first retry
+    decimal retryInterval = 1;
+    # The factor by which the wait grows with every retry
+    decimal backOffFactor = 2;
+    # The maximum time in seconds to wait between retries
+    decimal maxWaitInterval = 30;
 |};
 
 # Defines the configurations for a message store topic.

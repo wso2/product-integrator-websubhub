@@ -19,6 +19,7 @@ import websubhub.consolidator.connections as conn;
 import websubhub.consolidator.persistence as persist;
 
 import ballerina/http;
+import ballerina/jballerina.java;
 import ballerina/lang.value;
 import ballerina/log;
 import ballerina/websubhub;
@@ -55,7 +56,7 @@ http:Service consolidatorService = service object {
     }
 };
 
-isolated function consolidateSystemState() returns error? {
+isolated function consolidateSystemState() {
     do {
         while true {
             storeapi:Message? message = check conn:websubEventsConsumer->receive();
@@ -73,9 +74,14 @@ isolated function consolidateSystemState() returns error? {
                 check conn:websubEventsConsumer->ack(message);
             }
         }
-    } on fail var e {
-        _ = check conn:websubEventsConsumer->close();
-        return e;
+    } on fail error e {
+        error? closeResult = conn:websubEventsConsumer->close();
+        if closeResult is error {
+            common:logFatalError("Error occurred while closing the state update events consumer", closeResult);
+        }
+        common:logFatalError("Stopped processing state update events, hence exiting the Event Consolidator Service",
+                e);
+        exit(1);
     }
 }
 
@@ -106,13 +112,20 @@ isolated function processStateUpdateEvent(string persistedData) returns error? {
     }
 }
 
-isolated function processStateUpdate() returns error? {
+isolated function processStateUpdate(boolean retryOnFailure = true) returns error? {
     common:SystemStateSnapshot stateSnapshot = {
         topics: getTopics(),
         subscriptions: getSubscriptions()
     };
-    check persist:saveWebsubEventsSnapshot(stateSnapshot);
+    check persist:saveWebsubEventsSnapshot(stateSnapshot, retryOnFailure);
 }
+
+// Terminates the process with the given exit code
+isolated function exit(int status) = @java:Method {
+    'class: "java.lang.System",
+    name: "exit",
+    paramTypes: ["int"]
+} external;
 
 isolated function constructStateSnapshot() returns common:SystemStateSnapshot => {
     topics: getTopics(),

@@ -31,16 +31,19 @@ public type Config record {|
 
 # Initialize a producer for a specific message store.
 #
-# + clientId - The unique client Id or name 
+# + clientId - The unique client Id or name
 # + store - The message store configurations
+# + guaranteed - When `true`, the producer publishes with broker-acknowledged delivery where the message store
+# distinguishes it , and a send returns only after the broker acknowledges the message,
+# returning an `error` if the broker rejects it.
 # + return - A `store:Producer` for a specific message store, or else return an `error` if the operation fails
-public isolated function createProducer(string clientId, Config store) returns api:Producer|error {
+public isolated function createProducer(string clientId, Config store, boolean guaranteed = false) returns api:Producer|error {
     var {kafka, solace, jms} = store;
     if kafka is kafka:Config {
         return new kafka:Producer(clientId, kafka);
     }
     if solace is solace:Config {
-        return new solace:Producer(clientId, solace);
+        return new solace:Producer(clientId, solace, guaranteed);
     }
     if jms is jms:Config {
         return new jms:Producer(clientId, jms);
