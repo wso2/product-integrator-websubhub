@@ -24,13 +24,15 @@
 #     consumes over AMQP and forwards to Jaeger.
 # The telemetry profile that the second path needs is provisioned over SEMP by the Gradle build, as it cannot be
 # created through the configuration of the broker image.
+# The ports are published on the loopback interface only, as the environment is reached only from this host and the
+# broker runs with default credentials.
 services:
   solace:
     image: 'solace/solace-pubsub-standard:10.26.0.8799'
     ports:
-      - '${SOLACE_SMF_PORT:-55580}:55555'   # SMF messaging
-      - '${SOLACE_SEMP_PORT:-18580}:8080'   # SEMP (management API)
-      - '${SOLACE_REST_PORT:-9680}:9000'    # REST messaging (publishing directly to the broker)
+      - '127.0.0.1:${SOLACE_SMF_PORT:-55580}:55555'   # SMF messaging
+      - '127.0.0.1:${SOLACE_SEMP_PORT:-18580}:8080'   # SEMP (management API)
+      - '127.0.0.1:${SOLACE_REST_PORT:-9680}:9000'    # REST messaging (publishing directly to the broker)
     environment:
       - username_admin_globalaccesslevel=admin
       - username_admin_password=admin
@@ -45,8 +47,8 @@ services:
   jaeger:
     image: 'jaegertracing/all-in-one:1.57'
     ports:
-      - '${JAEGER_QUERY_PORT:-16680}:16686'   # Query API, used by the tests to assert on traces
-      - '${JAEGER_OTLP_PORT:-4327}:4317'      # OTLP/gRPC, used by the hub to export its spans
+      - '127.0.0.1:${JAEGER_QUERY_PORT:-16680}:16686'   # Query API, used by the tests to assert on traces
+      - '127.0.0.1:${JAEGER_OTLP_PORT:-4327}:4317'      # OTLP/gRPC, used by the hub to export its spans
     environment:
       - COLLECTOR_OTLP_ENABLED=true
 
@@ -56,7 +58,7 @@ services:
     volumes:
       - './resources/otel-collector.yaml:/etc/otel-collector.yaml:ro'
     ports:
-      - '${OTEL_HEALTH_PORT:-13680}:13133'    # Health check, used by the build to wait for the collector
+      - '127.0.0.1:${OTEL_HEALTH_PORT:-13680}:13133'    # Health check, used by the build to wait for the collector
     depends_on:
       - jaeger
     # The collector can only bind to the telemetry queue once the Gradle build has provisioned the telemetry profile
