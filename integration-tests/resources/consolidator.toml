@@ -12,6 +12,13 @@ consumerId = "websubhub-it-consolidator-snapshot"
 topic = "websubhub-it/events"
 consumerId = "websubhub-it-consolidator-events"
 
+# Retries of a rejected state snapshot, short enough for the persistence tests to exhaust them
+[websubhub.consolidator.config.state.persistRetry]
+maxRetries = 4
+retryInterval = 1.0
+backOffFactor = 2.0
+maxWaitInterval = 4.0
+
 [websubhub.consolidator.config.store.solace]
 url = "tcp://localhost:@broker.smf.port@"
 messageVpn = "default"
