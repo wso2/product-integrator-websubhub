@@ -22,12 +22,13 @@ import ballerina/uuid;
 import wso2/messagestore as store;
 import wso2/messagestore.api as storeapi;
 
-// Producer which persist the current consolidated in-memory state of the system
+// Producer which persist the current consolidated in-memory state of the system. Each send waits until the message
+// store acknowledges the persisted state.
 public final storeapi:Producer statePersistProducer = check initStatePersistProducer();
 
 function initStatePersistProducer() returns storeapi:Producer|error {
     string clientId = string `consolidated-state-persist-${uuid:createRandomUuid()}`;
-    return store:createProducer(clientId, config:store);
+    return store:createProducer(clientId, config:store, true);
 }
 
 // Consumer which reads the persisted topic-registration/topic-deregistration/subscription/unsubscription events
