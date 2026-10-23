@@ -36,7 +36,9 @@ import org.gradle.internal.os.OperatingSystem
 //   ./gradlew build -PskipIntegrationTests      - skips the integration tests
 //   ./gradlew :integration-tests:test           - runs the integration tests against the already built components
 //
-// The ports can be overridden with -Pit.<property>=<value>, e.g. -Pit.hubPort=9600.
+// The ports can be overridden with -Pit.<property>=<value>, e.g. -Pit.hubPort=9600. Runs that are to execute
+// concurrently on the same host need a Docker Compose project and ports of their own, e.g.
+// -Pit.composeProject=websubhub-it-2 together with distinct values for every port.
 
 plugins {
     id 'base'
@@ -60,6 +62,9 @@ def controlPort = itProperty('controlPort', 9585)
 // '-Pit.printTraces=true' makes the tracing tests print the spans of every trace they assert on
 def printTraces = itProperty('printTraces', false)
 def startupTimeoutSeconds = itProperty('startupTimeoutSeconds', 180) as int
+// The Docker Compose project of the environment. It is stable by default, so that a run removes the containers that an
+// interrupted earlier run left behind; a concurrent run sets a project of its own to stay isolated from the others.
+def composeProject = itProperty('composeProject', 'websubhub-it')
 
 // Telemetry of the broker. The profile is provisioned with span generation turned off; the tracing tests turn it on
 // and off for themselves over SEMP. The name of the profile also names the queue the collector binds to, so it has to
@@ -84,7 +89,7 @@ def composeEnvironment = [SOLACE_SMF_PORT: "${brokerSmfPort}", SOLACE_SEMP_PORT:
                           SOLACE_REST_PORT: "${brokerRestPort}", JAEGER_QUERY_PORT: "${jaegerQueryPort}",
                           JAEGER_OTLP_PORT: "${jaegerOtlpPort}", OTEL_HEALTH_PORT: "${otelHealthPort}"]
 def composeCommand = { List<String> args ->
-    ['docker', 'compose', '-p', 'websubhub-it', '-f', composeFile.absolutePath] + args
+    ['docker', 'compose', '-p', "${composeProject}".toString(), '-f', composeFile.absolutePath] + args
 }
 
 // Processes of the components under test, shared between the start and stop tasks

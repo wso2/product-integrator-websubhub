@@ -27,7 +27,6 @@
 services:
   solace:
     image: 'solace/solace-pubsub-standard:10.26.0.8799'
-    container_name: websubhub-it-solace
     ports:
       - '${SOLACE_SMF_PORT:-55580}:55555'   # SMF messaging
       - '${SOLACE_SEMP_PORT:-18580}:8080'   # SEMP (management API)
@@ -45,7 +44,6 @@ services:
 
   jaeger:
     image: 'jaegertracing/all-in-one:1.57'
-    container_name: websubhub-it-jaeger
     ports:
       - '${JAEGER_QUERY_PORT:-16680}:16686'   # Query API, used by the tests to assert on traces
       - '${JAEGER_OTLP_PORT:-4327}:4317'      # OTLP/gRPC, used by the hub to export its spans
@@ -54,7 +52,6 @@ services:
 
   otel-collector:
     image: 'otel/opentelemetry-collector-contrib:0.156.0'
-    container_name: websubhub-it-otel-collector
     command: ['--config=/etc/otel-collector.yaml']
     volumes:
       - './resources/otel-collector.yaml:/etc/otel-collector.yaml:ro'
