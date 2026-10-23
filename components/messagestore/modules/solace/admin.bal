@@ -41,6 +41,7 @@ const string META_MAX_TTL = "solace.max_ttl";
 const string META_REDELIVERY_ENABLED = "solace.redelivery_enabled";
 const string META_REDELIVERY_TRY_FOREVER = "solace.redelivery_try_forever";
 const string META_REDELIVERY_MAX_COUNT = "solace.redelivery_max_count";
+const REJECT_MSG_TO_SENDER_ON_DISCARD = "always";
 
 public isolated client class Administrator {
     *api:Administrator;
@@ -88,6 +89,9 @@ public isolated client class Administrator {
             _ = check self.createQueue(effectiveQueueName, effectiveDlqName, self.queueConfig, meta);
         } else if queue is error {
             return queue;
+        } else if systemSubscriber && queue.rejectMsgToSenderOnDiscardBehavior != REJECT_MSG_TO_SENDER_ON_DISCARD {
+            // System queues created by an earlier version do not report discarded messages to the publisher
+            check self.enableRejectMsgToSenderOnDiscard(effectiveQueueName);
         }
         _ = check self.addTopicSubscription(effectiveQueueName, topic);
     }
@@ -175,6 +179,20 @@ public isolated client class Administrator {
             return error SolaceQueueExists(string `Queue [${queueName}] already exists in vpn [${vpn}]`);
         }
         return response;
+    }
+
+    isolated function enableRejectMsgToSenderOnDiscard(string queueName) returns error? {
+        string vpn = self.messageVpn;
+        log:printInfo("Enabling discard notifications to publishers for the queue", queue = queueName,
+                rejectMsgToSenderOnDiscardBehavior = REJECT_MSG_TO_SENDER_ON_DISCARD);
+        semp:MsgVpnQueueResponse|error response = self.administrator->updateMsgVpnQueue(
+            msgVpnName = vpn,
+            queueName = queueName,
+            payload = {rejectMsgToSenderOnDiscardBehavior: REJECT_MSG_TO_SENDER_ON_DISCARD}
+        );
+        if response is error {
+            return error(string `Failed to update the queue [${queueName}] in vpn [${vpn}]: ${response.message()}`, response);
+        }
     }
 
     isolated function addTopicSubscription(string queueName, string subscriptionTopic) returns semp:MsgVpnQueueSubscription|error {
@@ -338,7 +356,8 @@ isolated function buildQueuePayload(string queueName, string? dlqName, SolaceQue
         queueName,
         accessType: "non-exclusive",
         ingressEnabled: true,
-        egressEnabled: true
+        egressEnabled: true,
+        rejectMsgToSenderOnDiscardBehavior: REJECT_MSG_TO_SENDER_ON_DISCARD
     };
 
     if dlqName is string {
