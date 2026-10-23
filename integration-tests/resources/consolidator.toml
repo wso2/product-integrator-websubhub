@@ -1,0 +1,41 @@
+# Consolidator configuration used by the integration tests. The @...@ placeholders are replaced by the
+# integration-tests Gradle build.
+
+[websubhub.consolidator.config.server]
+port = @consolidator.port@
+
+[websubhub.consolidator.config.state.snapshot]
+topic = "websubhub-it/events/snapshot"
+consumerId = "websubhub-it-consolidator-snapshot"
+
+[websubhub.consolidator.config.state.events]
+topic = "websubhub-it/events"
+consumerId = "websubhub-it-consolidator-events"
+
+[websubhub.consolidator.config.store.solace]
+url = "tcp://localhost:@broker.smf.port@"
+messageVpn = "default"
+auth.username = "admin"
+auth.password = "admin"
+
+[websubhub.consolidator.config.store.solace.consumer]
+receiveTimeout = 5.0
+
+[websubhub.consolidator.config.store.solace.admin]
+url = "http://localhost:@broker.semp.port@/SEMP/v2/config"
+timeout = 30.0
+auth.username = "admin"
+auth.password = "admin"
+strictQueueConfigValidation = false
+
+[websubhub.consolidator.config.store.solace.queue]
+messageQueueQuota = 100
+queueOwner = "admin"
+nonOwnerPermission = "no-access"
+deliveryCountEnabled = true
+respectTtl = false
+maxTtl = 0
+redeliver.maxCount = 10
+
+[ballerina.log]
+level = "INFO"

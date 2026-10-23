@@ -1,0 +1,23 @@
+# Configuration of the integration test suite. The @...@ placeholders are replaced by the integration-tests Gradle
+# build.
+
+[websubhub.integration.tests]
+hubUrl = "http://localhost:@hub.port@"
+consolidatorUrl = "http://localhost:@consolidator.port@"
+subscriberPort = @subscriber.port@
+
+# End-to-end tracing. 'brokerRestUrl' is the REST messaging gateway of the broker, used to publish straight to the
+# broker instead of through the hub; 'brokerSempUrl' is used to turn the telemetry of the broker on and off.
+jaegerUrl = "http://localhost:@jaeger.query.port@"
+brokerRestUrl = "http://localhost:@broker.rest.port@"
+brokerSempUrl = "http://localhost:@broker.semp.port@/SEMP/v2"
+
+# Set with '-Pit.printTraces=true' to print the spans of every trace the tracing tests assert on
+printTraces = @print.traces@
+
+# Persistence of the system state. 'controlUrl' is served by the integration-tests Gradle build, through which the
+# tests stop and start the consolidator. The queues are the system queues of the consolidator, named after the
+# consumer ids of resources/consolidator.toml.
+controlUrl = "http://localhost:@control.port@"
+consolidatorSnapshotQueue = "websubhub-it-consolidator-snapshot"
+consolidatorEventsQueue = "websubhub-it-consolidator-events"

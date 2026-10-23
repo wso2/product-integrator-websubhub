@@ -34,9 +34,11 @@ rootProject.name = 'product-integrator-websubhub'
 
 include ':websubhub-workspace'
 include ':distribution'
+include ':integration-tests'
 
 project(':websubhub-workspace').projectDir = file("components")
 project(':distribution').projectDir = file("distribution")
+project(':integration-tests').projectDir = file("integration-tests")
 
 gradleEnterprise {
     buildScan {

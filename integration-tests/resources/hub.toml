@@ -1,0 +1,70 @@
+# Hub configuration used by the integration tests. The @...@ placeholders are replaced by the
+# integration-tests Gradle build.
+
+[websubhub.config.server]
+port = @hub.port@
+id = "websubhub-it"
+
+[websubhub.config.state.snapshot]
+url = "http://localhost:@consolidator.port@/consolidator/state-snapshot"
+
+[websubhub.config.state.events]
+topic = "websubhub-it/events"
+consumerIdPrefix = "websubhub-it-hub-events"
+
+[websubhub.config.store.solace]
+url = "tcp://localhost:@broker.smf.port@"
+messageVpn = "default"
+auth.username = "admin"
+auth.password = "admin"
+
+[websubhub.config.store.solace.consumer]
+receiveTimeout = 5.0
+
+[websubhub.config.store.solace.admin]
+url = "http://localhost:@broker.semp.port@/SEMP/v2/config"
+timeout = 30.0
+auth.username = "admin"
+auth.password = "admin"
+strictQueueConfigValidation = false
+
+[websubhub.config.store.solace.queue]
+queueNamePrefix = "websubhub-it-"
+messageQueueQuota = 100
+queueOwner = "admin"
+nonOwnerPermission = "no-access"
+deliveryCountEnabled = true
+respectTtl = false
+maxTtl = 0
+redeliver.maxCount = 10
+
+[websubhub.config.delivery]
+timeout = 30.0
+
+[websubhub.config.delivery.retry]
+count = 3
+interval = 1.0
+backOffFactor = 2.0
+maxWaitInterval = 5.0
+statusCodes = [500, 502, 503]
+
+[websubhub.config.verification]
+timeout = 30.0
+
+[ballerina.log]
+level = "INFO"
+
+# Tracing. The hub exports its spans straight to the OTLP endpoint of Jaeger, which the end-to-end tracing tests then
+# query. Metrics are left disabled so that the hub does not bind the metrics port of the host.
+[ballerina.observe]
+tracingEnabled = true
+tracingProvider = "jaeger"
+metricsEnabled = false
+
+[ballerinax.jaeger]
+agentHostname = "localhost"
+agentPort = @jaeger.otlp.port@
+samplerType = "const"
+samplerParam = 1.0
+reporterFlushInterval = 1000
+reporterBufferSize = 1000

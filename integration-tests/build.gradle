@@ -1,0 +1,494 @@
+/*
+ * Copyright (c) 2026, WSO2 LLC. (http://www.wso2.com)
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import groovy.json.JsonSlurper
+import org.gradle.internal.os.OperatingSystem
+
+// Integration tests of the WebSubHub. The tests start a message broker and a tracing backend in Docker, run the
+// consolidator and the hub built by the ':websubhub-workspace' project, and exercise the hub through its public APIs.
+//
+// The hub is run with tracing on, and the tracing tests assert that one trace covers the publisher, the hub and the
+// subscriber - whether the content is published through the hub or straight to the broker, and whether or not the
+// broker contributes spans of its own. The telemetry profile that the broker needs for the latter is provisioned
+// over SEMP by 'startBroker', as the image cannot be configured with one.
+//
+// The environment is managed only through Gradle and the 'docker compose' CLI, so that the tests run the same way on
+// Linux, macOS and Windows. Requirements: Docker (with the 'docker compose' plugin), Java 21 and the Ballerina
+// distribution of the project.
+//
+// Usage:
+//   ./gradlew build                             - builds the hub and the consolidator, and runs the integration tests
+//   ./gradlew build -PskipIntegrationTests      - skips the integration tests
+//   ./gradlew :integration-tests:test           - runs the integration tests against the already built components
+//
+// The ports can be overridden with -Pit.<property>=<value>, e.g. -Pit.hubPort=9600. Runs that are to execute
+// concurrently on the same host need a Docker Compose project and ports of their own, e.g.
+// -Pit.composeProject=websubhub-it-2 together with distinct values for every port.
+
+plugins {
+    id 'base'
+}
+
+description = 'WSO2 Integrator: WebSubHub - Integration Tests'
+
+def itProperty = { String name, Object defaultValue -> project.findProperty("it.${name}") ?: defaultValue }
+
+def brokerSmfPort = itProperty('brokerSmfPort', 55580)
+def brokerSempPort = itProperty('brokerSempPort', 18580)
+def consolidatorPort = itProperty('consolidatorPort', 10580)
+def hubPort = itProperty('hubPort', 9580)
+def subscriberPort = itProperty('subscriberPort', 9590)
+def brokerRestPort = itProperty('brokerRestPort', 9680)
+def jaegerQueryPort = itProperty('jaegerQueryPort', 16680)
+def jaegerOtlpPort = itProperty('jaegerOtlpPort', 4327)
+def otelHealthPort = itProperty('otelHealthPort', 13680)
+// The port on which the build serves the requests of the tests to stop and start the consolidator
+def controlPort = itProperty('controlPort', 9585)
+// '-Pit.printTraces=true' makes the tracing tests print the spans of every trace they assert on
+def printTraces = itProperty('printTraces', false)
+def startupTimeoutSeconds = itProperty('startupTimeoutSeconds', 180) as int
+// The Docker Compose project of the environment. It is stable by default, so that a run removes the containers that an
+// interrupted earlier run left behind; a concurrent run sets a project of its own to stay isolated from the others.
+def composeProject = itProperty('composeProject', 'websubhub-it')
+
+// Telemetry of the broker. The profile is provisioned with span generation turned off; the tracing tests turn it on
+// and off for themselves over SEMP. The name of the profile also names the queue the collector binds to, so it has to
+// match 'resources/otel-collector.yaml'.
+def telemetryProfile = 'trace'
+def telemetryTraceFilter = 'all'
+def telemetryReceiverUsername = 'telemetry-receiver'
+def telemetryReceiverPassword = 'telemetry-receiver'
+
+def componentsDir = file("${rootDir}/components")
+def consolidatorJar = file("${componentsDir}/websubhub-consolidator/target/bin/websubhub.consolidator.jar")
+def hubJar = file("${componentsDir}/websubhub/target/bin/websubhub.jar")
+def composeFile = file('docker-compose.yaml')
+def testPackageDir = file('websubhub-tests')
+def workDir = file("${buildDir}/integration-tests")
+def confDir = file("${workDir}/conf")
+def logsDir = file("${workDir}/logs")
+
+def isWindows = OperatingSystem.current().isWindows()
+def javaExecutable = new File(System.getProperty('java.home'), "bin/java${isWindows ? '.exe' : ''}").absolutePath
+def composeEnvironment = [SOLACE_SMF_PORT: "${brokerSmfPort}", SOLACE_SEMP_PORT: "${brokerSempPort}",
+                          SOLACE_REST_PORT: "${brokerRestPort}", JAEGER_QUERY_PORT: "${jaegerQueryPort}",
+                          JAEGER_OTLP_PORT: "${jaegerOtlpPort}", OTEL_HEALTH_PORT: "${otelHealthPort}"]
+def composeCommand = { List<String> args ->
+    ['docker', 'compose', '-p', "${composeProject}".toString(), '-f', composeFile.absolutePath] + args
+}
+
+// Processes of the components under test, shared between the start and stop tasks
+def componentProcesses = [:]
+
+def httpGet = { String url, String credentials = null ->
+    try {
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection()
+        connection.connectTimeout = 5000
+        connection.readTimeout = 5000
+        if (credentials != null) {
+            connection.setRequestProperty('Authorization', "Basic ${credentials.bytes.encodeBase64()}")
+        }
+        int status = connection.responseCode
+        String body = status < 400 ? connection.inputStream.text : (connection.errorStream?.text ?: '')
+        return [status: status, body: body]
+    } catch (IOException ignored) {
+        return [status: -1, body: '']
+    }
+}
+
+def httpSend = { String method, String url, String credentials, String json ->
+    try {
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection()
+        connection.requestMethod = method
+        connection.connectTimeout = 5000
+        connection.readTimeout = 10000
+        connection.setRequestProperty('Authorization', "Basic ${credentials.bytes.encodeBase64()}")
+        if (json != null) {
+            connection.doOutput = true
+            connection.setRequestProperty('Content-Type', 'application/json')
+            connection.outputStream.withWriter('UTF-8') { it << json }
+        }
+        return connection.responseCode
+    } catch (IOException ignored) {
+        return -1
+    }
+}
+
+// SEMP requests of the provisioning below. 'HttpURLConnection' cannot send PATCH, hence the java.net.http client.
+def sempRequest = { String method, String path, String json ->
+    def request = java.net.http.HttpRequest
+            .newBuilder(URI.create("http://localhost:${brokerSempPort}/SEMP/v2${path}"))
+            .timeout(java.time.Duration.ofSeconds(15))
+            .header('Content-Type', 'application/json')
+            .header('Authorization', "Basic ${'admin:admin'.bytes.encodeBase64()}")
+            .method(method, json == null
+                    ? java.net.http.HttpRequest.BodyPublishers.noBody()
+                    : java.net.http.HttpRequest.BodyPublishers.ofString(json))
+            .build()
+    try {
+        def response = java.net.http.HttpClient.newBuilder()
+                .connectTimeout(java.time.Duration.ofSeconds(5)).build()
+                .send(request, java.net.http.HttpResponse.BodyHandlers.ofString())
+        return [status: response.statusCode(), body: response.body()]
+    } catch (Exception failure) {
+        return [status: -1, body: failure.message ?: '']
+    }
+}
+
+def waitUntil = { String description, int timeoutSeconds, Closure<Boolean> condition ->
+    long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L
+    while (System.currentTimeMillis() < deadline) {
+        if (condition()) {
+            return
+        }
+        sleep(2000)
+    }
+    throw new GradleException("Timed out after ${timeoutSeconds}s waiting for ${description}")
+}
+
+def logTail = { String name, int lines = 40 ->
+    def log = new File(logsDir, "${name}.log")
+    if (!log.exists()) {
+        return "(no ${name} log)"
+    }
+    def content = log.readLines()
+    return content.subList(Math.max(0, content.size() - lines), content.size()).join(System.lineSeparator())
+}
+
+// A component restarted by the tests appends to the log of its earlier runs, so that the log tells the whole story
+def startComponent = { String name, File jar, File config, boolean restart = false ->
+    if (!jar.exists()) {
+        throw new GradleException("${jar} does not exist. Build the components first (./gradlew build).")
+    }
+    logsDir.mkdirs()
+    File log = new File(logsDir, "${name}.log")
+    def processBuilder = new ProcessBuilder(javaExecutable, '-jar', jar.absolutePath)
+    processBuilder.environment().put('BAL_CONFIG_FILES', config.absolutePath)
+    processBuilder.directory(workDir)
+    processBuilder.redirectErrorStream(true)
+    processBuilder.redirectOutput(restart ? ProcessBuilder.Redirect.appendTo(log) : ProcessBuilder.Redirect.to(log))
+    componentProcesses[name] = processBuilder.start()
+    logger.lifecycle("${restart ? 'Restarted' : 'Started'} the ${name} (logs: ${log})")
+}
+
+// Stops a component, gracefully if it allows, and returns whether it is no longer running
+def stopComponent = { String name ->
+    Process process = componentProcesses[name]
+    if (process == null || !process.alive) {
+        return true
+    }
+    process.toHandle().descendants().forEach { it.destroyForcibly() }
+    process.destroy()
+    if (!process.waitFor(15, java.util.concurrent.TimeUnit.SECONDS)) {
+        process.destroyForcibly()
+        process.waitFor(15, java.util.concurrent.TimeUnit.SECONDS)
+    }
+    if (process.alive) {
+        return false
+    }
+    logger.lifecycle("Stopped the ${name}")
+    return true
+}
+
+def ensureRunning = { String name ->
+    Process process = componentProcesses[name]
+    if (process != null && !process.alive) {
+        throw new GradleException("The ${name} exited with code ${process.exitValue()}:${System.lineSeparator()}" +
+                logTail(name))
+    }
+}
+
+// The persistence tests stop and start the consolidator, to exercise how it persists and restores the system state.
+// The processes of the components belong to this build, hence it serves those requests of the tests while they run:
+//   GET  /components/consolidator        - {"running": <boolean>, "exitCode": <int, once it has exited>}
+//   POST /components/consolidator/stop   - stops the consolidator, gracefully if it allows
+//   POST /components/consolidator/start  - starts the consolidator, without waiting for it to be ready
+// The server only listens on the loopback interface.
+def controlServer = [:]
+
+def startControlServer = {
+    def server = com.sun.net.httpserver.HttpServer.create(
+            new InetSocketAddress(InetAddress.loopbackAddress, controlPort as int), 0)
+    String context = '/components/consolidator'
+    server.createContext(context, { exchange ->
+        int status = 200
+        Map response = [:]
+        try {
+            String action = exchange.requestURI.path.substring(context.length())
+            Process process = componentProcesses['consolidator']
+            if (exchange.requestMethod == 'GET' && action in ['', '/']) {
+                boolean running = process != null && process.alive
+                response = [running: running, exitCode: process != null && !running ? process.exitValue() : null]
+            } else if (exchange.requestMethod == 'POST' && action == '/stop') {
+                if (!stopComponent('consolidator')) {
+                    status = 500
+                    response = [message: "Could not stop the consolidator (pid ${process.pid()})".toString()]
+                }
+            } else if (exchange.requestMethod == 'POST' && action == '/start') {
+                if (process != null && process.alive) {
+                    status = 409
+                    response = [message: 'The consolidator is already running']
+                } else {
+                    startComponent('consolidator', consolidatorJar, new File(confDir, 'consolidator.toml'), true)
+                }
+            } else {
+                status = 404
+                response = [message: "Unsupported request: ${exchange.requestMethod} ${exchange.requestURI}".toString()]
+            }
+        } catch (Exception failure) {
+            status = 500
+            response = [message: failure.message ?: failure.toString()]
+        }
+        byte[] body = groovy.json.JsonOutput.toJson(response).getBytes('UTF-8')
+        exchange.responseHeaders.add('Content-Type', 'application/json')
+        exchange.sendResponseHeaders(status, body.length)
+        exchange.responseBody.withStream { it.write(body) }
+    } as com.sun.net.httpserver.HttpHandler)
+    server.start()
+    controlServer.server = server
+    logger.lifecycle("Serving the restarts of the consolidator on port ${controlPort}")
+}
+
+def stopControlServer = {
+    def server = controlServer.remove('server')
+    if (server != null) {
+        server.stop(0)
+    }
+}
+
+tasks.register('prepareTestConfigs', Copy) {
+    from('resources') {
+        include '*.toml'
+        filter { String line ->
+            line.replace('@broker.smf.port@', "${brokerSmfPort}")
+                    .replace('@broker.semp.port@', "${brokerSempPort}")
+                    .replace('@consolidator.port@', "${consolidatorPort}")
+                    .replace('@hub.port@', "${hubPort}")
+                    .replace('@subscriber.port@', "${subscriberPort}")
+                    .replace('@broker.rest.port@', "${brokerRestPort}")
+                    .replace('@jaeger.query.port@', "${jaegerQueryPort}")
+                    .replace('@jaeger.otlp.port@', "${jaegerOtlpPort}")
+                    .replace('@print.traces@', "${printTraces}")
+                    .replace('@control.port@', "${controlPort}")
+        }
+    }
+    into confDir
+}
+
+tasks.register('startBroker') {
+    doLast {
+        // Start from a fresh broker, removing any container left behind by an interrupted run
+        project.exec {
+            commandLine composeCommand(['down', '-v', '--remove-orphans'])
+            environment composeEnvironment
+            ignoreExitValue true
+        }
+        project.exec {
+            commandLine composeCommand(['up', '-d'])
+            environment composeEnvironment
+        }
+
+        String sempUrl = "http://localhost:${brokerSempPort}/SEMP/v2"
+        waitUntil('the message VPN of the broker to be up', startupTimeoutSeconds) {
+            def response = httpGet("${sempUrl}/monitor/msgVpns/default?select=state", 'admin:admin')
+            response.status == 200 && new JsonSlurper().parseText(response.body)?.data?.state == 'up'
+        }
+        // The broker reports the message VPN as up before its message spool can create queues, so wait until a
+        // queue can be created
+        waitUntil('the message spool of the broker to be ready', startupTimeoutSeconds) {
+            int status = httpSend('POST', "${sempUrl}/config/msgVpns/default/queues", 'admin:admin',
+                    '{"queueName":"websubhub-it-readiness","ingressEnabled":true,"egressEnabled":true}')
+            if (status == 200) {
+                httpSend('DELETE', "${sempUrl}/config/msgVpns/default/queues/websubhub-it-readiness", 'admin:admin',
+                        null)
+            }
+            status == 200
+        }
+        logger.lifecycle("The broker is ready (SMF port ${brokerSmfPort}, SEMP port ${brokerSempPort})")
+
+        // Telemetry of the broker, which cannot be configured through the image. The profile is created with span
+        // generation turned off, so that every test starts from a known state and turns it on only if it needs the
+        // broker spans.
+        def provision = { String description, String method, String path, String json ->
+            def response = sempRequest(method, path, json)
+            if (response.status != 200) {
+                throw new GradleException("Failed to ${description}: ${response.status} ${response.body}")
+            }
+        }
+        String telemetryPath = "/config/msgVpns/default/telemetryProfiles/${telemetryProfile}"
+        // Creating the telemetry profile also creates the queue the collector consumes from, and the ACL and client
+        // profiles that govern access to it. The receiver has to be put on those profiles to be allowed to bind, so
+        // the profile is created before the client username of the receiver.
+        String telemetryProfiles = "#telemetry-${telemetryProfile}"
+        // The receiver of the collector authenticates with SASL PLAIN, which the message VPN only honours when it
+        // authenticates clients against its own user store
+        provision('enable internal authentication on the message VPN', 'PATCH', '/config/msgVpns/default',
+                '{"authenticationBasicType":"internal"}')
+        // Until the message VPN authenticates internally it accepts any client username, so the hub and the
+        // consolidator need one of their own from here on. They connect as 'admin', which is also what owns the
+        // queues they create (see the 'queueOwner' of resources/hub.toml and resources/consolidator.toml).
+        provision('create the client username of the components', 'POST',
+                '/config/msgVpns/default/clientUsernames',
+                '{"clientUsername":"admin","password":"admin","enabled":true}')
+        provision('create the telemetry profile', 'POST', '/config/msgVpns/default/telemetryProfiles',
+                '{"telemetryProfileName":"' + telemetryProfile + '","traceEnabled":true,"receiverEnabled":true,' +
+                        '"receiverAclConnectDefaultAction":"allow","traceSendSpanGenerationEnabled":true}')
+        provision('create the client username of the telemetry receiver', 'POST',
+                '/config/msgVpns/default/clientUsernames',
+                '{"clientUsername":"' + telemetryReceiverUsername + '","password":"' + telemetryReceiverPassword +
+                        '","aclProfileName":"' + telemetryProfiles + '","clientProfileName":"' + telemetryProfiles +
+                        '","enabled":true}')
+        // The trace filter decides, per message, whether the broker traces it, and is what the tracing tests turn
+        // on and off for themselves. It starts off, so that every other test runs without the broker spans.
+        provision('create the trace filter', 'POST', "${telemetryPath}/traceFilters",
+                '{"traceFilterName":"' + telemetryTraceFilter + '","enabled":false}')
+        provision('subscribe the trace filter to every topic', 'POST',
+                "${telemetryPath}/traceFilters/${telemetryTraceFilter}/subscriptions",
+                '{"subscription":">","subscriptionSyntax":"smf"}')
+        logger.lifecycle("The telemetry profile '${telemetryProfile}' of the broker is provisioned")
+
+        waitUntil('the tracing backend to be up', startupTimeoutSeconds) {
+            httpGet("http://localhost:${jaegerQueryPort}/api/services").status == 200
+        }
+        // The collector keeps restarting until the telemetry profile exists, so it is only expected to report itself
+        // healthy once the provisioning above has gone through
+        waitUntil('the OpenTelemetry collector to be up', startupTimeoutSeconds) {
+            httpGet("http://localhost:${otelHealthPort}/").status == 200
+        }
+        // Without a receiver bound to the telemetry queue the broker spans never reach Jaeger, which would show up as
+        // an unexplained failure of the tracing tests that run with the telemetry of the broker turned on. The
+        // collector only connects once the provisioning above has gone through, and it retries until it does.
+        waitUntil('the collector to connect to the telemetry queue of the broker', startupTimeoutSeconds) {
+            def response = sempRequest('GET', '/monitor/msgVpns/default/clients' +
+                    "?where=clientUsername==${telemetryReceiverUsername}&select=clientName", null)
+            response.status == 200 && !(new JsonSlurper().parseText(response.body)?.data?.isEmpty())
+        }
+        logger.lifecycle("Tracing is ready (Jaeger query port ${jaegerQueryPort}, OTLP port ${jaegerOtlpPort})")
+    }
+}
+
+tasks.register('startConsolidator') {
+    dependsOn 'prepareTestConfigs', 'startBroker'
+    doLast {
+        startComponent('consolidator', consolidatorJar, new File(confDir, 'consolidator.toml'))
+        waitUntil('the consolidator to be ready', startupTimeoutSeconds) {
+            ensureRunning('consolidator')
+            httpGet("http://localhost:${consolidatorPort}/health/readiness").status == 200
+        }
+    }
+}
+
+tasks.register('startHub') {
+    dependsOn 'startConsolidator'
+    doLast {
+        startComponent('hub', hubJar, new File(confDir, 'hub.toml'))
+        File hubLog = new File(logsDir, 'hub.log')
+        waitUntil('the hub to be ready', startupTimeoutSeconds) {
+            ensureRunning('hub')
+            hubLog.exists() && hubLog.text.contains('Websubhub service started successfully')
+        }
+    }
+}
+
+tasks.register('stopTestEnvironment') {
+    doLast {
+        // Stop serving the restarts first, so that the tests cannot start the consolidator again, then stop the hub
+        // before the consolidator, and the components before the broker
+        stopControlServer()
+        List<String> leaked = []
+        ['hub', 'consolidator'].each { String name ->
+            Process process = componentProcesses[name]
+            if (stopComponent(name)) {
+                componentProcesses.remove(name)
+            } else {
+                leaked.add("${name} (pid ${process.pid()})".toString())
+            }
+        }
+        project.exec {
+            commandLine composeCommand(['down', '-v', '--remove-orphans'])
+            environment composeEnvironment
+            ignoreExitValue true
+        }
+        // A component that outlives its run reconnects to the broker of the next one and claims the queues before
+        // the new component can, which fails that run with an unrelated-looking error. Hence it is reported here,
+        // where the cause is still obvious, rather than being left to surface later.
+        if (!leaked.isEmpty()) {
+            throw new GradleException("Could not stop ${leaked.join(', ')}. Kill the process before running the " +
+                    "integration tests again, as it would claim the queues of the next run.")
+        }
+    }
+}
+
+tasks.register('test', Exec) {
+    description = 'Runs the WebSubHub integration tests.'
+    group = 'verification'
+    onlyIf { !project.hasProperty('skipIntegrationTests') }
+    dependsOn 'startHub'
+    mustRunAfter ':websubhub-workspace:build'
+
+    workingDir testPackageDir
+    commandLine BalUtils.executeBalCommand('test --test-report')
+    ignoreExitValue true
+
+    doFirst {
+        delete file("${testPackageDir}/target/report")
+        // 'bal test' reads the configurable values of the tests only from tests/Config.toml
+        project.copy {
+            from(confDir) { include 'tests.toml' }
+            into file("${testPackageDir}/tests")
+            rename 'tests.toml', 'Config.toml'
+        }
+        startControlServer()
+    }
+    doLast {
+        stopControlServer()
+        // The exit code of 'bal test' is not reliable on all platforms (bal.bat reports success on Windows even when
+        // tests fail), hence the outcome is read from the test report
+        File report = file("${testPackageDir}/target/report/test_results.json")
+        def results = report.exists() ? new JsonSlurper().parse(report) : null
+        int total = results?.totalTests ?: 0
+        int failed = results?.failed ?: 0
+        logger.lifecycle("Integration tests: ${total} run, ${results?.passed ?: 0} passed, ${failed} failed, " +
+                "${results?.skipped ?: 0} skipped")
+        if (executionResult.get().exitValue != 0 || results == null || total == 0 || failed > 0) {
+            logger.error("Hub logs:${System.lineSeparator()}${logTail('hub')}")
+            logger.error("Consolidator logs:${System.lineSeparator()}${logTail('consolidator')}")
+            throw new GradleException("The integration tests failed. Test report: ${testPackageDir}/target/report, " +
+                    "component logs: ${logsDir}")
+        }
+    }
+}
+
+// Tear down the environment whether the tests pass, fail, or the environment fails to start
+['startBroker', 'startConsolidator', 'startHub', 'test'].each { String name ->
+    tasks.named(name) { finalizedBy 'stopTestEnvironment' }
+}
+tasks.named('stopTestEnvironment') { mustRunAfter 'test' }
+
+['prepareTestConfigs', 'startBroker', 'startConsolidator', 'startHub', 'stopTestEnvironment'].each { String name ->
+    tasks.named(name) {
+        onlyIf { !project.hasProperty('skipIntegrationTests') }
+        mustRunAfter ':websubhub-workspace:build'
+    }
+}
+
+tasks.named('check') { dependsOn 'test' }
+
+tasks.named('clean') {
+    delete file("${testPackageDir}/target")
+}
