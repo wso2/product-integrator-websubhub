@@ -26,8 +26,15 @@ public isolated client class Producer {
     private solace:MessageProducer producer;
     private final string url;
     private final solace:ProducerConfiguration & readonly producerConfig;
+    private final boolean guaranteed;
 
-    public isolated function init(string clientName, Config config) returns error? {
+    # Initializes the Solace producer.
+    #
+    # + clientName - The client name of the producer
+    # + config - The Solace connection configurations
+    # + guaranteed - When `true`, messages are published with `PERSISTENT` delivery and each send waits until the broker
+    # acknowledges the message, returning an `error` if the broker rejects it.
+    public isolated function init(string clientName, Config config, boolean guaranteed = false) returns error? {
 
         solace:ProducerConfiguration producerConfig = {
             clientName,
@@ -40,12 +47,25 @@ public isolated client class Producer {
         };
         self.url = config.url;
         self.producerConfig = producerConfig.cloneReadOnly();
+        self.guaranteed = guaranteed;
         self.producer = check new (config.url, producerConfig);
     }
 
     isolated remote function send(string topic, api:Message message) returns error? {
         map<solace:Property> properties = buildProperties(message);
         lock {
+            if self.guaranteed {
+                check self.producer->sendAwaitAcknowledgement(
+                    {
+                        messageId: message.id,
+                        payload: message.payload.cloneReadOnly(),
+                        deliveryMode: solace:PERSISTENT,
+                        properties: properties.cloneReadOnly()
+                    },
+                    {topicName: topic}
+                );
+                return;
+            }
             check self.producer->send(
                 {
                     messageId: message.id,
