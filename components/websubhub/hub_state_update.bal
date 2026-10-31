@@ -19,7 +19,9 @@ import websubhub.config;
 import websubhub.connections as conn;
 
 import ballerina/http;
+import ballerina/lang.runtime;
 import ballerina/lang.value;
+import ballerina/log;
 import ballerina/websubhub;
 
 import wso2/messagestore.api as storeapi;
@@ -49,10 +51,19 @@ function initializeHubState() returns error? {
     }
 }
 
+// The state-update events are consumed for as long as the hub runs. When the connection to the message store is lost,
+// e.g. while the broker restarts, the consumer is reconnected and the consumption resumes. An event that was received
+// but not acknowledged is redelivered once the consumer is reconnected.
 function updateHubState() returns error? {
     do {
         while true {
-            storeapi:Message? message = check conn:websubEventsConsumer->receive();
+            storeapi:Message|error? message = conn:websubEventsConsumer->receive();
+            if message is error {
+                common:logRecoverableError("Error occurred while receiving state-update event from the message store",
+                        message);
+                reconnectWebSubEventsConsumer();
+                continue;
+            }
             if message is () {
                 continue;
             }
@@ -63,13 +74,30 @@ function updateHubState() returns error? {
                 common:logFatalError("Error occurred while processing state-update event", result);
                 check conn:websubEventsConsumer->nack(message);
                 check result;
-            } else {
-                check conn:websubEventsConsumer->ack(message);
+            }
+            error? ackResult = conn:websubEventsConsumer->ack(message);
+            if ackResult is error {
+                common:logRecoverableError("Error occurred while acknowledging state-update event", ackResult);
+                reconnectWebSubEventsConsumer();
             }
         }
     } on fail error e {
+        common:logFatalError("Stopped processing state-update events", e);
         check conn:websubEventsConsumer->close();
         return e;
+    }
+}
+
+// Reconnects the state-update event consumer, retrying until the message store is reachable again
+function reconnectWebSubEventsConsumer() {
+    while true {
+        error? result = conn:websubEventsConsumer->reconnect();
+        if result is () {
+            log:printInfo("Reconnected the state-update event consumer");
+            return;
+        }
+        common:logRecoverableError("Error occurred while reconnecting the state-update event consumer", result);
+        runtime:sleep(config:delivery.reconnectInterval < 0d ? 1d : config:delivery.reconnectInterval);
     }
 }
 
