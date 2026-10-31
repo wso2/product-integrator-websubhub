@@ -30,6 +30,8 @@ public configurable string brokerSempUrl = ?;
 public configurable string brokerTelemetryProfile = "trace";
 # The name of the trace filter of that telemetry profile, which decides which messages the broker traces
 public configurable string brokerTraceFilter = "all";
+# The client username with which the OpenTelemetry collector receives the telemetry of the broker
+public configurable string brokerTelemetryReceiver = "telemetry-receiver";
 
 # The name of the span the hub opens in the trace of the publisher while it delivers a message to a subscriber.
 # It is defined by `websubhub.observability`, and is what makes the delivery visible in the trace of the publisher.
@@ -132,6 +134,17 @@ public isolated function setBrokerTelemetry(boolean enabled) returns error? {
     }
     // The broker applies the change to the connections that are already established, but not instantly
     runtime:sleep(telemetrySettleTime);
+}
+
+# Checks whether the OpenTelemetry collector is connected to the broker to receive its telemetry, which it reconnects
+# to by itself after the broker restarts.
+#
+# + return - `true` if the collector is connected, or an `error` if the clients of the broker cannot be retrieved
+public isolated function isTelemetryReceiverConnected() returns boolean|error {
+    json response = check brokerSempClient->get(
+            string `/monitor/msgVpns/default/clients?where=clientUsername==${brokerTelemetryReceiver}&select=clientName`);
+    json[] clients = check (check response.data).ensureType();
+    return clients.length() > 0;
 }
 
 # Checks whether the broker contributed spans of its own to a trace.

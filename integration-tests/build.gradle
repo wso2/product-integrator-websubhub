@@ -213,17 +213,56 @@ def ensureRunning = { String name ->
     }
 }
 
-// The persistence tests stop and start the consolidator, to exercise how it persists and restores the system state.
-// The processes of the components belong to this build, hence it serves those requests of the tests while they run:
+// The persistence tests stop and start the consolidator, to exercise how it persists and restores the system state,
+// and the reconnection tests restart the broker. The processes of the components and the broker belong to this build,
+// hence it serves those requests of the tests while they run:
 //   GET  /components/consolidator        - {"running": <boolean>, "exitCode": <int, once it has exited>}
 //   POST /components/consolidator/stop   - stops the consolidator, gracefully if it allows
 //   POST /components/consolidator/start  - starts the consolidator, without waiting for it to be ready
+//   POST /broker/restart                 - restarts the broker and waits until it is up again
 // The server only listens on the loopback interface.
 def controlServer = [:]
+
+def sendControlResponse = { exchange, int status, Map response ->
+    byte[] body = groovy.json.JsonOutput.toJson(response).getBytes('UTF-8')
+    exchange.responseHeaders.add('Content-Type', 'application/json')
+    exchange.sendResponseHeaders(status, body.length)
+    exchange.responseBody.withStream { it.write(body) }
+}
+
+// Restarts the broker, keeping its configuration and messages, and waits until its message VPN is up again
+def restartBroker = {
+    def processBuilder = new ProcessBuilder(composeCommand(['restart', 'solace']))
+    processBuilder.environment().putAll(composeEnvironment.collectEntries { key, value -> [key, value.toString()] })
+    processBuilder.redirectErrorStream(true)
+    processBuilder.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(logsDir, 'broker-restart.log')))
+    Process process = processBuilder.start()
+    if (!process.waitFor(180, java.util.concurrent.TimeUnit.SECONDS) || process.exitValue() != 0) {
+        throw new GradleException('Failed to restart the broker, see broker-restart.log')
+    }
+    waitUntil('the message VPN of the broker to be up after the restart', startupTimeoutSeconds) {
+        def response = httpGet("http://localhost:${brokerSempPort}/SEMP/v2/monitor/msgVpns/default?select=state",
+                'admin:admin')
+        response.status == 200 && new JsonSlurper().parseText(response.body)?.data?.state == 'up'
+    }
+    logger.lifecycle('Restarted the broker')
+}
 
 def startControlServer = {
     def server = com.sun.net.httpserver.HttpServer.create(
             new InetSocketAddress(InetAddress.loopbackAddress, controlPort as int), 0)
+    server.createContext('/broker/restart', { exchange ->
+        if (exchange.requestMethod != 'POST') {
+            sendControlResponse(exchange, 404, [message: "Unsupported request: ${exchange.requestMethod}".toString()])
+            return
+        }
+        try {
+            restartBroker()
+            sendControlResponse(exchange, 200, [:])
+        } catch (Exception failure) {
+            sendControlResponse(exchange, 500, [message: failure.message ?: failure.toString()])
+        }
+    } as com.sun.net.httpserver.HttpHandler)
     String context = '/components/consolidator'
     server.createContext(context, { exchange ->
         int status = 200
@@ -254,14 +293,11 @@ def startControlServer = {
             status = 500
             response = [message: failure.message ?: failure.toString()]
         }
-        byte[] body = groovy.json.JsonOutput.toJson(response).getBytes('UTF-8')
-        exchange.responseHeaders.add('Content-Type', 'application/json')
-        exchange.sendResponseHeaders(status, body.length)
-        exchange.responseBody.withStream { it.write(body) }
+        sendControlResponse(exchange, status, response)
     } as com.sun.net.httpserver.HttpHandler)
     server.start()
     controlServer.server = server
-    logger.lifecycle("Serving the restarts of the consolidator on port ${controlPort}")
+    logger.lifecycle("Serving the restarts of the consolidator and the broker on port ${controlPort}")
 }
 
 def stopControlServer = {
