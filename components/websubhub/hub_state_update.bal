@@ -19,6 +19,7 @@ import websubhub.config;
 import websubhub.connections as conn;
 
 import ballerina/http;
+import ballerina/jballerina.java;
 import ballerina/lang.runtime;
 import ballerina/lang.value;
 import ballerina/log;
@@ -54,7 +55,7 @@ function initializeHubState() returns error? {
 // The state-update events are consumed for as long as the hub runs. When the connection to the message store is lost,
 // e.g. while the broker restarts, the consumer is reconnected and the consumption resumes. An event that was received
 // but not acknowledged is redelivered once the consumer is reconnected.
-function updateHubState() returns error? {
+function updateHubState() {
     do {
         while true {
             storeapi:Message|error? message = conn:websubEventsConsumer->receive();
@@ -82,11 +83,21 @@ function updateHubState() returns error? {
             }
         }
     } on fail error e {
-        common:logFatalError("Stopped processing state-update events", e);
-        check conn:websubEventsConsumer->close();
-        return e;
+        error? closeResult = conn:websubEventsConsumer->close();
+        if closeResult is error {
+            common:logFatalError("Error occurred while closing the state-update event consumer", closeResult);
+        }
+        common:logFatalError("Stopped processing state-update events, hence exiting the hub", e);
+        exit(1);
     }
 }
+
+// Terminates the process with the given exit code
+isolated function exit(int status) = @java:Method {
+    'class: "java.lang.System",
+    name: "exit",
+    paramTypes: ["int"]
+} external;
 
 // Reconnects the state-update event consumer, retrying until the message store is reachable again
 function reconnectWebSubEventsConsumer() {
