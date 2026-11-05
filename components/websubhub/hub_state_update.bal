@@ -56,6 +56,7 @@ function initializeHubState() returns error? {
 // e.g. while the broker restarts, the consumer is reconnected and the consumption resumes. An event that was received
 // but not acknowledged is redelivered once the consumer is reconnected.
 function updateHubState() {
+    validateReconnectInterval();
     do {
         while true {
             storeapi:Message|error? message = conn:websubEventsConsumer->receive();
@@ -99,7 +100,8 @@ isolated function exit(int status) = @java:Method {
     paramTypes: ["int"]
 } external;
 
-// Reconnects the state-update event consumer, retrying until the message store is reachable again
+// Reconnects the state-update event consumer, retrying every `state.reconnect.interval` until the message store is
+// reachable again
 function reconnectWebSubEventsConsumer() {
     while true {
         error? result = conn:websubEventsConsumer->reconnect();
@@ -108,8 +110,20 @@ function reconnectWebSubEventsConsumer() {
             return;
         }
         common:logRecoverableError("Error occurred while reconnecting the state-update event consumer", result);
-        runtime:sleep(config:delivery.reconnectInterval < 0d ? 1d : config:delivery.reconnectInterval);
+        runtime:sleep(getReconnectInterval());
     }
+}
+
+function validateReconnectInterval() {
+    if config:state.reconnect.interval < 0d {
+        log:printWarn("state configuration: reconnect interval should be greater than or equal to 0. Hence falling back to default value of 1 second");
+    } else if config:state.reconnect.interval == 0d {
+        log:printWarn("state configuration: reconnect interval is set to 0, which may cause continuous reconnection attempts");
+    }
+}
+
+function getReconnectInterval() returns decimal {
+    return config:state.reconnect.interval < 0d ? 1d : config:state.reconnect.interval;
 }
 
 function processStateUpdateEvent(string persistedData) returns error? {
