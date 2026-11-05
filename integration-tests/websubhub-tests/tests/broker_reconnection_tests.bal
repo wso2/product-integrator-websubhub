@@ -21,7 +21,7 @@ import ballerina/uuid;
 
 // Reconnection to the broker. The broker restarts e.g. during maintenance, and the hub has to resume consuming both
 // the state-update events and the content to deliver once the broker is back. The consolidator exits when it loses the
-// broker, so that it is restarted, hence the test starts it again. The test leaves every component connected to the
+// broker, so that it is restarted, hence the test restarts it. The test leaves every component connected to the
 // broker again, so that the other tests are unaffected.
 
 // The time in seconds to allow the components to reconnect to the broker once it is back
@@ -34,7 +34,9 @@ function testHubResumesConsumingAfterBrokerRestart() returns error? {
     check subscribeAndWait(topicBefore, idBefore);
 
     check restartBroker();
-    check restoreConsolidator();
+    // The consolidator may not have noticed the restart yet, in which case it still reports itself ready, hence it is
+    // restarted whether or not it has exited
+    check restartConsolidator();
 
     // The hub resumes consuming the state-update events, so a topic registered after the restart becomes usable
     final string topicAfter = newTopic();

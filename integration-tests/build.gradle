@@ -230,7 +230,27 @@ def sendControlResponse = { exchange, int status, Map response ->
     exchange.responseBody.withStream { it.write(body) }
 }
 
-// Restarts the broker, keeping its configuration and messages, and waits until its message VPN is up again
+// Waits until the broker can serve the components: its message VPN is up and its message spool can create queues
+def waitForBrokerReady = {
+    String sempUrl = "http://localhost:${brokerSempPort}/SEMP/v2"
+    waitUntil('the message VPN of the broker to be up', startupTimeoutSeconds) {
+        def response = httpGet("${sempUrl}/monitor/msgVpns/default?select=state", 'admin:admin')
+        response.status == 200 && new JsonSlurper().parseText(response.body)?.data?.state == 'up'
+    }
+    // The broker reports the message VPN as up before its message spool can create queues, so wait until a
+    // queue can be created
+    waitUntil('the message spool of the broker to be ready', startupTimeoutSeconds) {
+        int status = httpSend('POST', "${sempUrl}/config/msgVpns/default/queues", 'admin:admin',
+                '{"queueName":"websubhub-it-readiness","ingressEnabled":true,"egressEnabled":true}')
+        if (status == 200) {
+            httpSend('DELETE', "${sempUrl}/config/msgVpns/default/queues/websubhub-it-readiness", 'admin:admin',
+                    null)
+        }
+        status == 200
+    }
+}
+
+// Restarts the broker, keeping its configuration and messages, and waits until it is ready again
 def restartBroker = {
     def processBuilder = new ProcessBuilder(composeCommand(['restart', 'solace']))
     processBuilder.environment().putAll(composeEnvironment.collectEntries { key, value -> [key, value.toString()] })
@@ -240,11 +260,7 @@ def restartBroker = {
     if (!process.waitFor(180, java.util.concurrent.TimeUnit.SECONDS) || process.exitValue() != 0) {
         throw new GradleException('Failed to restart the broker, see broker-restart.log')
     }
-    waitUntil('the message VPN of the broker to be up after the restart', startupTimeoutSeconds) {
-        def response = httpGet("http://localhost:${brokerSempPort}/SEMP/v2/monitor/msgVpns/default?select=state",
-                'admin:admin')
-        response.status == 200 && new JsonSlurper().parseText(response.body)?.data?.state == 'up'
-    }
+    waitForBrokerReady()
     logger.lifecycle('Restarted the broker')
 }
 
@@ -339,22 +355,7 @@ tasks.register('startBroker') {
             environment composeEnvironment
         }
 
-        String sempUrl = "http://localhost:${brokerSempPort}/SEMP/v2"
-        waitUntil('the message VPN of the broker to be up', startupTimeoutSeconds) {
-            def response = httpGet("${sempUrl}/monitor/msgVpns/default?select=state", 'admin:admin')
-            response.status == 200 && new JsonSlurper().parseText(response.body)?.data?.state == 'up'
-        }
-        // The broker reports the message VPN as up before its message spool can create queues, so wait until a
-        // queue can be created
-        waitUntil('the message spool of the broker to be ready', startupTimeoutSeconds) {
-            int status = httpSend('POST', "${sempUrl}/config/msgVpns/default/queues", 'admin:admin',
-                    '{"queueName":"websubhub-it-readiness","ingressEnabled":true,"egressEnabled":true}')
-            if (status == 200) {
-                httpSend('DELETE', "${sempUrl}/config/msgVpns/default/queues/websubhub-it-readiness", 'admin:admin',
-                        null)
-            }
-            status == 200
-        }
+        waitForBrokerReady()
         logger.lifecycle("The broker is ready (SMF port ${brokerSmfPort}, SEMP port ${brokerSempPort})")
 
         // Telemetry of the broker, which cannot be configured through the image. The profile is created with span
