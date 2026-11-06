@@ -41,7 +41,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "constraint"
-version = "1.7.2"
+version = "1.7.3"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"}
 ]
@@ -375,7 +375,7 @@ dependencies = [
 [[package]]
 org = "ballerinax"
 name = "confluent.cregistry"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"}
 ]
@@ -406,7 +406,7 @@ dependencies = [
 [[package]]
 org = "ballerinax"
 name = "kafka"
-version = "4.6.7"
+version = "4.6.8"
 dependencies = [
 	{org = "ballerina", name = "crypto"},
 	{org = "ballerina", name = "jballerina.java"},
@@ -443,7 +443,7 @@ dependencies = [
 [[package]]
 org = "wso2"
 name = "websubhub"
-version = "1.0.12"
+version = "1.0.13-SNAPSHOT"
 dependencies = [
 	{org = "ballerina", name = "http"},
 	{org = "ballerina", name = "jballerina.java"},

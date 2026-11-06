@@ -13,6 +13,9 @@ url = "http://localhost:10001/consolidator/state-snapshot"
 topic = "websub-events"
 consumerIdPrefix = "websub-events-consumer"
 
+# [websubhub.config.state.reconnect]
+# interval = 1.0
+
 [websubhub.config.store.kafka]
 bootstrapServers = "localhost:9092"
 

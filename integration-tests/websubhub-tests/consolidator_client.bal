@@ -88,6 +88,18 @@ public isolated function restartConsolidator() returns error? {
     check startConsolidatorAndWait();
 }
 
+// Restarting the broker takes longer than the default timeout of a request
+final http:Client brokerControlClient = check new (controlUrl, timeout = 300);
+
+# Restarts the broker, keeping its configuration and messages, and waits until it is up again. The hub and the
+# consolidator lose their connections to the broker while it restarts.
+#
+# + return - An `error` if the broker could not be restarted
+public isolated function restartBroker() returns error? {
+    http:Response response = check brokerControlClient->post("/broker/restart", ());
+    check expectSuccess(response, "restart the broker");
+}
+
 # Retrieves the status of the process of the consolidator.
 #
 # + return - The status, or an `error` if the request fails
