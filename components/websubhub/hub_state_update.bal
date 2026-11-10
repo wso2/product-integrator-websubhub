@@ -70,12 +70,14 @@ function updateHubState() {
                 continue;
             }
 
-            string lastPersistedData = check string:fromBytes(message.payload);
-            error? result = processStateUpdateEvent(lastPersistedData);
+            string|error lastPersistedData = string:fromBytes(message.payload);
+            error? result = lastPersistedData is string ? processStateUpdateEvent(lastPersistedData) : lastPersistedData;
             if result is error {
-                common:logFatalError("Error occurred while processing state-update event", result);
-                check conn:websubEventsConsumer->nack(message);
-                check result;
+                common:logRecoverableError(
+                        "Error occurred while processing state-update event, hence moving it to the dead-letter queue",
+                        result);
+                check conn:websubEventsConsumer->deadLetter(message);
+                continue;
             }
             error? ackResult = conn:websubEventsConsumer->ack(message);
             if ackResult is error {
