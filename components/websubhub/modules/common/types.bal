@@ -110,6 +110,11 @@ public type ServerStateConfig record {|
         # State sync retry interval
         decimal retryInterval = 3.0;
     |} sync = {};
+    # Configurations for reconnecting the state-update event consumer to the message store.
+    record {|
+        # Delay in seconds between consecutive reconnect attempts when reconnect fails
+        decimal interval = 1.0;
+    |} reconnect = {};
 |};
 
 # Defines configurations for an HTTP client.
