@@ -42,11 +42,15 @@ public isolated function distributeContentNotification(readonly & websubhub:Veri
     }
 }
 
-isolated function startDispatchTask(websubhub:VerifiedSubscription subscription) returns error? {
+isolated function startDispatchTask(websubhub:VerifiedSubscription subscription) {
     string subscriberId = common:generateSubscriberId(subscription.hubTopic, subscription.hubCallback);
     string topic = subscription.hubTopic;
-    var [consumerEp, consumerMetadata] = check conn:createConsumer(subscription);
-    Dispatcher contentDispatcher = check createDispatcher(subscription, consumerEp, consumerMetadata);
+    [storeapi:Consumer, storeapi:ConsumerMetadata, Dispatcher]? dispatchResources =
+        initDispatchResourcesWithRetry(subscription, subscriberId);
+    if dispatchResources is () {
+        return;
+    }
+    var [consumerEp, consumerMetadata, contentDispatcher] = dispatchResources;
     string? messageId = ();
     do {
         while true {
@@ -133,14 +137,59 @@ isolated function startDispatchTask(websubhub:VerifiedSubscription subscription)
             common:logRecoverableError("Error occurred while gracefully closing message store consumer", result);
         }
         // Persist the subscription as a `stale` subscription whenever the content delivery fails
-        common:StaleSubscription staleSubscription = {
-            ...subscription
-        };
-        error? persistResult = persist:addStaleSubscription(staleSubscription);
-        if persistResult is error {
-            common:logRecoverableError(
-                    "Error occurred while persisting the stale subscription", persistResult, subscription = staleSubscription);
+        markSubscriptionAsStale(subscription);
+    }
+}
+
+isolated function initDispatchResourcesWithRetry(websubhub:VerifiedSubscription subscription, string subscriberId)
+        returns [storeapi:Consumer, storeapi:ConsumerMetadata, Dispatcher]? {
+    int maxRetries = getStartRetries();
+    int retries = 0;
+    while true {
+        if !isValidConsumer(subscription.hubTopic, subscriberId) {
+            return;
         }
+        [storeapi:Consumer, storeapi:ConsumerMetadata, Dispatcher]|error result = initDispatchResources(subscription);
+        if result !is error {
+            return result;
+        }
+        if retries >= maxRetries {
+            common:logRecoverableError(
+                    "Failed to start the content delivery for the subscription, hence marking it as stale", result,
+                    topic = subscription.hubTopic, callback = subscription.hubCallback, attempts = retries + 1);
+            markSubscriptionAsStale(subscription);
+            return;
+        }
+        retries += 1;
+        common:logRecoverableError("Error occurred while starting the content delivery for the subscription, hence retrying",
+                result, topic = subscription.hubTopic, callback = subscription.hubCallback, retryAttempt = retries,
+                maxRetries = maxRetries);
+        runtime:sleep(getReconnectInterval());
+    }
+}
+
+isolated function initDispatchResources(websubhub:VerifiedSubscription subscription)
+        returns [storeapi:Consumer, storeapi:ConsumerMetadata, Dispatcher]|error {
+    var [consumerEp, consumerMetadata] = check conn:createConsumer(subscription);
+    Dispatcher|error contentDispatcher = createDispatcher(subscription, consumerEp, consumerMetadata);
+    if contentDispatcher is error {
+        error? closeResult = consumerEp->close(storeapi:TEMPORARY);
+        if closeResult is error {
+            common:logRecoverableError("Error occurred while gracefully closing message store consumer", closeResult);
+        }
+        return contentDispatcher;
+    }
+    return [consumerEp, consumerMetadata, contentDispatcher];
+}
+
+isolated function markSubscriptionAsStale(websubhub:VerifiedSubscription subscription) {
+    common:StaleSubscription staleSubscription = {
+        ...subscription
+    };
+    error? persistResult = persist:addStaleSubscription(staleSubscription);
+    if persistResult is error {
+        common:logRecoverableError(
+                "Error occurred while persisting the stale subscription", persistResult, subscription = staleSubscription);
     }
 }
 

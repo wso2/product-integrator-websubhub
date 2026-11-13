@@ -28,6 +28,9 @@ isolated function validateRetryConfig() returns error? {
     } else if config:delivery.reconnectInterval == 0.0d {
         log:printWarn("delivery configuration: reconnectInterval is set to 0, which may cause continuous reconnection attempts");
     }
+    if config:delivery.startRetries < 0 {
+        log:printWarn("delivery configuration: startRetries should be greater than or equal to 0. Hence falling back to 0");
+    }
 
     var retryConfig = config:delivery.'retry;
     if retryConfig is () {
@@ -43,6 +46,10 @@ isolated function validateRetryConfig() returns error? {
 
 isolated function getReconnectInterval() returns decimal {
     return config:delivery.reconnectInterval < 0.0d ? 1.0d : config:delivery.reconnectInterval;
+}
+
+isolated function getStartRetries() returns int {
+    return config:delivery.startRetries < 0 ? 0 : config:delivery.startRetries;
 }
 
 isolated function getRetryConfig() returns common:HttpRetryConfig|common:MessageStoreRetryConfig? {

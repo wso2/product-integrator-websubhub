@@ -166,11 +166,11 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
     # + message - Details of the subscription
     # + return - `error` if there is any unexpected error or else `()`
     isolated remote function onSubscriptionIntentVerified(websubhub:VerifiedSubscription message) returns error? {
-        websubhub:VerifiedSubscription subscription = self.prepareSubscriptionToBePersisted(message);
+        var [subscription, isRenewal] = self.prepareSubscriptionToBePersisted(message);
         do {
             log:printDebug("Persisting subscription event",
                     topic = message.hubTopic, callback = message.hubCallback, 'type = "state-update", serverId = config:serverId);
-            check admin:createSubscription(subscription);
+            check admin:createSubscription(subscription, reuseExisting = isRenewal);
             check persist:addSubscription(subscription);
         } on fail error subscriptionErr {
             string errorMessage = string
@@ -180,7 +180,8 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
         }
     }
 
-    isolated function prepareSubscriptionToBePersisted(websubhub:VerifiedSubscription message) returns websubhub:VerifiedSubscription {
+    isolated function prepareSubscriptionToBePersisted(websubhub:VerifiedSubscription message)
+            returns [websubhub:VerifiedSubscription, boolean] {
         string subscriberId = common:generateSubscriberId(message.hubTopic, message.hubCallback);
         websubhub:VerifiedSubscription? subscription = state:getSubscription(subscriberId);
         // if we have a stale subscription, remove the `status` flag from the subscription and persist it again
@@ -189,11 +190,11 @@ websubhub:Service hubService = @websubhub:ServiceConfig {
                 ...subscription
             };
             _ = updatedSubscription.removeIfHasKey(common:SUBSCRIPTION_STATUS);
-            return updatedSubscription;
+            return [updatedSubscription, true];
         }
         message[common:SUBSCRIPTION_TIMESTAMP] = time:monotonicNow().toBalString();
         message[common:SUBSCRIPTION_SERVER_ID] = config:serverId;
-        return message;
+        return [message, false];
     }
 
     # Unsubscribes a `subscriber` from the hub.
