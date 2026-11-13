@@ -108,6 +108,38 @@ function testUnsubscribe() returns error? {
             "the subscription to be removed from the consolidator");
 }
 
+// The first attempt and the `delivery.retry.count` retries of resources/hub.toml
+const int DELIVERY_ATTEMPTS = 4;
+
+@test:Config {groups: ["subscriptions"]}
+function testRenewStaleSubscription() returns error? {
+    final string topic = newTopic();
+    final string id = uuid:createType4AsString();
+    final string callback = callbackUrl(id);
+    check subscribeAndWait(topic, id);
+
+    failNextDeliveries(id, DELIVERY_ATTEMPTS);
+    final readonly & json failedContent = {"event": "failed-delivery", "id": id};
+    http:Response response = check publish(topic, failedContent);
+    test:assertEquals(response.statusCode, http:STATUS_OK, "Content publishing should be accepted");
+    check waitUntil(isolated function() returns boolean => pendingFailuresOf(id) == 0,
+            "the hub to exhaust the delivery attempts");
+
+    final readonly & json staleContent = {"event": "published-while-stale", "id": id};
+    response = check publish(topic, staleContent);
+    test:assertEquals(response.statusCode, http:STATUS_OK, "Content publishing should be accepted");
+
+    check waitUntil(isolated function() returns boolean|error => renewSubscription(topic, callback, id),
+            "the stale subscription to be renewed");
+
+    check waitUntil(isolated function() returns boolean|error {
+        json[] payloads = from ContentDelivery delivery in deliveriesOf(id)
+            select check value:fromJsonString(delivery.payload);
+        return payloads.indexOf(failedContent) !is () && payloads.indexOf(staleContent) !is ();
+    }, "the content of the stale period to be delivered after the renewal");
+    test:assertFalse(hasVerification(id, "hub-error"), "The renewal of a stale subscription should not fail");
+}
+
 // ========================================
 // Content publishing and delivery
 // ========================================
@@ -139,6 +171,16 @@ function testPublishToUnregisteredTopic() returns error? {
 // ========================================
 // Helpers
 // ========================================
+
+isolated function renewSubscription(string topic, string callback, string id) returns boolean|error {
+    final int verifications = verificationsOf(id).length();
+    http:Response response = check subscribe(topic, callback);
+    test:assertEquals(response.statusCode, http:STATUS_ACCEPTED, "Subscription request should be accepted");
+    check waitUntil(isolated function() returns boolean => verificationsOf(id).length() > verifications,
+            "the hub to verify or deny the subscription");
+    VerificationRequest[] received = verificationsOf(id);
+    return received[received.length() - 1].mode == "subscribe";
+}
 
 isolated function newTopic() returns string => string `websubhub-it/topic-${uuid:createType4AsString()}`;
 

@@ -58,7 +58,7 @@ public isolated function deleteTopic(websubhub:TopicDeregistration topicDeregist
     return result;
 }
 
-public isolated function createSubscription(websubhub:VerifiedSubscription subscription)
+public isolated function createSubscription(websubhub:VerifiedSubscription subscription, boolean reuseExisting = false)
     returns websubhub:InternalSubscriptionError|error? {
 
     string topic = subscription.hubTopic;
@@ -66,6 +66,11 @@ public isolated function createSubscription(websubhub:VerifiedSubscription subsc
     string consumerName = constructConsumerId(topic, subscription.hubCallback, timestamp);
     error? result = administrator->createSubscription(topic, consumerName, false, subscription);
     if result is storeapi:SubscriptionExists {
+        if reuseExisting {
+            log:printInfo("Reusing the existing message store entities of the renewed subscription",
+                    topic = topic, callback = subscription.hubCallback, consumerName = consumerName);
+            return;
+        }
         string errorMessage = string `Subscription for topic ${topic} and callback ${subscription.hubCallback} ` +
             string `with consumer-name ${consumerName} already exists in the message store.`;
         return error websubhub:InternalSubscriptionError(errorMessage, statusCode = http:STATUS_CONFLICT);

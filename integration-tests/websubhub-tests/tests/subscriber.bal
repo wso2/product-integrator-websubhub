@@ -40,6 +40,7 @@ type ContentDelivery record {|
 
 isolated map<VerificationRequest[]> verificationRequests = {};
 isolated map<ContentDelivery[]> contentDeliveries = {};
+isolated map<int> pendingFailures = {};
 
 // Test subscribers, each identified by the last segment of its callback URL
 listener http:Listener subscriberListener = new (subscriberPort);
@@ -61,7 +62,14 @@ service /callback on subscriberListener {
     }
 
     // Content delivery
-    resource function post [string id](http:Request request) returns http:Ok|error {
+    resource function post [string id](http:Request request) returns http:Ok|http:InternalServerError|error {
+        lock {
+            int failures = pendingFailures[id] ?: 0;
+            if failures > 0 {
+                pendingFailures[id] = failures - 1;
+                return http:INTERNAL_SERVER_ERROR;
+            }
+        }
         string|http:HeaderNotFoundError signature = request.getHeader("X-Hub-Signature");
         string|http:HeaderNotFoundError contentType = request.getHeader("Content-Type");
         ContentDelivery delivery = {
@@ -85,6 +93,18 @@ isolated function verificationsOf(string id) returns VerificationRequest[] {
 isolated function deliveriesOf(string id) returns ContentDelivery[] {
     lock {
         return (contentDeliveries[id] ?: []).clone();
+    }
+}
+
+isolated function failNextDeliveries(string id, int count) {
+    lock {
+        pendingFailures[id] = count;
+    }
+}
+
+isolated function pendingFailuresOf(string id) returns int {
+    lock {
+        return pendingFailures[id] ?: 0;
     }
 }
 
