@@ -138,6 +138,9 @@ public type ContentDeliveryClientConfig record {|
     |} 'retry?;
     # Delay in seconds between consecutive message-store reconnect attempts when reconnect fails
     decimal reconnectInterval = 1.0;
+    # Number of times starting the content delivery of a subscription is retried, `reconnectInterval` apart, before
+    # the subscription is marked as stale
+    int startRetries = 3;
     # SSL/TLS configurations for the HTTP client
     http:ClientSecureSocket secureSocket?;
 |};
